@@ -9,14 +9,19 @@ struct PreparedPhoto: @unchecked Sendable {
     let width: Int
     let height: Int
     let isRAW: Bool
+    var signalImage: CIImage? = nil
+    func source(for recipe:Recipe) -> CIImage { recipe.input.profile == .standard ? image : (signalImage ?? image) }
 }
 struct ExportResult: Sendable { let url: URL; let width: Int; let height: Int }
 enum StudioError: LocalizedError {
-    case unreadable, render, unsupportedPreset
+    case unreadable, render, unsupportedPreset, unsupportedHDRVideo, unsupportedVideoAudio, unsupportedVideoSize
     var errorDescription: String? {
         switch self {
-        case .unreadable: "This file could not be opened. Try an original JPEG, HEIF, PNG, TIFF or supported RAW photograph."
+        case .unreadable: "This file could not be opened. Try a JPEG, HEIF, PNG, TIFF, supported RAW photo, or an unprotected MOV/MP4 video."
         case .render: "The image could not be rendered. Your original and saved adjustments are safe."
+        case .unsupportedVideoSize: "This video release supports clips up to 4K. The original was not changed."
+        case .unsupportedHDRVideo: "PQ/HLG HDR clips are not supported in this SDR video release. Use an SDR or Apple Log original instead."
+        case .unsupportedVideoAudio: "This clip’s audio tracks could not be preserved. Try a MOV or MP4 with standard audio."
         case .unsupportedPreset: "This preset uses an unsupported format."
         }
     }
@@ -33,10 +38,12 @@ enum ImageEngine {
     }
     static func open(_ url: URL, maxDimension: Double? = nil) throws -> PreparedPhoto {
         try ColorPipeline.prepare()
+        try LogConversion.prepare()
         let source = CGImageSourceCreateWithURL(url as CFURL, nil)
         let type = source.flatMap { CGImageSourceGetType($0) }.flatMap { UTType($0 as String) }
         let raw = type?.conforms(to: .rawImage) == true || ["dng","nef","arw","cr2","cr3","raf","orf","rw2"].contains(url.pathExtension.lowercased())
         var image: CIImage
+        var signal: CIImage?
         var nativeWidth = 0, nativeHeight = 0
         if raw {
             guard let filter = CIRAWFilter(imageURL: url), let fullGraph = filter.outputImage else { throw StudioError.unreadable }
@@ -61,16 +68,18 @@ enum ImageEngine {
             let options: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true, kCGImageSourceThumbnailMaxPixelSize: Int(maxDimension), kCGImageSourceShouldCacheImmediately: true]
             guard let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { throw StudioError.unreadable }
             image = CIImage(cgImage: cg)
+            signal = CIImage(cgImage:cg,options:[.colorSpace:NSNull()])
         } else {
             guard let decoded = CIImage(contentsOf: url, options: [.applyOrientationProperty: true]) else { throw StudioError.unreadable }
+            signal = CIImage(contentsOf:url,options:[.applyOrientationProperty:true,.colorSpace:NSNull()])
             image = decoded; nativeWidth = Int(image.extent.width); nativeHeight = Int(image.extent.height)
         }
         guard image.extent.width > 0, image.extent.height > 0, !image.extent.isInfinite else { throw StudioError.unreadable }
         image = image.transformed(by: .init(translationX: -image.extent.minX, y: -image.extent.minY))
-        return PreparedPhoto(image: image, width: nativeWidth, height: nativeHeight, isRAW: raw)
+        return PreparedPhoto(image: image, width: nativeWidth, height: nativeHeight, isRAW: raw,signalImage:signal.map { $0.transformed(by:.init(translationX:-$0.extent.minX,y:-$0.extent.minY)) })
     }
     static func apply(_ source: CIImage, recipe r: Recipe, rangePreview: ColorRange? = nil) -> CIImage {
-        var image = source
+        var image = LogConversion.apply(source,input:r.input)
         func filter(_ name: String, _ values: [String: Any]) { image = image.applyingFilter(name, parameters: values) }
         if r.exposure != 0 { filter("CIExposureAdjust", [kCIInputEVKey: r.exposure]) }
         if r.warmth != 0 || r.tint != 0 {
@@ -127,7 +136,7 @@ enum ImageEngine {
     static func export(source: URL, recipe: Recipe, format: ExportFormat) throws -> ExportResult {
         try autoreleasepool {
             let original = try open(source)
-            let image = apply(original.image, recipe: recipe)
+            let image = apply(original.source(for:recipe), recipe: recipe)
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("Stillarc-\(UUID().uuidString.prefix(8)).\(format.ext)")
             let context = context()
             if format == .jpeg {

@@ -20,7 +20,9 @@ Next: freeform crop bounds, perspective and lens corrections; texture/clarity/de
 
 Implemented in 0.5: one display-sRGB 3D .cube LUT, strict size/domain/value validation, live strength, self-contained schema-2 Studio look presets, preserved framing, reset/undo and full-resolution export matching. Immutable imported tables are shared by history; parsing and saving run away from the UI actor.
 
-Next: explicit camera Log and wide-gamut input/output transforms, 1D shapers, LUT stacking, LUT export for compatible global color operations, and separate full-recipe export for effects that LUTs cannot carry. Build film density/print response, luminance-aware grain and physically motivated halation independently of bloom. Measure effect scale consistency across preview/export. Define a versioned Camera/Studio shared-look contract before either app claims exchange compatibility.
+Implemented in 0.6: explicit Apple Log/Log 2 input conversion, per-source exposure and an optional SDR shoulder before creative grading.
+
+Next: other camera Log and wide-gamut input/output transforms, 1D shapers, LUT stacking, LUT export for compatible global color operations, and separate full-recipe export for effects that LUTs cannot carry. Build film density/print response, luminance-aware grain and physically motivated halation independently of bloom. Measure effect scale consistency across preview/export. Define a versioned Camera/Studio shared-look contract before either app claims exchange compatibility.
 
 ## 4 — Selective edits and workflow
 
@@ -28,7 +30,9 @@ Brush/linear/radial and color/luminance masks with invert, feather, add/subtract
 
 ## 5 — Video grading
 
-Apply the validated grading model to photo and video with managed Log transforms, 10-bit fidelity where supported, temporal stability, trimmed clips, efficient playback, cancellation/progress and HEVC/H.264/ProRes exports subject to hardware. Stress thermal/memory behavior before release. A mobile grading workflow, not a full video timeline editor.
+Implemented in 0.6: single-clip Photos/Files import, playback/scrubbing, shared reversible grading, Apple Log/Log 2 conversion, full-size 10/8-bit HEVC SDR export with original audio/frame timing, progress/cancellation and thermal pacing.
+
+Next: 10-bit fidelity where supported, temporal stability, trimmed clips, efficient playback, cancellation/progress and HEVC/H.264/ProRes exports subject to hardware. Stress thermal/memory behavior before release. A mobile grading workflow, not a full video timeline editor.
 
 ## Performance release gates
 

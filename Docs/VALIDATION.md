@@ -1,5 +1,23 @@
 # Validation
 
+## 0.6.0, build 6 — Log input and single-clip video
+
+Passed on the black iPhone 16 Pro:
+
+- Apple Log/Log 2 inverse-curve anchors, 16 extended linear-color vectors for both gamuts, exposure/alpha, optional SDR highlight shoulder, Standard bypass, persistence and input/preset isolation.
+- Generated native 10-bit HEVC fixtures for standard, Apple Log and Apple Log 2; native metadata detection, portrait orientation, bounded poster size, preview/export colors against numeric references, project reopening, cancellation and unchanged source bytes.
+- All 18 source video frame presentation timestamps retained in each clip. All compressed audio payload hashes retained, including two audio tracks in the standard fixture. Export duration remained within 50 ms of the source.
+- Alternate 8-bit HEVC export matched the preview. A 3840×2160 Log 2 source exported a 2160×2160 crop with all three frames retained.
+- AVPlayer's decoded Log 2 frame matched the same reference used for export.
+
+The optimized device diagnostic played a **1920×1080, 30 fps, 10-bit Log 2 generated clip** in a loop, while requesting **7,200 edits** to input exposure, a **65-point LUT**, global exposure, wheels and mixer with Daylight, grain and bloom enabled. During **131.29 seconds**, it decoded **3,719 frames**, completed **7,562 renders**, recorded **0 GPU failures**, and rendered **0 extra frames** during a three-second settled pause. Submission-to-GPU-completion p95 was **13.23 ms**. It is not touch-to-display latency or measured presentation FPS. Thermal state was **nominal → nominal**; no temperature sensor, energy/battery benchmark or complex long real-camera/4K playback test was captured. These generated constant-color clips do not establish performance for every codec, device or scene.
+
+The complete native iPhone 16 Pro and simulator photo suites also passed, including legacy projects/presets, all color tools, LUT validation, JPEG/PNG color matching, 400 geometry edge fixtures and synthetic 12/24/48MP exports. See raw reports below. Normal Release compilation/archive and strict code-signature verification passed; diagnostics are Debug-only.
+
+[Native video correctness](Verification/0.6.0/iPhone16Pro-video.json) · [Native playback stress](Verification/0.6.0/iPhone16Pro-video-preview.json) · [Simulator photo regressions](Verification/0.6.0/Simulator-photo.json) · [Native photo regressions](Verification/0.6.0/iPhone16Pro-photo.json)
+
+To rerun, use a Debug build with `--verify-video-suite`, or `--verify-video-preview --sustained-preview` for the foreground playback test. Reports are written to the app's Documents directory. Fixtures/exports use temporary isolated files and do not save anything to Photos. Existing `--verify-studio` photo checks remain available. Keep the phone foreground/unlocked during the sustained test.
+
 ## 0.5.0, build 5 — LUT import and reusable looks
 
 Passed on the black iPhone 16 Pro and simulator:

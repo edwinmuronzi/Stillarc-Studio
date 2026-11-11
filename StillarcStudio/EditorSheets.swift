@@ -11,6 +11,11 @@ import UniformTypeIdentifiers
     @State private var message: String?
     @State private var error: String?
     @State private var saving = false
+    @State private var videoProgress = 0.0
+    @State private var tenBitVideo = true
+    @State private var coolingVideo = false
+    @State private var exportTask:Task<ExportResult,Error>?
+    @Environment(\.scenePhase) private var phase
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -18,39 +23,54 @@ import UniformTypeIdentifiers
                     Image(systemName: "square.and.arrow.up.circle").font(.system(size: 46,weight: .light)).foregroundStyle(StudioStyle.blue)
                     Text("Ready for\nthe world.").font(.system(size: 36,weight: .semibold,design: .serif))
                     Text("A finished copy. Your original stays yours.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
-                    Picker("File format",selection: $format) { ForEach(ExportFormat.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).disabled(busy || result != nil)
+                    if !session.project.isVideo { Picker("File format",selection: $format) { ForEach(ExportFormat.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).disabled(busy || result != nil) }
+                    if session.project.isVideo { Picker("Video depth",selection:$tenBitVideo) { Text("10-bit HEVC").tag(true);Text("8-bit HEVC").tag(false) }.pickerStyle(.segmented).disabled(busy || result != nil) }
                     VStack(alignment: .leading,spacing: 14) {
                         exportDetail("Resolution",value: "Full original · crop applied")
-                        exportDetail("Color",value: "sRGB · SDR")
-                        exportDetail("Quality",value: format == .jpeg ? "96% JPEG" : "Lossless PNG · 8-bit")
+                        exportDetail("Color",value:session.project.isVideo ? "sRGB · SDR" : "sRGB · SDR")
+                        exportDetail("Quality",value:session.project.isVideo ? "HEVC · \(tenBitVideo ? 10 : 8)-bit · source frame timing" : (format == .jpeg ? "96% JPEG" : "Lossless PNG · 8-bit"))
+                        if session.project.isVideo { exportDetail("Audio",value:"Original tracks preserved") }
                         exportDetail("Privacy",value: "Location metadata omitted")
                     }.padding(20).background(StudioStyle.panel,in: RoundedRectangle(cornerRadius: 20))
                     if let result {
                         Label("\(result.width) × \(result.height) · Ready",systemImage: "checkmark.circle.fill").foregroundStyle(StudioStyle.blue).font(.subheadline)
                         ShareLink(item: result.url) { Label("Share or save to Files",systemImage: "square.and.arrow.up").frame(maxWidth: .infinity).padding(17).background(StudioStyle.blue,in: Capsule()).foregroundStyle(.white) }
                         Button { Task { await saveToPhotos(result.url) } } label: { HStack { if saving { ProgressView() }; Label("Save to Photos",systemImage: "photo.badge.arrow.down") }.frame(maxWidth: .infinity).padding(17).background(.white.opacity(0.07),in: Capsule()) }.disabled(saving)
-                        Button("Change export format") { self.result = nil; message = nil }.font(.subheadline).frame(maxWidth: .infinity)
+                        Button("Change export format") { discardExport(); message = nil }.font(.subheadline).frame(maxWidth: .infinity)
                     } else {
                         Button { Task { await render() } } label: {
-                            HStack { if busy { ProgressView().tint(.white) }; Text(busy ? "Developing full-resolution photo…" : "Create export").fontWeight(.semibold) }.font(.subheadline).frame(maxWidth: .infinity).padding(17).background(StudioStyle.blue,in: Capsule()).foregroundStyle(.white)
+                            HStack { if busy { ProgressView().tint(.white) }; Text(busy ? (session.project.isVideo ? "Exporting video…" : "Developing full-resolution photo…") : "Create export").fontWeight(.semibold) }.font(.subheadline).frame(maxWidth: .infinity).padding(17).background(StudioStyle.blue,in: Capsule()).foregroundStyle(.white)
                         }.disabled(busy)
                     }
+                    if busy && session.project.isVideo { ProgressView(value:videoProgress);if coolingVideo { Text("Paused to cool your iPhone. Export resumes when thermal state improves.").font(.caption).foregroundStyle(StudioStyle.secondary) };Button("Cancel export",role:.cancel) { exportTask?.cancel() } }
                     if let message { Label(message,systemImage: "checkmark.circle").font(.subheadline).foregroundStyle(StudioStyle.blue) }
                     if let error { Text(error).font(.subheadline).foregroundStyle(.orange) }
                     Text("The same adjustments are applied to the full-resolution source. Large RAW files can take longer to develop; you can continue editing after closing this sheet.").font(.caption).foregroundStyle(StudioStyle.secondary).lineSpacing(3)
                 }.padding(26)
-            }.background(StudioStyle.ink).navigationTitle("Export photo").navigationBarTitleDisplayMode(.inline)
-                .toolbar { Button("Done") { dismiss() }.disabled(saving) }
-                .interactiveDismissDisabled(saving)
+            }.background(StudioStyle.ink).navigationTitle(session.project.isVideo ? "Export video" : "Export photo").navigationBarTitleDisplayMode(.inline)
+                .toolbar { Button("Done") { dismiss() }.disabled(saving || busy) }
+                .interactiveDismissDisabled(saving || busy)
         }.tint(StudioStyle.blue)
+        .onDisappear { exportTask?.cancel();discardExport() }
+        .onChange(of:phase) { _,value in if value != .active { exportTask?.cancel() } }
+    }
+    private func discardExport() {
+        guard let url = result?.url else { return };result = nil
+        Task.detached(priority:.utility) { try? FileManager.default.removeItem(at:url) }
     }
     private func exportDetail(_ name: String,value: String) -> some View { HStack { Text(name).foregroundStyle(StudioStyle.secondary); Spacer(); Text(value).multilineTextAlignment(.trailing) }.font(.caption) }
     private func render() async {
         guard let source = session.sourceURL else { return }
-        busy = true; error = nil
-        let recipe = session.recipe, format = format
-        defer { busy = false }
-        do { result = try await Task.detached(priority: .userInitiated) { try ImageEngine.export(source: source,recipe: recipe,format: format) }.value }
+        busy = true;error = nil;videoProgress = 0
+        let recipe = session.recipe,format = format,video = session.project.video,tenBit = tenBitVideo
+        defer { busy = false;exportTask = nil }
+        let task = Task.detached(priority:.utility) {
+            if let video { return try await VideoEngine.export(source:source,descriptor:video,recipe:recipe,tenBit:tenBit,progress:{ value in await MainActor.run { videoProgress = value } },cooling:{ value in await MainActor.run { coolingVideo = value } }) }
+            return try ImageEngine.export(source:source,recipe:recipe,format:format)
+        }
+        exportTask = task
+        do { result = try await task.value }
+        catch is CancellationError { error = "Export cancelled. Your source and edits are safe." }
         catch { self.error = error.localizedDescription }
     }
     private func saveToPhotos(_ url: URL) async {
@@ -59,7 +79,10 @@ import UniformTypeIdentifiers
         let authorization = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard authorization == .authorized || authorization == .limited else { error = "Allow Stillarc Studio to add photos in Settings, or use Share to save to Files."; return }
         do {
-            try await PHPhotoLibrary.shared().performChanges { PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: url) }
+            try await PHPhotoLibrary.shared().performChanges {
+                if url.pathExtension.lowercased() == "mov" { PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL:url) }
+                else { PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL:url) }
+            }
             message = "Saved to Photos."
         } catch { self.error = error.localizedDescription }
     }
@@ -83,13 +106,13 @@ import UniformTypeIdentifiers
                     Button { importingLUT = true } label: { Label("Import .cube LUT",systemImage:"cube.transparent") }.disabled(loadingLUT)
                     if loadingLUT { ProgressView("Preparing LUT…") }
                     Button { importing = true } label: { Label("Import Studio preset",systemImage: "square.and.arrow.down") }
-                } footer: { Text("Presets save light, color, film and the LUT itself. Crop and rotation stay with the photograph. Import a display-sRGB LUT, then adjust its strength under Film.") }
+                } footer: { Text("Presets save light, color, film and the LUT itself. Input conversion, crop and rotation stay with the source. Import a display-sRGB LUT, then adjust its strength under Film.") }
                 Section("Your presets") {
                     if library.looks.isEmpty { Text("Your signature looks will live here.").foregroundStyle(StudioStyle.secondary) }
                     ForEach(library.looks) { look in
                         HStack {
                             Button {
-                                session.change { recipe in let framing = recipe; recipe = look.recipe; recipe.copyFraming(from: framing) }
+                                session.change { recipe in let framing = recipe; recipe = look.recipe; recipe.copyFraming(from: framing); recipe.input = framing.input }
                                 dismiss()
                             } label: { Label(look.name,systemImage: "camera.filters").foregroundStyle(.white) }
                             Spacer()

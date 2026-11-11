@@ -18,6 +18,7 @@ import UniformTypeIdentifiers
     @State private var comparing = false
     @State private var export = false
     @State private var presets = false
+    @State private var inputSheet = false
     @State private var reset = false
     @State private var numericEdit: NumericEdit?
     @State private var numericText = ""
@@ -74,7 +75,8 @@ import UniformTypeIdentifiers
         .onDisappear { Task { await session.persist(library) } }
         .sheet(isPresented: $export) { ExportSheet(session: session) }
         .sheet(isPresented: $presets) { PresetsSheet(session: session,library: library) }
-        .confirmationDialog("Reset all adjustments?",isPresented: $reset,titleVisibility: .visible) { Button("Reset photo",role: .destructive) { session.change { $0 = Recipe() } } } message: { Text("You can undo this. The original photograph is always preserved.") }
+        .sheet(isPresented:$inputSheet) { InputConversionSheet(session:session) }
+        .confirmationDialog("Reset all adjustments?",isPresented: $reset,titleVisibility: .visible) { Button("Reset adjustments",role: .destructive) { session.change { $0 = Recipe() } } } message: { Text("You can undo this. The original is always preserved.") }
         .alert(numericEdit.map { "Set \($0.name.lowercased())" } ?? "Set value",isPresented: Binding(get: { numericEdit != nil },set: { if !$0 { numericEdit = nil } })) {
             TextField("Value",text: $numericText).keyboardType(.numbersAndPunctuation)
             Button("Cancel",role: .cancel) { numericEdit = nil }
@@ -97,7 +99,7 @@ import UniformTypeIdentifiers
             Spacer(minLength: 0)
             Button { session.undo() } label: { Image(systemName: "arrow.uturn.backward").frame(width: 36,height: 44) }.disabled(session.undoStack.isEmpty).accessibilityLabel("Undo")
             Button { session.redo() } label: { Image(systemName: "arrow.uturn.forward").frame(width: 36,height: 44) }.disabled(session.redoStack.isEmpty).accessibilityLabel("Redo")
-            Button { export = true } label: { Image(systemName: "square.and.arrow.up").frame(width: 44,height: 44).background(StudioStyle.blue.opacity(0.16),in: Circle()) }.disabled(session.source == nil).accessibilityLabel("Export photo")
+            Button { export = true } label: { Image(systemName: "square.and.arrow.up").frame(width: 44,height: 44).background(StudioStyle.blue.opacity(0.16),in: Circle()) }.disabled(session.source == nil).accessibilityLabel(session.project.isVideo ? "Export video" : "Export photo")
         }.foregroundStyle(.white).padding(.horizontal,10).padding(.vertical,8)
     }
     private var preview: some View {
@@ -105,7 +107,13 @@ import UniformTypeIdentifiers
             ZStack {
                 StudioStyle.ink
                 if let source = session.source {
-                    LivePreview(source: source.image,recipe: session.recipe,original: comparing,rangePreview: tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active: phase == .active && !export && !presets)
+                    Group {
+                        if let video = session.project.video,let url = session.sourceURL {
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:comparing,active:phase == .active && !export && !presets,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
+                        } else {
+                            LivePreview(source:source.image,recipe:session.recipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !export && !presets)
+                        }
+                    }
                         .scaleEffect(zoom * pinch).offset(x: offset.width+drag.width,y: offset.height+drag.height)
                         .gesture(MagnifyGesture().updating($pinch) { value,state,_ in state = value.magnification }.onEnded { value in zoom = min(4,max(1,zoom * value.magnification)); if zoom == 1 { offset = .zero } })
                         .simultaneousGesture(DragGesture(minimumDistance: 4).updating($drag) { value,state,_ in if zoom > 1 { state = value.translation } }.onChanged { value in
@@ -116,15 +124,17 @@ import UniformTypeIdentifiers
                         })
                         .onTapGesture(count: 2) { withAnimation(.easeOut(duration: 0.2)) { zoom = zoom > 1 ? 1 : 2; offset = .zero } }
                         .accessibilityLabel(comparing ? "Original photograph" : "Edited photograph")
-                } else if session.busy { ProgressView("Preparing your photo…").font(.caption) }
-                else { ContentUnavailableView("Could not open photo",systemImage: "photo.badge.exclamationmark",description: Text(session.error ?? "Return to the workspace and try another file.")) }
+                } else if session.busy { ProgressView("Preparing your media…").font(.caption) }
+                else { ContentUnavailableView("Could not open media",systemImage: "photo.badge.exclamationmark",description: Text(session.error ?? "Return to the workspace and try another file.")) }
                 if tool == .crop && zoom == 1 && pinch == 1, let source = session.source {
                     FramingGrid(sourceSize: source.image.extent.size,recipe: session.recipe).allowsHitTesting(false)
                 }
                 VStack {
                     HStack {
-                        Text(comparing ? "ORIGINAL" : (tool == .color && colorPanel == .selective && showRange ? "RANGE PREVIEW" : (session.project.isRAW ? "RAW DEVELOP" : "LIVE PREVIEW")))
-                            .font(.system(size: 9,weight: .semibold,design: .monospaced)).tracking(1).padding(.horizontal,10).padding(.vertical,7).background(.black.opacity(0.65),in: Capsule())
+                        Button { inputSheet = true } label: {
+                            Text(comparing ? "ORIGINAL" : (session.project.isRAW ? "RAW DEVELOP" : (session.recipe.input.profile == .standard ? "INPUT · STANDARD" : session.recipe.input.profile.shortTitle+" → SDR")))
+                                .font(.system(size:9,weight:.semibold,design:.monospaced)).tracking(1).padding(.horizontal,10).padding(.vertical,7).background(.black.opacity(0.65),in:Capsule())
+                        }.disabled(session.project.isRAW).accessibilityLabel("Input conversion")
                         Spacer()
                         Text("\(session.project.width) × \(session.project.height)").font(.system(size: 9,design: .monospaced)).foregroundStyle(.white.opacity(0.7))
                     }

@@ -51,6 +51,7 @@ import ImageIO
     }
     private nonisolated static func verify() async throws -> [String: Any] {
         let colorReport = try ColorVerification.run()
+        let logReport = try LogVerification.run()
         let lutReport = try LUTVerification.run()
         let gradingReport = try GradingVerification.run()
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("StudioQA-\(UUID())",isDirectory: true)
@@ -67,7 +68,7 @@ import ImageIO
         try require(loaded.0.count == 1 && loaded.0[0].recipe == recipe,"Saved recipe did not round trip")
         var legacy = try JSONSerialization.jsonObject(with: JSONEncoder().encode(edited)) as! [String: Any]
         var oldRecipe = legacy["recipe"] as! [String: Any]
-        for key in ["whites","blacks","straighten","cropX","cropY","rgbCurves","selectiveColors","colorWheels","channelMixer","lut","lutAmount"] { oldRecipe.removeValue(forKey: key) }
+        for key in ["whites","blacks","straighten","cropX","cropY","rgbCurves","selectiveColors","colorWheels","channelMixer","lut","lutAmount","input"] { oldRecipe.removeValue(forKey: key) }
         legacy["recipe"] = oldRecipe
         let migrated = try JSONDecoder().decode(Project.self,from: JSONSerialization.data(withJSONObject: legacy))
         try require(migrated.recipe == recipe,"Version 0.1 project migration failed")
@@ -173,7 +174,7 @@ import ImageIO
                 guard context.createCGImage(image,from: image.extent) != nil else { throw StudioError.render }
             }
         }
-        return ["lutTools":lutReport,"gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
+        return ["logInput":logReport,"lutTools":lutReport,"gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
     }
 }
 #endif

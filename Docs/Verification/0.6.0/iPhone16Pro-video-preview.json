@@ -1,0 +1,14 @@
+{
+  "thermalEnd" : 0,
+  "interrupted" : false,
+  "passed" : true,
+  "decodedFrames" : 3719,
+  "p95Milliseconds" : 13.225416667410173,
+  "requestedUpdates" : 7200,
+  "rendered" : 7562,
+  "elapsedSeconds" : 131.29418758333122,
+  "gpuFailures" : 0,
+  "idleFrames" : 0,
+  "thermalStart" : 0,
+  "version" : "0.6.0"
+}

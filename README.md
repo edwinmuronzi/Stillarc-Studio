@@ -1,8 +1,8 @@
 # Stillarc Studio
 
-**Your light. Your color.** A native photo editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
+**Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.5 LUTs and reusable looks milestone**, not a finished PeekLUT/Lightroom replacement. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.6 Log conversion and single-clip video milestone**, not a finished PeekLUT/Lightroom replacement. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"></p>
 
@@ -10,7 +10,9 @@ This is the **0.5 LUTs and reusable looks milestone**, not a finished PeekLUT/Li
 
 ## What works in this milestone
 
-- Open a photo from Photos or Files. Supported JPEG, HEIF, PNG, TIFF and RAW originals are copied into the local Studio workspace. RAW support depends on Apple's decoder and the source camera.
+- Open a photo or video from Photos or Files. Videos up to 4K can be played, scrubbed, graded with the same tools, and exported as a new HEVC movie with original audio tracks and frame timing. This is a single-clip workflow, without trimming or a timeline.
+- Convert Apple Log (BT.2020) or Apple Log 2 (Apple Wide Gamut) into the linear grading pipeline before creative looks/LUTs. Recognized video Log metadata selects the input automatically; use **INPUT** to override it for untagged clips or imported Log still frames. Input exposure and optional soft highlights help fit bright scenes into SDR. This is Studio’s own rendering, not Apple’s official conversion LUT. RAW photos use Apple’s RAW development instead.
+- Supported photo originals: JPEG, HEIF, PNG, TIFF and RAW originals are copied into the local Studio workspace. RAW support depends on Apple's decoder and the source camera.
 - Adjust exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation and vibrance. Controls update the preview while dragging, without a debounce wait.
 - Choose Original, Daylight, Blue Hour, Silver, Ember or Soft Print. These are original creative treatments, not measured film-stock emulations.
 - Add grain, bloom, fade or vignette; adjust sharpening and conventional noise reduction. Bloom softly spreads bright light; grain adds texture.
@@ -40,13 +42,26 @@ No sign-in, server processing, analytics SDK or upload is required. Imported pro
 
 The included Studio Cool LUT is a subtle original demonstration, not a camera conversion or measured film emulation.
 
+[Conversion design and primary references](Docs/LOG-CONVERSION.md)
+
+## Convert and grade a Log clip
+
+1. Use **Open photo or video** or the Files button. Studio copies the original into its local workspace.
+2. Tap the **INPUT** badge. Choose Apple Log or Apple Log 2 if the source metadata did not identify it. Standard leaves normal footage color-managed without a Log transform. Do not guess the input profile from how flat a clip looks.
+3. Adjust input exposure/soft highlights, then grade with Light, Color, Curves, Mix, Wheels and Film. Play/pause or scrub beneath the preview; hold Compare for the unconverted original.
+4. Export a full-size HEVC movie in **10-bit** (default) or **8-bit** SDR, with Rec.709 primaries and sRGB transfer tagging. Share/save to Files or add a new copy to Photos. Source frame timestamps and original audio tracks are preserved; source dimensions are kept unless framing changes them, with even pixel dimensions for HEVC.
+
+Only Apple Log and Log 2 conversion are supported currently. PQ/HLG HDR video and video larger than 4K are rejected with an explanation. Output is SDR, not HDR or Log. Input conversion is saved with its project and excluded from creative presets.
+
 ## Designed for responsiveness
 
 RGB curves use bounded cached 1024-sample float tables. Selective color, wheels and channel mixing share one Core Image color kernel, using Metal stitchable functions on compatible GPUs and the portable Core Image kernel path on older hardware. Compilation and a small warm-up render happen on the decode worker before editing; no 3D LUT is rebuilt for each slider move. Neutral settings bypass the color stages. A mixer-only edit takes a simpler linear-light path without hue/tone calculations.
 
 The preview is decoded once, capped at 1600 pixels on its long edge and rendered directly with Core Image/Metal. The view draws on changes, with one GPU submission in flight and newest-state coalescing; it has no perpetual display loop. Import and full-resolution export run away from the main actor. The preview pauses behind export/preset sheets and when the scene is inactive. Photo export reopens the original, so preview sizing does not reduce exported dimensions.
 
-LUT files are parsed and validated away from the UI actor. Immutable float tables are shared by undo states, not rebuilt or hashed during slider moves. LUTs run after built-in looks and before texture/detail; zero strength skips the LUT stage. Input/output numbers are interpreted as display sRGB, with explicit transfer curves around the cube in the linear working pipeline. Non-default input domains are normalized, and inputs outside the domain clamp to its edges. One LUT can be active at a time. This does not infer or convert camera Log, HDR or other LUT color spaces; choose a display-sRGB creative LUT. 1D shapers, combined shaper/3D files, LUT stacking and LUT-file export are not supported yet.
+LUT files are parsed and validated away from the UI actor. Immutable float tables are shared by undo states, not rebuilt or hashed during slider moves. LUTs run after built-in looks and before texture/detail; zero strength skips the LUT stage. Input/output numbers are interpreted as display sRGB, with explicit transfer curves around the cube in the linear working pipeline. Non-default input domains are normalized, and inputs outside the domain clamp to its edges. One LUT can be active at a time. Camera input conversion is separate and happens before creative grading. Creative LUTs still need to target display sRGB; a camera conversion LUT would double-convert an input already set to Apple Log/Log 2. 1D shapers, combined shaper/3D files, LUT stacking and LUT-file export are not supported yet.
+
+Video playback runs up to 30 preview frames per second and grades a bounded 1280-pixel preview with at most one GPU submission in flight. Playback pauses when covered/inactive; paused settled frames stop rendering. Export processes the full source, uses progress/cancellation, yields more at fair thermal state and pauses at serious/critical state without reducing output resolution or skipping frames. Backgrounding cancels an active export safely.
 
 This architecture reduces unnecessary work; it is not a guarantee of zero heat, battery use or lag. Physical-device thermal and large-RAW behavior need continued measurement. See [validation](Docs/VALIDATION.md).
 
@@ -70,4 +85,4 @@ Debug verification instructions are in [Docs/VALIDATION.md](Docs/VALIDATION.md).
 
 ## Important boundaries
 
-Masks, healing, Log conversion, HDR export, batch work, metadata controls, video and Camera/Studio preset exchange are **planned**, not available in this build. Studio presets are not yet compatible with Camera presets. A LUT can encode compatible color transformations, but cannot encode grain, bloom, sharpening, masks or geometry.
+Masks, healing, HDR export, batch work, metadata controls, video trimming/timelines and Camera/Studio preset exchange are **planned**, not available in this build. Studio presets are not yet compatible with Camera presets. A LUT can encode compatible color transformations, but cannot encode grain, bloom, sharpening, masks or geometry.

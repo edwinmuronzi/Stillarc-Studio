@@ -5,12 +5,14 @@ import CoreImage
 
 struct PhotoTransfer: Transferable {
     let url: URL
+    private static func copied(_ file:URL) throws -> PhotoTransfer {
+        let target = FileManager.default.temporaryDirectory.appendingPathComponent("StudioImport-"+UUID().uuidString).appendingPathExtension(file.pathExtension)
+        try FileManager.default.copyItem(at:file,to:target)
+        return PhotoTransfer(url:target)
+    }
     static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(importedContentType: .image) { received in
-            let target = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension(received.file.pathExtension)
-            try FileManager.default.copyItem(at: received.file, to: target)
-            return PhotoTransfer(url: target)
-        }
+        FileRepresentation(importedContentType:.image) { try copied($0.file) }
+        FileRepresentation(importedContentType:.movie) { try copied($0.file) }
     }
 }
 actor ProjectVault {
@@ -34,7 +36,7 @@ actor ProjectVault {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         try JSONEncoder().encode(looks).write(to: root.appendingPathComponent("looks.json"), options: .atomic)
     }
-    func importPhoto(_ url: URL) throws -> Project {
+    func importPhoto(_ url: URL) async throws -> Project {
         let id = UUID(), dir = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let final = root.appendingPathComponent(id.uuidString, isDirectory: true)
         // Stage decoding before publishing a project to the library.
@@ -43,9 +45,13 @@ actor ProjectVault {
             let sourceName = "original." + (url.pathExtension.isEmpty ? "image" : url.pathExtension.lowercased())
             let destination = dir.appendingPathComponent(sourceName)
             try FileManager.default.copyItem(at: url, to: destination)
-            let prepared = try ImageEngine.open(destination, maxDimension: 1600)
+            let video = VideoEngine.isMovie(destination) ? try await VideoEngine.describe(destination) : nil
+            let prepared:PreparedPhoto
+            if let video { prepared = try await Task.detached(priority:.userInitiated) { try await VideoEngine.poster(destination,descriptor:video,maxDimension:450) }.value }
+            else { prepared = try ImageEngine.open(destination,maxDimension:1600) }
             try FileManager.default.moveItem(at: dir, to: final)
-            let project = Project(id: id, name: url.deletingPathExtension().lastPathComponent, sourceName: sourceName, created: Date(), modified: Date(), recipe: Recipe(), width: prepared.width, height: prepared.height, isRAW: prepared.isRAW)
+            var recipe = Recipe(); recipe.input.profile = video?.detectedLog ?? .standard
+            let project = Project(id:id,name:url.deletingPathExtension().lastPathComponent,sourceName:sourceName,created:Date(),modified:Date(),recipe:recipe,width:prepared.width,height:prepared.height,isRAW:prepared.isRAW,video:video)
             try save(project)
             return project
         } catch { try? FileManager.default.removeItem(at: dir); try? FileManager.default.removeItem(at: final); throw error }
@@ -116,7 +122,14 @@ actor ProjectVault {
     init(_ project: Project) { self.project = project; recipe = project.recipe }
     func open(library: StudioLibrary) async {
         let url = await library.vault.source(project); sourceURL = url
-        do { source = try await Task.detached(priority: .userInitiated) { try ImageEngine.open(url, maxDimension: 1600) }.value }
+        do {
+            let video = project.video
+            source = try await Task.detached(priority:.userInitiated) {
+                if let video { return try await VideoEngine.poster(url,descriptor:video) }
+                return try ImageEngine.open(url,maxDimension:1600)
+            }.value
+            if source?.isRAW == true { recipe.input = InputConversion() }
+        }
         catch { self.error = error.localizedDescription }
         busy = false
     }
@@ -150,13 +163,16 @@ actor ThumbnailCache {
     private let cache = NSCache<NSString, UIImage>()
     init() { cache.countLimit = 40; cache.totalCostLimit = 24 * 1024 * 1024 }
     func clear() { cache.removeAllObjects(); context.clearCaches() }
-    func image(url: URL, project: Project) -> UIImage? {
+    func image(url: URL, project: Project) async -> UIImage? {
         guard !Task.isCancelled else { return nil }
         let key = "\(project.id)-\(project.modified.timeIntervalSince1970)" as NSString
         if let cached = cache.object(forKey: key) { return cached }
+        let prepared:PreparedPhoto?
+        if let video = project.video { prepared = try? await VideoEngine.poster(url,descriptor:video,maxDimension:450) }
+        else { prepared = try? ImageEngine.open(url,maxDimension:450) }
         return autoreleasepool {
-            guard let source = try? ImageEngine.open(url, maxDimension: 450), !Task.isCancelled else { return nil }
-            let adjusted = ImageEngine.apply(source.image, recipe: project.recipe)
+            guard let source = prepared,!Task.isCancelled else { return nil }
+            let adjusted = ImageEngine.apply(source.source(for:project.recipe),recipe:project.recipe)
             guard let cg = context.createCGImage(adjusted, from: adjusted.extent) else { return nil }
             let image = UIImage(cgImage: cg)
             cache.setObject(image, forKey: key, cost: cg.bytesPerRow * cg.height)

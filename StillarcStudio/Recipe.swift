@@ -2,6 +2,7 @@ import Foundation
 
 // Portable, versioned instructions. Source pixels are never changed.
 struct Recipe: Codable, Equatable, Sendable {
+    var input = InputConversion()
     var lut: LUTAsset?
     var lutAmount = 1.0
     var colorWheels = ColorWheels()
@@ -35,10 +36,11 @@ struct Recipe: Codable, Equatable, Sendable {
     var look = FilmLook.original
     var lookAmount = 1.0
     init() {}
-    private enum CodingKeys: String, CodingKey { case lut, lutAmount, colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
+    private enum CodingKeys: String, CodingKey { case input, lut, lutAmount, colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
     init(from decoder: Decoder) throws {
         self.init()
         let values = try decoder.container(keyedBy: CodingKeys.self)
+        input = try values.decodeIfPresent(InputConversion.self,forKey:.input) ?? InputConversion()
         lut = try values.decodeIfPresent(LUTAsset.self,forKey:.lut)
         lutAmount = try values.decodeIfPresent(Double.self,forKey:.lutAmount) ?? 1
         colorWheels = try values.decodeIfPresent(ColorWheels.self,forKey:.colorWheels) ?? colorWheels
@@ -121,6 +123,8 @@ struct Project: Identifiable, Codable, Equatable, Sendable {
     var width: Int
     var height: Int
     var isRAW: Bool
+    var video: VideoDescriptor? = nil
+    var isVideo:Bool { video != nil }
 }
 struct SavedLook: Identifiable, Codable, Sendable {
     var id = UUID()
@@ -145,6 +149,7 @@ extension Recipe {
         copy.cropX = copy.cropX.isFinite ? min(1,max(0,copy.cropX)) : 0.5
         copy.cropY = copy.cropY.isFinite ? min(1,max(0,copy.cropY)) : 0.5
         copy.straighten = copy.straighten.isFinite ? min(15,max(-15,copy.straighten)) : 0
+        copy.input = input.validated()
         copy.colorWheels = colorWheels.validated()
         copy.channelMixer = channelMixer.validated()
         copy.rgbCurves = rgbCurves.validated()
@@ -186,5 +191,5 @@ extension Recipe {
     mutating func copyFraming(from source: Recipe) {
         crop = source.crop; rotation = source.rotation; straighten = source.straighten; cropX = source.cropX; cropY = source.cropY
     }
-    var colorPreset: Recipe { var copy = self; copy.reset(.crop); return copy }
+    var colorPreset: Recipe { var copy = self; copy.reset(.crop); copy.input = InputConversion(); return copy }
 }

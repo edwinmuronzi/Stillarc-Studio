@@ -5,9 +5,14 @@ import PhotosUI
     @State private var library = StudioLibrary()
     var body: some Scene {
         WindowGroup {
-            StudioHome(library: library)
-                .preferredColorScheme(.dark)
-                .tint(StudioStyle.blue)
+            Group {
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("--verify-video-preview") { VideoPreviewVerification() }
+                else { StudioHome(library:library) }
+                #else
+                StudioHome(library:library)
+                #endif
+            }.preferredColorScheme(.dark).tint(StudioStyle.blue)
         }
     }
 }
@@ -52,13 +57,13 @@ enum StudioStyle {
                     HStack {
                         Text("Your workspace").font(.title3.weight(.semibold))
                         Spacer()
-                        Text("\(library.projects.count) \(library.projects.count == 1 ? "photo" : "photos")").font(.caption.monospaced()).foregroundStyle(StudioStyle.secondary)
+                        Text("\(library.projects.count) \(library.projects.count == 1 ? "item" : "items")").font(.caption.monospaced()).foregroundStyle(StudioStyle.secondary)
                     }
                     if library.loading { ProgressView().frame(maxWidth: .infinity) }
                     else if library.projects.isEmpty {
                         VStack(alignment: .leading, spacing: 9) {
                             Text("A space for your point of view.").font(.headline)
-                            Text("Open a photo to start. Your original stays untouched, and every adjustment stays editable.").font(.subheadline).foregroundStyle(StudioStyle.secondary).lineSpacing(3)
+                            Text("Open photo or video to start. Your original stays untouched, and every adjustment stays editable.").font(.subheadline).foregroundStyle(StudioStyle.secondary).lineSpacing(3)
                         }.padding(22).frame(maxWidth: .infinity,alignment: .leading).background(StudioStyle.panel,in: RoundedRectangle(cornerRadius: 22))
                     } else {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150),spacing: 14)],spacing: 20) {
@@ -68,7 +73,7 @@ enum StudioStyle {
                                         ProjectThumbnail(project: project, vault: library.vault)
                                             .aspectRatio(0.9,contentMode: .fit).clipShape(RoundedRectangle(cornerRadius: 18))
                                         Text(project.name).font(.subheadline.weight(.medium)).lineLimit(1)
-                                        Text("\(project.isRAW ? "RAW" : "PHOTO") · \(project.width) × \(project.height)").font(.system(size: 10,design: .monospaced)).foregroundStyle(StudioStyle.secondary)
+                                        Text("\(project.isVideo ? "VIDEO" : (project.isRAW ? "RAW" : "PHOTO")) · \(project.width) × \(project.height)").font(.system(size: 10,design: .monospaced)).foregroundStyle(StudioStyle.secondary)
                                     }.foregroundStyle(.white)
                                 }.buttonStyle(.plain).contextMenu {
                                     Button("Delete Studio copy",systemImage: "trash",role: .destructive) { deletion = project }
@@ -86,6 +91,7 @@ enum StudioStyle {
             .task {
                 await library.load()
                 #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("--verify-video-suite") { await VideoVerification.writeReport() }
                 if ProcessInfo.processInfo.arguments.contains("--verify-studio") { await StudioVerification.run(library: library) }
                 if ProcessInfo.processInfo.arguments.contains("--demo-editor"), let project = await addDemo() { selected = project }
                 #endif
@@ -97,12 +103,12 @@ enum StudioStyle {
                     do {
                         guard let transfer = try await item.loadTransferable(type: PhotoTransfer.self) else { throw StudioError.unreadable }
                         selected = await library.add(transfer.url)
-                        try? FileManager.default.removeItem(at: transfer.url)
+                        await Task.detached(priority:.utility) { try? FileManager.default.removeItem(at:transfer.url) }.value
                     } catch { library.error = error.localizedDescription }
                     picker = nil
                 }
             }
-            .fileImporter(isPresented: $files, allowedContentTypes: [.image, .rawImage]) { result in
+            .fileImporter(isPresented: $files, allowedContentTypes:[.image,.rawImage,.movie,.video]) { result in
                 switch result {
                 case .success(let url): Task { selected = await library.add(url) }
                 case .failure(let error): library.error = error.localizedDescription
@@ -138,10 +144,10 @@ enum StudioStyle {
     private var importBar: some View {
         let isImporting = library.importing
         return HStack(spacing: 12) {
-            PhotosPicker(selection: $picker,matching: .images,preferredItemEncoding: .current) {
-                HStack(spacing: 9) { Image(systemName: "plus"); Text(isImporting ? "Opening photo…" : "Open a photo").fontWeight(.semibold) }.frame(maxWidth: .infinity).frame(height: 54).background(StudioStyle.blue,in: Capsule()).foregroundStyle(.white)
+            PhotosPicker(selection: $picker,matching:.any(of:[.images,.videos]),preferredItemEncoding: .current) {
+                HStack(spacing: 9) { Image(systemName: "plus"); Text(isImporting ? "Opening media…" : "Open photo or video").fontWeight(.semibold) }.frame(maxWidth: .infinity).frame(height: 54).background(StudioStyle.blue,in: Capsule()).foregroundStyle(.white)
             }.disabled(library.importing)
-            Button { files = true } label: { Image(systemName: "folder").font(.title3).frame(width: 54,height: 54).background(.white.opacity(0.08),in: Circle()) }.disabled(library.importing).accessibilityLabel("Import a photo from Files")
+            Button { files = true } label: { Image(systemName: "folder").font(.title3).frame(width: 54,height: 54).background(.white.opacity(0.08),in: Circle()) }.disabled(library.importing).accessibilityLabel("Import photo or video from Files")
         }.padding(.horizontal,22).padding(.vertical,14).background(.ultraThinMaterial)
     }
     private func addDemo() async -> Project? {
@@ -175,12 +181,12 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · LUTs & looks · 0.5.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
-                    Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export full-resolution JPEG or PNG copies.")
+                    Text("Stillarc Studio · Log & video · 0.6.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export JPEG/PNG photographs or full-frame HEVC/SDR video with audio.")
                     Label("Originals stay untouched",systemImage: "lock.shield")
                     Label("No account or upload required",systemImage: "wifi.slash")
                     Label("Preview draws only when needed",systemImage: "leaf")
-                    Text("Preview and export use the same sRGB output pipeline. RAW support depends on Apple's decoder and camera model. This first build exports SDR; HDR export, masks, video, LUTs, healing and advanced color grading are planned, not yet implemented.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
+                    Text("Preview and export use the same sRGB output pipeline. RAW support depends on Apple's decoder and camera model. This release exports SDR. Apple Log/Log 2 input conversion and creative LUTs work with photos and videos. HDR/PQ/HLG video, video RAW, masks, healing and a multi-clip timeline remain planned.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("The bundled sample is an AI-generated illustrative scene from the Stillarc Camera marketing library.").font(.caption).foregroundStyle(StudioStyle.secondary)
                 }.padding(26)
             }.background(StudioStyle.ink).navigationTitle("Stillarc Studio").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { dismiss() } }
