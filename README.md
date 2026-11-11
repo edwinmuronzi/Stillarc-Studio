@@ -2,7 +2,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.6 Log conversion and single-clip video milestone**, not a finished PeekLUT/Lightroom replacement. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.7 trimming and HDR video milestone**, not a finished PeekLUT/Lightroom replacement. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"></p>
 
@@ -10,7 +10,8 @@ This is the **0.6 Log conversion and single-clip video milestone**, not a finish
 
 ## What works in this milestone
 
-- Open a photo or video from Photos or Files. Videos up to 4K can be played, scrubbed, graded with the same tools, and exported as a new HEVC movie with original audio tracks and frame timing. This is a single-clip workflow, without trimming or a timeline.
+- Open a photo or video from Photos or Files. Videos up to 4K can be played, scrubbed, graded with the same tools, and exported as a new HEVC movie with original audio tracks and frame timing. Trim the start/end without changing the original. This is a single-clip workflow, without a multi-clip timeline.
+- Export video as SDR or **10-bit HLG HDR**. HDR preserves brighter highlights on compatible displays; SDR gives the widest sharing compatibility. HLG/PQ-tagged HDR input is recognized automatically and starts with HDR output enabled. HDR video uses extended-range live previews on compatible screens. Photo exports remain SDR JPEG/PNG.
 - Convert Apple Log (BT.2020) or Apple Log 2 (Apple Wide Gamut) into the linear grading pipeline before creative looks/LUTs. Recognized video Log metadata selects the input automatically; use **INPUT** to override it for untagged clips or imported Log still frames. Input exposure and optional soft highlights help fit bright scenes into SDR. This is Studio’s own rendering, not Apple’s official conversion LUT. RAW photos use Apple’s RAW development instead.
 - Supported photo originals: JPEG, HEIF, PNG, TIFF and RAW originals are copied into the local Studio workspace. RAW support depends on Apple's decoder and the source camera.
 - Adjust exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation and vibrance. Controls update the preview while dragging, without a debounce wait.
@@ -49,9 +50,14 @@ The included Studio Cool LUT is a subtle original demonstration, not a camera co
 1. Use **Open photo or video** or the Files button. Studio copies the original into its local workspace.
 2. Tap the **INPUT** badge. Choose Apple Log or Apple Log 2 if the source metadata did not identify it. Standard leaves normal footage color-managed without a Log transform. Do not guess the input profile from how flat a clip looks.
 3. Adjust input exposure/soft highlights, then grade with Light, Color, Curves, Mix, Wheels and Film. Play/pause or scrub beneath the preview; hold Compare for the unconverted original.
-4. Export a full-size HEVC movie in **10-bit** (default) or **8-bit** SDR, with Rec.709 primaries and sRGB transfer tagging. Share/save to Files or add a new copy to Photos. Source frame timestamps and original audio tracks are preserved; source dimensions are kept unless framing changes them, with even pixel dimensions for HEVC.
+4. Tap **scissors** beside Play to choose start/end points. The trim sheet previews the retained range; adjust an endpoint to inspect it. Undo or **Use entire clip** restores the previous/full range.
+5. Choose **HDR preview & export** in INPUT, or **HDR video · HLG** in Export. HDR always uses 10-bit HEVC, Rec.2020 primaries and HLG transfer. SDR offers 10-bit or 8-bit HEVC, Rec.709 primaries and sRGB transfer. Share/save to Files or add a new copy to Photos. Frame cadence and audio are retained within the chosen range, with a zero-based exported timeline. Source dimensions stay full-size unless framing changes them, with even pixel dimensions for HEVC.
 
-Only Apple Log and Log 2 conversion are supported currently. PQ/HLG HDR video and video larger than 4K are rejected with an explanation. Output is SDR, not HDR or Log. Input conversion is saved with its project and excluded from creative presets.
+Only Apple Log and Log 2 camera Log conversion are supported currently; HLG/PQ video is color-managed automatically. Videos larger than 4K are rejected with an explanation. HDR output is HLG, not Dolby Vision, HDR10+ or Log. Source conversion, trim and HDR choice are saved with the project and excluded from creative presets. A source that was already SDR does not gain missing highlight detail simply by choosing HDR.
+
+HDR grading keeps per-pixel highlight headroom outside the display-referred creative tools and restores it after grading. The SDR input shoulder is bypassed for HDR output. Curves, creative looks and LUTs can still intentionally alter/compress highlight appearance. HDR display brightness depends on the device, display settings and available headroom. Choosing SDR contains output to SDR; it is not a Dolby Vision tone-map match.
+
+The editor header owns its window-safe insets, including after foregrounding, rotation and export-sheet presentation, so Back/Undo/Export stay below the status bar and away from the camera cutout.
 
 ## Designed for responsiveness
 
@@ -85,4 +91,4 @@ Debug verification instructions are in [Docs/VALIDATION.md](Docs/VALIDATION.md).
 
 ## Important boundaries
 
-Masks, healing, HDR export, batch work, metadata controls, video trimming/timelines and Camera/Studio preset exchange are **planned**, not available in this build. Studio presets are not yet compatible with Camera presets. A LUT can encode compatible color transformations, but cannot encode grain, bloom, sharpening, masks or geometry.
+Masks, healing, HDR photo export, batch work, metadata controls, multi-clip video timelines and Camera/Studio preset exchange are **planned**, not available in this build. Studio presets are not yet compatible with Camera presets. A LUT can encode compatible color transformations, but cannot encode grain, bloom, sharpening, masks or geometry.

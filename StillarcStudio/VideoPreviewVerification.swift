@@ -27,6 +27,7 @@ struct VideoPreviewVerification:View {
                 let player = VideoPlayback(url:url,descriptor:descriptor);player.looping = true;player.player.isMuted = true;playback = player
                 for _ in 0..<100 { if player.ready { break };try await Task.sleep(for:.milliseconds(100)) }
                 guard player.ready else { throw StudioError.unreadable }
+                recipe.video.hdr = true;recipe.video.start = 0.2;recipe.video.end = 9.8;player.setEdit(recipe.video)
                 recipe.input.profile = .appleLog2;recipe.lut = try await Task.detached { try LUTVerification.example(dimension:65) }.value
                 recipe.grain = 0.1;recipe.bloom = 0.08;recipe.look = .daylight
                 player.toggle();try await Task.sleep(for:.seconds(1))
@@ -57,7 +58,7 @@ struct VideoPreviewVerification:View {
                 let count = PreviewMetrics.shared.times.count
                 try await Task.sleep(for:.seconds(3))
                 let times = PreviewMetrics.shared.times.sorted(),idleFrames = times.count-count,decoded = player.frameNumber-startFrames
-                let result:[String:Any] = ["passed":!interrupted && decoded>0 && count>0 && idleFrames == 0 && PreviewMetrics.shared.failures == 0,"version":"0.6.0","requestedUpdates":steps,"rendered":count,"decodedFrames":decoded,"elapsedSeconds":CACurrentMediaTime()-began,"p95Milliseconds":times.isEmpty ? 9999 : times[min(times.count-1,Int(Double(times.count)*0.95))],"gpuFailures":PreviewMetrics.shared.failures,"idleFrames":idleFrames,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
+                let result:[String:Any] = ["passed":!interrupted && decoded>0 && count>0 && idleFrames == 0 && PreviewMetrics.shared.failures == 0,"version":"0.7.0","hdrPreview":true,"trimmedPlayback":true,"requestedUpdates":steps,"rendered":count,"decodedFrames":decoded,"elapsedSeconds":CACurrentMediaTime()-began,"p95Milliseconds":times.isEmpty ? 9999 : times[min(times.count-1,Int(Double(times.count)*0.95))],"gpuFailures":PreviewMetrics.shared.failures,"idleFrames":idleFrames,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
                 try JSONSerialization.data(withJSONObject:result,options:.prettyPrinted).write(to:reportURL,options:.atomic)
                 status = "Video preview check complete";progress = 1
             } catch {

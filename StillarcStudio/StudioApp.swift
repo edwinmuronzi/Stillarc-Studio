@@ -181,12 +181,12 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Log & video · 0.6.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
-                    Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export JPEG/PNG photographs or full-frame HEVC/SDR video with audio.")
+                    Text("Stillarc Studio · Trim & HDR · 0.7.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export JPEG/PNG photographs or trimmed HEVC video with audio in SDR or 10-bit HLG HDR.")
                     Label("Originals stay untouched",systemImage: "lock.shield")
                     Label("No account or upload required",systemImage: "wifi.slash")
                     Label("Preview draws only when needed",systemImage: "leaf")
-                    Text("Preview and export use the same sRGB output pipeline. RAW support depends on Apple's decoder and camera model. This release exports SDR. Apple Log/Log 2 input conversion and creative LUTs work with photos and videos. HDR/PQ/HLG video, video RAW, masks, healing and a multi-clip timeline remain planned.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
+                    Text("Photos export as SDR JPEG/PNG. Video supports SDR or 10-bit HLG HDR, with extended-range previews on compatible screens. Apple Log/Log 2 and HLG/PQ video inputs are supported. RAW photo support depends on Apple's decoder. Video RAW, masks, healing and a multi-clip timeline remain planned.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("The bundled sample is an AI-generated illustrative scene from the Stillarc Camera marketing library.").font(.caption).foregroundStyle(StudioStyle.secondary)
                 }.padding(26)
             }.background(StudioStyle.ink).navigationTitle("Stillarc Studio").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { dismiss() } }

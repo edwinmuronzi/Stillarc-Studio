@@ -1,5 +1,22 @@
 # Validation
 
+## 0.7.0, build 7 — Video trim, HLG HDR and safe-area header
+
+Native iPhone 16 Pro correctness checks passed:
+
+- A generated two-second clip trimmed to 0.20–1.30 seconds exported **33 frames / 1.10 seconds**, with a zero-based video timeline and both audio tracks aligned. Trim/HDR settings persist with the project, default neutrally in older recipes and stay out of creative presets.
+- Five neutral extended-linear vectors (0, 0.18, 1, 4 and 8) survived HDR grading. Apple Log 2 highlights at four times SDR white survived 10-bit HLG export and a second HDR decode/re-export. Encoded HLG metadata, removal of the Log tag and actual **10-bit** component depth were checked, even when the caller requested eight-bit export.
+- A generated PQ input was recognized and converted to HLG while retaining the same bright-highlight level. This is plain HLG output, not preservation of Dolby Vision/HDR10+ dynamic metadata.
+- Existing native standard/Apple Log/Log 2 metadata, color, orientation, 4K crop, alternate eight-bit export, frame timing, multiple audio tracks, source preservation, cancellation and project reopening checks remained green.
+
+The optimized 16 Pro test looped a **1080p/30 fps Log 2 generated fixture**, with **HDR preview and a trimmed playback range** enabled. It requested **7,200 grading changes** with a 65-point LUT, wheels, mixer, exposure, Daylight, grain and bloom. Over **130.92 seconds**, it decoded **3,708 frames**, completed **7,408 renders**, recorded **0 GPU failures** and **0 extra idle frames**. GPU submission-to-completion p95 was **14.46 ms**; this is not touch-to-display latency or measured presentation FPS. Thermal state was **nominal → nominal**. No temperature/energy sensor benchmark was recorded, and the fixture is constant-color, not complex real-camera footage or a long 4K stress test.
+
+The editor now explicitly reserves the current window's safe insets before laying out its header. A Debug-only probe measures the header's actual rectangle relative to the window safe area after four export-sheet open/close cycles. The inset reader refreshes on window layout, safe-area changes and foregrounding. This fixes header placement without using a fixed notch-height assumption.
+
+The full native and simulator photo suites passed, including legacy migrations, color/LUT references, geometry and 12/24/48MP synthetic exports. The final native and simulator header probes both measured **header Y = safe top = 62 points**, after repeated Export-sheet presentation. Normal Release archive compilation and strict signature verification passed.
+
+Reports: [Native photo regressions](Verification/0.7.0/iPhone16Pro-photo.json) · [Native header placement](Verification/0.7.0/iPhone16Pro-header-layout.json) · [Simulator photo](Verification/0.7.0/Simulator-photo.json) · [Simulator video](Verification/0.7.0/Simulator-video.json) · [Simulator header](Verification/0.7.0/Simulator-header-layout.json) · [Native video/trim/HDR correctness](Verification/0.7.0/iPhone16Pro-video.json) · [Native HDR playback stress](Verification/0.7.0/iPhone16Pro-HDR-preview.json).
+
 ## 0.6.0, build 6 — Log input and single-clip video
 
 Passed on the black iPhone 16 Pro:

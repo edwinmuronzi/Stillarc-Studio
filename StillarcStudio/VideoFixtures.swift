@@ -2,11 +2,12 @@
 import AVFoundation
 import CoreVideo
 import Foundation
+import CoreImage
 
 /// Private constant-color fixtures. These are not camera footage or marketing samples.
 enum VideoFixtures {
     static let scene = [0.23,0.18,0.12]
-    static func make(profile:CameraLogProfile,frames:Int = 18,portrait:Bool = false,audioTracks:Int = 1,width:Int = 640,height:Int = 360) async throws -> URL {
+    static func make(profile:CameraLogProfile,frames:Int = 18,portrait:Bool = false,audioTracks:Int = 1,width:Int = 640,height:Int = 360,linear:[Double]? = nil,hdr:String? = nil) async throws -> URL {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("StudioVideoQA-\(UUID())")
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         let url = root.appendingPathComponent("fixture.mov"), wav = root.appendingPathComponent("tone.wav")
@@ -30,7 +31,8 @@ enum VideoFixtures {
         let attributes:[String:Any] = [kCVPixelBufferPixelFormatTypeKey as String:format,kCVPixelBufferWidthKey as String:width,kCVPixelBufferHeightKey as String:height,kCVPixelBufferIOSurfacePropertiesKey as String:[:]]
         var buffer:CVPixelBuffer?
         guard CVPixelBufferCreate(nil,width,height,format,attributes as CFDictionary,&buffer) == kCVReturnSuccess,let buffer else { throw StudioError.render }
-        let rgb = profile == .standard ? scene.map { v in v <= 0.0031308 ? v*12.92 : 1.055*pow(v,1/2.4)-0.055 } : scene.map(LogConversion.encode)
+        let values = linear ?? scene
+        let rgb = profile == .standard ? values.map { v in v <= 0.0031308 ? v*12.92 : 1.055*pow(v,1/2.4)-0.055 } : values.map(LogConversion.encode)
         let y = rgb[0]*0.2627+rgb[1]*0.6780+rgb[2]*0.0593,u = (rgb[2]-y)/(2*(1-0.0593)),v = (rgb[0]-y)/(2*(1-0.2627))
         CVPixelBufferLockBaseAddress(buffer,[])
         if CVPixelBufferIsPlanar(buffer) {
@@ -59,6 +61,15 @@ enum VideoFixtures {
             else { CVBufferSetAttachment(buffer,kCVImageBufferLogTransferFunctionKey,kCVImageBufferLogTransferFunction_AppleLog,.shouldPropagate) }
             if profile == .appleLog2 { CVBufferRemoveAttachment(buffer,kCVImageBufferColorPrimariesKey) }
         }
+        if let hdr {
+            let transfer = hdr == "PQ" ? kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ : kCVImageBufferTransferFunction_ITU_R_2100_HLG
+            if #available(iOS 17.2,*) { CVBufferRemoveAttachment(buffer,kCVImageBufferLogTransferFunctionKey) }
+            CVBufferSetAttachment(buffer,kCVImageBufferColorPrimariesKey,kCVImageBufferColorPrimaries_ITU_R_2020,.shouldPropagate)
+            CVBufferSetAttachment(buffer,kCVImageBufferTransferFunctionKey,transfer,.shouldPropagate)
+            let color = CIColor(red:values[0],green:values[1],blue:values[2],alpha:1,colorSpace:ImageEngine.working)!
+            let image = CIImage(color:color).cropped(to:CGRect(x:0,y:0,width:width,height:height))
+            ImageEngine.context().render(image,to:buffer,bounds:image.extent,colorSpace:hdr == "PQ" ? CGColorSpace(name:CGColorSpace.itur_2100_PQ)! : HDRPipeline.hlg)
+        }
         var settings:[String:Any] = [AVVideoCodecKey:AVVideoCodecType.hevc,AVVideoWidthKey:width,AVVideoHeightKey:height,AVVideoCompressionPropertiesKey:[AVVideoAverageBitRateKey:3_000_000]]
         if #available(iOS 27,*),profile != .standard {
             var color:[String:Any] = [AVVideoYCbCrMatrixKey:AVVideoYCbCrMatrix_ITU_R_2020,AVVideoLogTransferFunctionKey:profile == .appleLog ? AVVideoLogTransferFunction_AppleLog : AVVideoLogTransferFunction_AppleLog2]
@@ -66,6 +77,10 @@ enum VideoFixtures {
             settings[AVVideoColorPropertiesKey] = color
         }
         if profile != .standard { settings[AVVideoCompressionPropertiesKey] = [AVVideoAverageBitRateKey:3_000_000,AVVideoProfileLevelKey:"HEVC_Main10_AutoLevel"] }
+        if let hdr {
+            settings[AVVideoColorPropertiesKey] = [AVVideoColorPrimariesKey:AVVideoColorPrimaries_ITU_R_2020,AVVideoTransferFunctionKey:hdr == "PQ" ? AVVideoTransferFunction_SMPTE_ST_2084_PQ : AVVideoTransferFunction_ITU_R_2100_HLG,AVVideoYCbCrMatrixKey:AVVideoYCbCrMatrix_ITU_R_2020]
+            settings[AVVideoCompressionPropertiesKey] = [AVVideoAverageBitRateKey:3_000_000,AVVideoProfileLevelKey:"HEVC_Main10_AutoLevel"]
+        }
         let input = AVAssetWriterInput(mediaType:.video,outputSettings:settings)
         if portrait { input.transform = CGAffineTransform(a:0,b:1,c:-1,d:0,tx:CGFloat(height),ty:0) }
         writer.add(input)

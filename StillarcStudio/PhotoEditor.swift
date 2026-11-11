@@ -19,6 +19,7 @@ import UniformTypeIdentifiers
     @State private var export = false
     @State private var presets = false
     @State private var inputSheet = false
+    @State private var trimSheet = false
     @State private var reset = false
     @State private var numericEdit: NumericEdit?
     @State private var numericText = ""
@@ -30,8 +31,12 @@ import UniformTypeIdentifiers
     @GestureState private var drag = CGSize.zero
     init(project: Project, library: StudioLibrary) { _session = State(initialValue: EditSession(project)); self.library = library }
     var body: some View {
-        VStack(spacing: 0) {
-            header
+        EditorSafeArea { VStack(spacing: 0) {
+            header.background {
+                #if DEBUG
+                EditorLayoutVerification().allowsHitTesting(false)
+                #endif
+            }
             GeometryReader { geometry in
                 if geometry.size.width > 800 {
                     HStack(spacing: 0) {
@@ -47,7 +52,7 @@ import UniformTypeIdentifiers
                 }
             }
         }
-        .background(StudioStyle.ink).tint(StudioStyle.blue)
+        }.background(StudioStyle.ink).tint(StudioStyle.blue)
         .task {
             await session.open(library: library)
             #if DEBUG
@@ -69,12 +74,18 @@ import UniformTypeIdentifiers
             if let flag = arguments.firstIndex(of: "--tool"), arguments.count > flag + 1, let selected = Tool(rawValue: arguments[flag+1]) { tool = selected }
             #endif
             await runPreviewCheckIfRequested()
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--verify-editor-layout") {
+                for _ in 0..<4 { export = true;try? await Task.sleep(for:.milliseconds(400));export = false;try? await Task.sleep(for:.milliseconds(400)) }
+            }
+            #endif
         }
         .onChange(of: session.recipe) { _, _ in if !diagnosticsRunning { session.scheduleSave(library) } }
         .onChange(of: phase) { _, phase in if phase != .active { Task { await session.persist(library) } } }
         .onDisappear { Task { await session.persist(library) } }
         .sheet(isPresented: $export) { ExportSheet(session: session) }
         .sheet(isPresented: $presets) { PresetsSheet(session: session,library: library) }
+        .sheet(isPresented:$trimSheet) { VideoTrimSheet(session:session) }
         .sheet(isPresented:$inputSheet) { InputConversionSheet(session:session) }
         .confirmationDialog("Reset all adjustments?",isPresented: $reset,titleVisibility: .visible) { Button("Reset adjustments",role: .destructive) { session.change { $0 = Recipe() } } } message: { Text("You can undo this. The original is always preserved.") }
         .alert(numericEdit.map { "Set \($0.name.lowercased())" } ?? "Set value",isPresented: Binding(get: { numericEdit != nil },set: { if !$0 { numericEdit = nil } })) {
@@ -109,7 +120,7 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:comparing,active:phase == .active && !export && !presets,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:comparing,active:phase == .active && !export && !presets && !trimSheet,onTrim:{ trimSheet = true },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
                         } else {
                             LivePreview(source:source.image,recipe:session.recipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !export && !presets)
                         }
@@ -132,7 +143,7 @@ import UniformTypeIdentifiers
                 VStack {
                     HStack {
                         Button { inputSheet = true } label: {
-                            Text(comparing ? "ORIGINAL" : (session.project.isRAW ? "RAW DEVELOP" : (session.recipe.input.profile == .standard ? "INPUT · STANDARD" : session.recipe.input.profile.shortTitle+" → SDR")))
+                            Text(comparing ? "ORIGINAL" : (session.project.isRAW ? "RAW DEVELOP" : (session.recipe.input.profile == .standard ? (session.recipe.video.hdr ? "INPUT · HDR" : "INPUT · STANDARD") : session.recipe.input.profile.shortTitle+(session.recipe.video.hdr ? " → HDR" : " → SDR"))))
                                 .font(.system(size:9,weight:.semibold,design:.monospaced)).tracking(1).padding(.horizontal,10).padding(.vertical,7).background(.black.opacity(0.65),in:Capsule())
                         }.disabled(session.project.isRAW).accessibilityLabel("Input conversion")
                         Spacer()

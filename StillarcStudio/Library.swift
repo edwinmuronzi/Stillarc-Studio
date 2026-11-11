@@ -50,7 +50,7 @@ actor ProjectVault {
             if let video { prepared = try await Task.detached(priority:.userInitiated) { try await VideoEngine.poster(destination,descriptor:video,maxDimension:450) }.value }
             else { prepared = try ImageEngine.open(destination,maxDimension:1600) }
             try FileManager.default.moveItem(at: dir, to: final)
-            var recipe = Recipe(); recipe.input.profile = video?.detectedLog ?? .standard
+            var recipe = Recipe(); recipe.input.profile = video?.detectedLog ?? .standard;recipe.video.hdr = video?.hdrTransfer != nil
             let project = Project(id:id,name:url.deletingPathExtension().lastPathComponent,sourceName:sourceName,created:Date(),modified:Date(),recipe:recipe,width:prepared.width,height:prepared.height,isRAW:prepared.isRAW,video:video)
             try save(project)
             return project

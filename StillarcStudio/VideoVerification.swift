@@ -111,7 +111,7 @@ enum VideoVerification {
         try require(largeResult.width == 2160 && largeResult.height == 2160,"4K source crop geometry changed")
         try require(try await frameTimes(largeResult.url).count == 3,"4K export dropped frames")
         #endif
-        return ["passed":true,"clips":checks,"photoInput":try LogVerification.run()]
+        return ["passed":true,"version":"0.7.0","clips":checks,"photoInput":try LogVerification.run(),"trimHDR":try await HDRTrimVerification.run()]
     }
     @MainActor static func writeReport() async {
         let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("video-verification.json")

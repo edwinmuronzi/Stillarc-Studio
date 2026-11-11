@@ -14,6 +14,8 @@ import CoreImage
     var error:String?
     var frame:CVPixelBuffer?
     var frameNumber = 0
+    var selection:ClosedRange<Double> { edit.range(duration:descriptor.duration) }
+    var edit = VideoEdit()
     var active = true
     private var resume = false
     private var link:CADisplayLink?
@@ -40,7 +42,7 @@ import CoreImage
         endObserver = NotificationCenter.default.addObserver(forName:.AVPlayerItemDidPlayToEndTime,object:item,queue:.main) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                if self.looping && self.active { self.seek(0);self.playing = true;self.player.play();self.startLink() }
+                if self.looping && self.active { self.seek(self.selection.lowerBound);self.playing = true;self.player.play();self.startLink() }
                 else { self.pause() }
             }
         }
@@ -60,9 +62,13 @@ import CoreImage
     private func tick() {
         guard active else { stopLink(); return }
         let now = player.currentTime()
+        if playing && !seeking && now.isNumeric && now.seconds >= selection.upperBound {
+            if looping { seek(selection.lowerBound);player.play() }
+            else { pause();time = selection.upperBound }
+        }
         if now.isNumeric, output.hasNewPixelBuffer(forItemTime:now),let buffer = output.copyPixelBuffer(forItemTime:now,itemTimeForDisplay:nil) {
             frame = buffer;frameNumber += 1;initialTicks = 0
-            if now.seconds.isFinite && abs(time-now.seconds)>0.1 && !seeking { time = now.seconds }
+            if now.seconds.isFinite && abs(time-now.seconds)>0.1 && !seeking { time = min(selection.upperBound,max(selection.lowerBound,now.seconds)) }
             if !playing && !seeking { stopLink() }
         } else if !playing && !seeking {
             initialTicks += 1
@@ -72,7 +78,7 @@ import CoreImage
     func toggle() {
         if playing { pause();return }
         guard ready,active else { return }
-        if time >= descriptor.duration-0.05 { seek(0) }
+        if time >= selection.upperBound-0.001 || time < selection.lowerBound { seek(selection.lowerBound) }
         playing = true;player.play();startLink()
     }
     func pause() { player.pause();playing = false;stopLink() }
@@ -80,12 +86,20 @@ import CoreImage
     func setActive(_ value:Bool) {
         guard value != active else { return };active = value
         if !value { resume = playing;pause() }
-        else { requestFrame();if resume { resume = false;playing = true;player.play();startLink() } }
+        else { if time < selection.lowerBound || time >= selection.upperBound { seek(selection.lowerBound) };requestFrame();if resume { resume = false;playing = true;player.play();startLink() } }
+    }
+    func setEdit(_ value:VideoEdit) {
+        guard edit != value else { return };let previous = edit;edit = value
+        guard active else { return }
+        if previous.start != value.start || previous.end != value.end {
+            pause()
+            seek(previous.start != value.start ? selection.lowerBound : max(selection.lowerBound,selection.upperBound-1/max(1,descriptor.frameRate)))
+        } else if time < selection.lowerBound || time >= selection.upperBound { seek(selection.lowerBound) }
     }
     func beginScrub() { resumeAfterScrub = playing;pause() }
-    func endScrub() { if resumeAfterScrub { resumeAfterScrub = false;playing = true;player.play();startLink() } }
+    func endScrub() { if resumeAfterScrub && active { resumeAfterScrub = false;playing = true;player.play();startLink() } }
     func seek(_ seconds:Double) {
-        time = min(descriptor.duration,max(0,seconds));pendingSeek = time
+        time = min(selection.upperBound,max(selection.lowerBound,seconds));pendingSeek = time
         advanceSeek()
     }
     private func advanceSeek() {
@@ -107,33 +121,42 @@ import CoreImage
 
 struct VideoPreview:View {
     let url:URL;let descriptor:VideoDescriptor;let poster:PreparedPhoto;let recipe:Recipe;let original:Bool;let active:Bool
+    var onTrim:() -> Void = {}
+    var showTrimButton = true
     var rangePreview:ColorRange?
     @State private var playback:VideoPlayback?
     var body:some View {
         Group {
-            if let playback { VideoPreviewContent(playback:playback,poster:poster,recipe:recipe,original:original,active:active,rangePreview:rangePreview) }
-            else { LivePreview(source:poster.image,recipe:recipe,signalSource:poster.signalImage,original:original,active:active) }
+            if let playback { VideoPreviewContent(playback:playback,poster:poster,recipe:recipe,original:original,active:active,onTrim:onTrim,showTrimButton:showTrimButton,rangePreview:rangePreview) }
+            else { LivePreview(source:poster.image,recipe:recipe,signalSource:poster.signalImage,original:original,active:active,hdr:recipe.video.hdr) }
         }
-        .task { if playback == nil { let controller = VideoPlayback(url:url,descriptor:descriptor);controller.setActive(active);playback = controller } }
+        .task { if playback == nil { let controller = VideoPlayback(url:url,descriptor:descriptor);controller.setEdit(recipe.video);controller.setActive(active);playback = controller } }
         .onChange(of:active) { _,value in playback?.setActive(value) }
+        .onChange(of:recipe.video) { _,value in playback?.setEdit(value) }
         .onDisappear { playback?.clear();playback = nil }
     }
 }
 private struct VideoPreviewContent:View {
     @Bindable var playback:VideoPlayback
-    let poster:PreparedPhoto;let recipe:Recipe;let original:Bool;let active:Bool;let rangePreview:ColorRange?
+    let poster:PreparedPhoto;let recipe:Recipe;let original:Bool;let active:Bool;let onTrim:() -> Void;let showTrimButton:Bool;let rangePreview:ColorRange?
     var body:some View {
         ZStack(alignment:.bottom) {
             VideoMetalView(playback:playback,recipe:recipe,original:original,rangePreview:rangePreview,active:active)
-            if playback.frame == nil { LivePreview(source:poster.image,recipe:recipe,signalSource:poster.signalImage,original:original,active:active) }
+            if playback.frame == nil { LivePreview(source:poster.image,recipe:recipe,signalSource:poster.signalImage,original:original,active:active,hdr:recipe.video.hdr) }
             HStack(spacing:12) {
                 Button { playback.toggle() } label: { Image(systemName:playback.playing ? "pause.fill" : "play.fill").frame(width:36,height:36) }.disabled(!playback.ready).accessibilityLabel(playback.playing ? "Pause video" : "Play video")
-                Slider(value:Binding(get:{ playback.time },set:{ playback.seek($0) }),in:0...max(0.01,playback.descriptor.duration),onEditingChanged:{ $0 ? playback.beginScrub() : playback.endScrub() }).accessibilityLabel("Video position")
+                if showTrimButton { Button(action:onTrim) { Image(systemName:"scissors").frame(width:32,height:36) }.accessibilityLabel("Trim video") }
+                Slider(value:Binding(get:{ playback.time },set:{ playback.seek($0) }),in:playback.selection,onEditingChanged:{ $0 ? playback.beginScrub() : playback.endScrub() }).accessibilityLabel("Video position")
                 Text("\(Int(playback.time))/\(Int(playback.descriptor.duration))s").font(.caption2.monospacedDigit()).fixedSize()
-            }.padding(.horizontal,10).background(.ultraThinMaterial,in:Capsule()).padding(.horizontal,16).padding(.bottom,62)
+            }.padding(.horizontal,10).background(.ultraThinMaterial,in:Capsule()).padding(.horizontal,16).padding(.bottom,showTrimButton ? 62 : 12)
             if let error = playback.error { Text(error).font(.caption).padding().background(.black.opacity(0.8)).frame(maxHeight:.infinity,alignment:.center) }
         }
     }
+}
+
+private final class VideoFrameLease: @unchecked Sendable {
+    let buffer:CVPixelBuffer
+    init(_ buffer:CVPixelBuffer) { self.buffer = buffer }
 }
 
 struct VideoMetalView:UIViewRepresentable {
@@ -142,13 +165,16 @@ struct VideoMetalView:UIViewRepresentable {
     func makeCoordinator() -> Renderer { Renderer() }
     func makeUIView(context:Context) -> MTKView {
         let view = MTKView(frame:.zero,device:context.coordinator.device)
-        view.isPaused = true;view.enableSetNeedsDisplay = true;view.framebufferOnly = false;view.colorPixelFormat = .bgra8Unorm
+        view.isPaused = true;view.enableSetNeedsDisplay = true;view.framebufferOnly = false;view.colorPixelFormat = .rgba16Float
         view.contentScaleFactor = min(view.traitCollection.displayScale,2)
-        (view.layer as? CAMetalLayer)?.colorspace = ImageEngine.output
+        (view.layer as? CAMetalLayer)?.colorspace = ImageEngine.working
+        (view.layer as? CAMetalLayer)?.wantsExtendedDynamicRangeContent = true
         view.delegate = context.coordinator;return view
     }
     func updateUIView(_ view:MTKView,context:Context) {
         _ = playback.frameNumber
+        (view.layer as? CAMetalLayer)?.colorspace = recipe.video.hdr ? ImageEngine.working : ImageEngine.output
+        (view.layer as? CAMetalLayer)?.wantsExtendedDynamicRangeContent = recipe.video.hdr
         context.coordinator.update(buffer:playback.frame,descriptor:playback.descriptor,recipe:recipe,original:original,range:rangePreview,active:active,view:view)
     }
     static func dismantleUIView(_ view:MTKView,coordinator:Renderer) { view.delegate = nil;coordinator.clear() }
@@ -176,13 +202,15 @@ struct VideoMetalView:UIViewRepresentable {
             var comparison = Recipe();comparison.copyFraming(from:recipe)
             let selected = original ? comparison : recipe
             let source = selected.input.profile == .standard ? pair.managed : pair.signal
-            let image = ImageEngine.apply(source,recipe:selected,rangePreview:original ? nil : range)
+            var image = HDRPipeline.grade(source,recipe:selected,hdr:recipe.video.hdr,rangePreview:original ? nil : range)
+            if !recipe.video.hdr { image = image.applyingFilter("CIColorClamp",parameters:["inputMinComponents":CIVector(x:0,y:0,z:0,w:0),"inputMaxComponents":CIVector(x:1,y:1,z:1,w:1)]) }
             let scale = min(size.width/image.extent.width,size.height/image.extent.height)
             let placed = image.transformed(by:.init(scaleX:scale,y:scale)).transformed(by:.init(translationX:(size.width-image.extent.width*scale)/2,y:(size.height-image.extent.height*scale)/2))
             let background = CIImage(color:CIColor(red:0.025,green:0.03,blue:0.04)).cropped(to:CGRect(origin:.zero,size:size))
-            context.render(placed.composited(over:background),to:drawable.texture,commandBuffer:command,bounds:CGRect(origin:.zero,size:size),colorSpace:ImageEngine.output)
+            context.render(placed.composited(over:background),to:drawable.texture,commandBuffer:command,bounds:CGRect(origin:.zero,size:size),colorSpace:recipe.video.hdr ? ImageEngine.working : ImageEngine.output)
+            let lease = VideoFrameLease(buffer)
             command.addCompletedHandler { [weak self,weak view] completed in
-                withExtendedLifetime(buffer) {}
+                withExtendedLifetime(lease) {}
                 let ms = (CACurrentMediaTime()-began)*1000
                 DispatchQueue.main.async {
                     #if DEBUG

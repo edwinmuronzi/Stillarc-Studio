@@ -6,6 +6,7 @@ struct VideoDescriptor: Codable, Equatable, Sendable {
     var width:Int; var height:Int; var duration:Double; var frameRate:Double
     var transform:[Double]
     var detectedLog:CameraLogProfile?
+    var hdrTransfer:String? = nil
     var affine:CGAffineTransform { guard transform.count == 6,transform.allSatisfy(\.isFinite) else { return .identity }; return CGAffineTransform(a:transform[0],b:transform[1],c:transform[2],d:transform[3],tx:transform[4],ty:transform[5]) }
 }
 enum VideoEngine {
@@ -19,15 +20,19 @@ enum VideoEngine {
         guard max(abs(bounds.width),abs(bounds.height)) <= 4096 else { throw StudioError.unsupportedVideoSize }
         guard duration.isFinite, duration > 0, bounds.width.isFinite,bounds.height.isFinite,abs(bounds.width) >= 2, abs(bounds.height) >= 2 else { throw StudioError.unreadable }
         var log:CameraLogProfile?
+        var hdrTransfer:String?
         if let format = try await track.load(.formatDescriptions).first {
             let extensions = CMFormatDescriptionGetExtensions(format) as? [String:Any] ?? [:]
             let logTag = String(describing:extensions["LogTransferFunction"] ?? "").lowercased().filter { $0.isLetter || $0.isNumber }
             if logTag.contains("applelog2") || (logTag.contains("applewidegamut") && logTag.contains("applelog")) { log = .appleLog2 }
             else if logTag.contains("applelog") { log = .appleLog }
             let transfer = String(describing:extensions[kCMFormatDescriptionExtension_TransferFunction as String] ?? "").lowercased()
-            if log == nil && (transfer.contains("2084") || transfer.contains("hlg") || transfer.contains("2100")) { throw StudioError.unsupportedHDRVideo }
+            if log == nil {
+                if transfer.contains("2084") { hdrTransfer = "PQ" }
+                else if transfer.contains("hlg") || transfer.contains("2100") { hdrTransfer = "HLG" }
+            }
         }
-        return VideoDescriptor(width:Int(abs(bounds.width).rounded()),height:Int(abs(bounds.height).rounded()),duration:duration,frameRate:rate,transform:[transform.a,transform.b,transform.c,transform.d,transform.tx,transform.ty].map(Double.init),detectedLog:log)
+        return VideoDescriptor(width:Int(abs(bounds.width).rounded()),height:Int(abs(bounds.height).rounded()),duration:duration,frameRate:rate,transform:[transform.a,transform.b,transform.c,transform.d,transform.tx,transform.ty].map(Double.init),detectedLog:log,hdrTransfer:hdrTransfer)
     }
     static var pixelAttributes:[String:Any] {
         #if targetEnvironment(simulator)
@@ -48,7 +53,7 @@ enum VideoEngine {
         return (orient(managed),orient(raw))
     }
     static func poster(_ url:URL,descriptor:VideoDescriptor,maxDimension:Double = 1600) async throws -> PreparedPhoto {
-        try ColorPipeline.prepare();try LogConversion.prepare()
+        try ColorPipeline.prepare();try LogConversion.prepare();try HDRPipeline.prepare()
         let asset = AVURLAsset(url:url)
         guard let track = try await asset.loadTracks(withMediaType:.video).first else { throw StudioError.unreadable }
         let reader = try AVAssetReader(asset:asset)
@@ -64,11 +69,18 @@ enum VideoEngine {
 
     static func export(source:URL,descriptor:VideoDescriptor,recipe:Recipe,tenBit:Bool = true,progress:@escaping @Sendable (Double) async -> Void,cooling:@escaping @Sendable (Bool) async -> Void = { _ in }) async throws -> ExportResult {
         try Task.checkCancellation()
-        try ColorPipeline.prepare(); try LogConversion.prepare()
+        try ColorPipeline.prepare(); try LogConversion.prepare();try HDRPipeline.prepare()
         let asset = AVURLAsset(url:source)
         guard let track = try await asset.loadTracks(withMediaType:.video).first else { throw StudioError.unreadable }
         let reader = try AVAssetReader(asset:asset)
         let video = AVAssetReaderTrackOutput(track:track,outputSettings:pixelAttributes); video.alwaysCopiesSampleData = false
+        let selection = recipe.video.range(duration:descriptor.duration)
+        let trimmed = recipe.video.isTrimmed(duration:descriptor.duration)
+        let trimStart = CMTime(seconds:selection.lowerBound,preferredTimescale:60000)
+        let trimEnd = CMTime(seconds:selection.upperBound,preferredTimescale:60000)
+        if trimmed { reader.timeRange = CMTimeRange(start:trimStart,end:trimEnd) }
+        let hdr = recipe.video.hdr
+        let tenBit = tenBit || hdr
         guard reader.canAdd(video) else { throw StudioError.render }; reader.add(video)
         let framed = PhotoFraming.window(in:PhotoFraming.orientedSize(CGSize(width:descriptor.width,height:descriptor.height),recipe:recipe),recipe:recipe)
         let width = max(2,Int(framed.width)/2*2),height = max(2,Int(framed.height)/2*2)
@@ -77,7 +89,10 @@ enum VideoEngine {
         var completed = false
         defer { if !completed { reader.cancelReading(); writer.cancelWriting(); try? FileManager.default.removeItem(at:url) } }
         let bitrate = max(8_000_000,min(80_000_000,Int(Double(width*height)*max(24,descriptor.frameRate)*0.14)))
-        let input = AVAssetWriterInput(mediaType:.video,outputSettings:[AVVideoCodecKey:AVVideoCodecType.hevc,AVVideoWidthKey:width,AVVideoHeightKey:height,AVVideoColorPropertiesKey:[AVVideoColorPrimariesKey:AVVideoColorPrimaries_ITU_R_709_2,AVVideoTransferFunctionKey:kCVImageBufferTransferFunction_sRGB as String,AVVideoYCbCrMatrixKey:AVVideoYCbCrMatrix_ITU_R_709_2],AVVideoCompressionPropertiesKey:[AVVideoAverageBitRateKey:bitrate,AVVideoExpectedSourceFrameRateKey:max(1,descriptor.frameRate),AVVideoProfileLevelKey:tenBit ? "HEVC_Main10_AutoLevel" : "HEVC_Main_AutoLevel"]])
+        let primaries = hdr ? AVVideoColorPrimaries_ITU_R_2020 : AVVideoColorPrimaries_ITU_R_709_2
+        let transfer = hdr ? AVVideoTransferFunction_ITU_R_2100_HLG : kCVImageBufferTransferFunction_sRGB as String
+        let matrix = hdr ? AVVideoYCbCrMatrix_ITU_R_2020 : AVVideoYCbCrMatrix_ITU_R_709_2
+        let input = AVAssetWriterInput(mediaType:.video,outputSettings:[AVVideoCodecKey:AVVideoCodecType.hevc,AVVideoWidthKey:width,AVVideoHeightKey:height,AVVideoColorPropertiesKey:[AVVideoColorPrimariesKey:primaries,AVVideoTransferFunctionKey:transfer,AVVideoYCbCrMatrixKey:matrix],AVVideoCompressionPropertiesKey:[AVVideoAverageBitRateKey:bitrate,AVVideoExpectedSourceFrameRateKey:max(1,descriptor.frameRate),AVVideoProfileLevelKey:tenBit ? "HEVC_Main10_AutoLevel" : "HEVC_Main_AutoLevel"]])
         input.expectsMediaDataInRealTime = false
         guard writer.canAdd(input) else { throw StudioError.render }; writer.add(input)
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput:input,sourcePixelBufferAttributes:[kCVPixelBufferPixelFormatTypeKey as String:tenBit ? kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange : kCVPixelFormatType_32BGRA,kCVPixelBufferWidthKey as String:width,kCVPixelBufferHeightKey as String:height,kCVPixelBufferIOSurfacePropertiesKey as String:[:]])
@@ -90,12 +105,14 @@ enum VideoEngine {
             reader.add(output);writer.add(input); audio.append((output,input))
         }
         guard writer.startWriting(),reader.startReading() else { throw StudioError.render }
-        writer.startSession(atSourceTime:.zero)
-        let context = ImageEngine.context(), outputSpace = ImageEngine.output
+        writer.startSession(atSourceTime:trimmed ? trimStart : .zero)
+        let context = ImageEngine.context(), outputSpace = hdr ? HDRPipeline.hlg : ImageEngine.output
         try await withThrowingTaskGroup(of:Void.self) { group in
             group.addTask {
                 var lastProgress = -1.0, frames = 0
                 while let sample = video.copyNextSampleBuffer() {
+                    let presentation = CMSampleBufferGetPresentationTimeStamp(sample)
+                    if trimmed && (presentation < trimStart || presentation >= trimEnd) { continue }
                     try Task.checkCancellation()
                     var waiting = false
                     while ProcessInfo.processInfo.thermalState.rawValue >= ProcessInfo.ThermalState.serious.rawValue {
@@ -109,18 +126,18 @@ enum VideoEngine {
                         guard let sourceBuffer = CMSampleBufferGetImageBuffer(sample),let pool = adaptor.pixelBufferPool else { throw StudioError.render }
                         var destination:CVPixelBuffer?
                         guard CVPixelBufferPoolCreatePixelBuffer(nil,pool,&destination) == kCVReturnSuccess,let destination else { throw StudioError.render }
-                        CVBufferSetAttachment(destination,kCVImageBufferColorPrimariesKey,kCVImageBufferColorPrimaries_ITU_R_709_2,.shouldPropagate)
-                        CVBufferSetAttachment(destination,kCVImageBufferTransferFunctionKey,kCVImageBufferTransferFunction_sRGB,.shouldPropagate)
-                        CVBufferSetAttachment(destination,kCVImageBufferYCbCrMatrixKey,kCVImageBufferYCbCrMatrix_ITU_R_709_2,.shouldPropagate)
+                        CVBufferSetAttachment(destination,kCVImageBufferColorPrimariesKey,hdr ? kCVImageBufferColorPrimaries_ITU_R_2020 : kCVImageBufferColorPrimaries_ITU_R_709_2,.shouldPropagate)
+                        CVBufferSetAttachment(destination,kCVImageBufferTransferFunctionKey,hdr ? kCVImageBufferTransferFunction_ITU_R_2100_HLG : kCVImageBufferTransferFunction_sRGB,.shouldPropagate)
+                        CVBufferSetAttachment(destination,kCVImageBufferYCbCrMatrixKey,hdr ? kCVImageBufferYCbCrMatrix_ITU_R_2020 : kCVImageBufferYCbCrMatrix_ITU_R_709_2,.shouldPropagate)
                         let pair = images(sourceBuffer,descriptor:descriptor)
-                        let image = ImageEngine.apply(recipe.input.profile == .standard ? pair.managed : pair.signal,recipe:recipe)
+                        let image = HDRPipeline.grade(recipe.input.profile == .standard ? pair.managed : pair.signal,recipe:recipe,hdr:hdr)
                         let normalized = image.transformed(by:.init(translationX:-image.extent.minX,y:-image.extent.minY))
                         context.render(normalized,to:destination,bounds:CGRect(x:0,y:0,width:width,height:height),colorSpace:outputSpace)
                         let time = CMSampleBufferGetPresentationTimeStamp(sample)
                         guard time.isNumeric,adaptor.append(destination,withPresentationTime:time) else { throw StudioError.render }
                         frames += 1
                     }
-                    let p = min(0.99,max(0,CMSampleBufferGetPresentationTimeStamp(sample).seconds/descriptor.duration))
+                    let p = min(0.99,max(0,(presentation.seconds-selection.lowerBound)/(selection.upperBound-selection.lowerBound)))
                     if p-lastProgress >= 0.01 { await progress(p);lastProgress = p }
                 }
                 guard frames > 0 else { throw StudioError.render };input.markAsFinished()
@@ -138,6 +155,7 @@ enum VideoEngine {
             while let _ = try await group.next() {}
         }
         guard reader.status == .completed else { throw StudioError.render }
+        if trimmed { writer.endSession(atSourceTime:trimEnd) }
         await writer.finishWriting()
         try Task.checkCancellation()
         guard writer.status == .completed else { throw StudioError.render }

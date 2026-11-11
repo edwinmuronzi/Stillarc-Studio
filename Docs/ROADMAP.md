@@ -14,7 +14,7 @@ Implemented in 0.3: five-point Master/R/G/B curves, exact point values, eight-ra
 
 Implemented in 0.2: active-adjustment indicators, section resets, exact numeric entry, repositioned aspect-ratio crops, straightening and Whites/Blacks. Existing 0.1 recipes migrate with neutral defaults.
 
-Next: freeform crop bounds, perspective and lens corrections; texture/clarity/dehaze with predictable processing order. Levels and freely placed extra curve points. RGB histogram, waveform and vectorscope that update at a bounded rate only while visible. Numeric inputs, accessible adjustable controls and iPad keyboard shortcuts. Validate RAW camera fixtures, wide-gamut/HDR interpretation and export matching before adding HDR output.
+Next: freeform crop bounds, perspective and lens corrections; texture/clarity/dehaze with predictable processing order. Levels and freely placed extra curve points. RGB histogram, waveform and vectorscope that update at a bounded rate only while visible. Numeric inputs, accessible adjustable controls and iPad keyboard shortcuts. Validate RAW camera fixtures, wide-gamut/HDR interpretation and export matching before adding HDR photo output.
 
 ## 3 — Reusable grades and film
 
@@ -32,7 +32,9 @@ Brush/linear/radial and color/luminance masks with invert, feather, add/subtract
 
 Implemented in 0.6: single-clip Photos/Files import, playback/scrubbing, shared reversible grading, Apple Log/Log 2 conversion, full-size 10/8-bit HEVC SDR export with original audio/frame timing, progress/cancellation and thermal pacing.
 
-Next: 10-bit fidelity where supported, temporal stability, trimmed clips, efficient playback, cancellation/progress and HEVC/H.264/ProRes exports subject to hardware. Stress thermal/memory behavior before release. A mobile grading workflow, not a full video timeline editor.
+Implemented in 0.7: reversible video trimming with live endpoint inspection, HLG/PQ input, 10-bit HLG HDR export and extended-range video previews. Header safe-area placement now uses the current window insets.
+
+Next: HDR still-photo export, improved HDR creative-tool modeling, scopes and H.264/ProRes exports subject to hardware. Stress thermal/memory behavior before release. A mobile grading workflow, not a full video timeline editor.
 
 ## Performance release gates
 

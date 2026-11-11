@@ -9,11 +9,12 @@ struct LivePreview: UIViewRepresentable {
     let original: Bool
     var rangePreview: ColorRange? = nil
     var active: Bool = true
+    var hdr = false
     func makeCoordinator() -> Renderer { Renderer() }
     func makeUIView(context: Context) -> MTKView {
         let view = MTKView(frame: .zero, device: context.coordinator.device)
         view.isPaused = true; view.enableSetNeedsDisplay = true
-        view.framebufferOnly = false; view.colorPixelFormat = .bgra8Unorm
+        view.framebufferOnly = false; view.colorPixelFormat = hdr ? .rgba16Float : .bgra8Unorm
         view.backgroundColor = .clear; view.isOpaque = true
         view.clearColor = MTLClearColorMake(0.025,0.03,0.04,1)
         view.contentScaleFactor = min(view.traitCollection.displayScale, 2)
@@ -22,7 +23,10 @@ struct LivePreview: UIViewRepresentable {
         return view
     }
     func updateUIView(_ view: MTKView, context: Context) {
-        context.coordinator.update(source, signalSource:signalSource,recipe: recipe, original: original, rangePreview: rangePreview, active: active, view: view)
+        view.colorPixelFormat = hdr ? .rgba16Float : .bgra8Unorm
+        (view.layer as? CAMetalLayer)?.colorspace = hdr ? ImageEngine.working : ImageEngine.output
+        (view.layer as? CAMetalLayer)?.wantsExtendedDynamicRangeContent = hdr
+        context.coordinator.update(source, signalSource:signalSource,recipe: recipe, original: original, rangePreview: rangePreview, active: active, hdr:hdr, view: view)
     }
     static func dismantleUIView(_ view: MTKView, coordinator: Renderer) { view.delegate = nil; coordinator.clear() }
     @MainActor final class Renderer: NSObject, MTKViewDelegate {
@@ -33,14 +37,15 @@ struct LivePreview: UIViewRepresentable {
         private var recipe = Recipe()
         private var signalSource:CIImage?
         private var original = false
+        private var hdr = false
         private var rangePreview: ColorRange?
         private var active = true
         private var dirty = true
         private var drawing = false
         func clear() { source = nil; context?.clearCaches() }
-        func update(_ source:CIImage,signalSource:CIImage?,recipe: Recipe, original: Bool, rangePreview: ColorRange?, active: Bool, view: MTKView) {
-            let changed = self.source !== source || self.signalSource !== signalSource || self.recipe != recipe || self.original != original || self.rangePreview != rangePreview || self.active != active
-            self.source = source; self.signalSource = signalSource; self.recipe = recipe; self.original = original; self.rangePreview = rangePreview; self.active = active
+        func update(_ source:CIImage,signalSource:CIImage?,recipe: Recipe, original: Bool, rangePreview: ColorRange?, active: Bool, hdr:Bool, view: MTKView) {
+            let changed = self.source !== source || self.signalSource !== signalSource || self.recipe != recipe || self.original != original || self.rangePreview != rangePreview || self.active != active || self.hdr != hdr
+            self.source = source; self.signalSource = signalSource; self.recipe = recipe; self.original = original; self.rangePreview = rangePreview; self.active = active;self.hdr = hdr
             guard changed else { return }; dirty = true
             if active && !drawing { view.setNeedsDisplay() }
         }
@@ -51,11 +56,11 @@ struct LivePreview: UIViewRepresentable {
             drawing = true; dirty = false
             let began = CACurrentMediaTime()
             var originalRecipe = Recipe(); originalRecipe.copyFraming(from: recipe)
-            let image = ImageEngine.apply(!original && recipe.input.profile != .standard ? (signalSource ?? source) : source, recipe: original ? originalRecipe : recipe, rangePreview: original ? nil : rangePreview)
+            let image = HDRPipeline.grade(!original && recipe.input.profile != .standard ? (signalSource ?? source) : source, recipe: original ? originalRecipe : recipe, hdr:hdr, rangePreview: original ? nil : rangePreview)
             let scale = min(size.width / image.extent.width, size.height / image.extent.height)
             let placed = image.transformed(by: .init(scaleX: scale,y: scale)).transformed(by: .init(translationX: (size.width-image.extent.width*scale)/2, y: (size.height-image.extent.height*scale)/2))
             let background = CIImage(color: CIColor(red: 0.025, green: 0.03, blue: 0.04)).cropped(to: CGRect(origin: .zero,size: size))
-            context.render(placed.composited(over: background), to: drawable.texture, commandBuffer: command, bounds: CGRect(origin: .zero,size: size), colorSpace: ImageEngine.output)
+            context.render(placed.composited(over: background), to: drawable.texture, commandBuffer: command, bounds: CGRect(origin: .zero,size: size), colorSpace: hdr ? ImageEngine.working : ImageEngine.output)
             command.addCompletedHandler { [weak self, weak view] buffer in
                 let ms = (CACurrentMediaTime() - began) * 1000
                 DispatchQueue.main.async {

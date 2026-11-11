@@ -2,6 +2,7 @@ import Foundation
 
 // Portable, versioned instructions. Source pixels are never changed.
 struct Recipe: Codable, Equatable, Sendable {
+    var video = VideoEdit()
     var input = InputConversion()
     var lut: LUTAsset?
     var lutAmount = 1.0
@@ -36,10 +37,11 @@ struct Recipe: Codable, Equatable, Sendable {
     var look = FilmLook.original
     var lookAmount = 1.0
     init() {}
-    private enum CodingKeys: String, CodingKey { case input, lut, lutAmount, colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
+    private enum CodingKeys: String, CodingKey { case video, input, lut, lutAmount, colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
     init(from decoder: Decoder) throws {
         self.init()
         let values = try decoder.container(keyedBy: CodingKeys.self)
+        video = try values.decodeIfPresent(VideoEdit.self,forKey:.video) ?? VideoEdit()
         input = try values.decodeIfPresent(InputConversion.self,forKey:.input) ?? InputConversion()
         lut = try values.decodeIfPresent(LUTAsset.self,forKey:.lut)
         lutAmount = try values.decodeIfPresent(Double.self,forKey:.lutAmount) ?? 1
@@ -191,5 +193,5 @@ extension Recipe {
     mutating func copyFraming(from source: Recipe) {
         crop = source.crop; rotation = source.rotation; straighten = source.straighten; cropX = source.cropX; cropY = source.cropY
     }
-    var colorPreset: Recipe { var copy = self; copy.reset(.crop); copy.input = InputConversion(); return copy }
+    var colorPreset: Recipe { var copy = self; copy.reset(.crop); copy.input = InputConversion(); copy.video = VideoEdit(); return copy }
 }

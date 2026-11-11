@@ -24,11 +24,13 @@ import UniformTypeIdentifiers
                     Text("Ready for\nthe world.").font(.system(size: 36,weight: .semibold,design: .serif))
                     Text("A finished copy. Your original stays yours.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     if !session.project.isVideo { Picker("File format",selection: $format) { ForEach(ExportFormat.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).disabled(busy || result != nil) }
-                    if session.project.isVideo { Picker("Video depth",selection:$tenBitVideo) { Text("10-bit HEVC").tag(true);Text("8-bit HEVC").tag(false) }.pickerStyle(.segmented).disabled(busy || result != nil) }
+                    if session.project.isVideo { Toggle("HDR video · HLG",isOn:Binding(get:{ session.recipe.video.hdr },set:{ value in session.change { $0.video.hdr = value } })).disabled(busy || result != nil);Text("HDR keeps brighter highlights on supported screens. SDR is the safest choice for universal sharing. HDR uses 10-bit HEVC; SDR looks/LUTs can change highlight detail.").font(.caption).foregroundStyle(StudioStyle.secondary) }
+                    if session.project.isVideo { Picker("Video depth",selection:$tenBitVideo) { Text("10-bit HEVC").tag(true);Text("8-bit HEVC").tag(false) }.pickerStyle(.segmented).disabled(busy || result != nil || session.recipe.video.hdr) }
                     VStack(alignment: .leading,spacing: 14) {
                         exportDetail("Resolution",value: "Full original · crop applied")
-                        exportDetail("Color",value:session.project.isVideo ? "sRGB · SDR" : "sRGB · SDR")
-                        exportDetail("Quality",value:session.project.isVideo ? "HEVC · \(tenBitVideo ? 10 : 8)-bit · source frame timing" : (format == .jpeg ? "96% JPEG" : "Lossless PNG · 8-bit"))
+                        exportDetail("Color",value:session.project.isVideo ? (session.recipe.video.hdr ? "Rec.2020 · HLG HDR" : "sRGB · SDR") : "sRGB · SDR")
+                        exportDetail("Quality",value:session.project.isVideo ? "HEVC · \((tenBitVideo || session.recipe.video.hdr) ? 10 : 8)-bit · source frame timing" : (format == .jpeg ? "96% JPEG" : "Lossless PNG · 8-bit"))
+                        if let video = session.project.video { let r = session.recipe.video.range(duration:video.duration);exportDetail("Duration",value:String(format:"%.2f seconds",r.upperBound-r.lowerBound)) }
                         if session.project.isVideo { exportDetail("Audio",value:"Original tracks preserved") }
                         exportDetail("Privacy",value: "Location metadata omitted")
                     }.padding(20).background(StudioStyle.panel,in: RoundedRectangle(cornerRadius: 20))
@@ -53,6 +55,7 @@ import UniformTypeIdentifiers
         }.tint(StudioStyle.blue)
         .onDisappear { exportTask?.cancel();discardExport() }
         .onChange(of:phase) { _,value in if value != .active { exportTask?.cancel() } }
+        .onChange(of:session.recipe.video.hdr) { _,value in if value { tenBitVideo = true } }
     }
     private func discardExport() {
         guard let url = result?.url else { return };result = nil
@@ -112,7 +115,7 @@ import UniformTypeIdentifiers
                     ForEach(library.looks) { look in
                         HStack {
                             Button {
-                                session.change { recipe in let framing = recipe; recipe = look.recipe; recipe.copyFraming(from: framing); recipe.input = framing.input }
+                                session.change { recipe in let framing = recipe; recipe = look.recipe; recipe.copyFraming(from: framing); recipe.input = framing.input;recipe.video = framing.video }
                                 dismiss()
                             } label: { Label(look.name,systemImage: "camera.filters").foregroundStyle(.white) }
                             Spacer()
