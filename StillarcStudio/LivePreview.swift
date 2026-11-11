@@ -6,6 +6,7 @@ struct LivePreview: UIViewRepresentable {
     let source: CIImage
     let recipe: Recipe
     let original: Bool
+    var rangePreview: ColorRange? = nil
     var active: Bool = true
     func makeCoordinator() -> Renderer { Renderer() }
     func makeUIView(context: Context) -> MTKView {
@@ -20,7 +21,7 @@ struct LivePreview: UIViewRepresentable {
         return view
     }
     func updateUIView(_ view: MTKView, context: Context) {
-        context.coordinator.update(source, recipe: recipe, original: original, active: active, view: view)
+        context.coordinator.update(source, recipe: recipe, original: original, rangePreview: rangePreview, active: active, view: view)
     }
     static func dismantleUIView(_ view: MTKView, coordinator: Renderer) { view.delegate = nil; coordinator.clear() }
     @MainActor final class Renderer: NSObject, MTKViewDelegate {
@@ -30,13 +31,14 @@ struct LivePreview: UIViewRepresentable {
         private var source: CIImage?
         private var recipe = Recipe()
         private var original = false
+        private var rangePreview: ColorRange?
         private var active = true
         private var dirty = true
         private var drawing = false
         func clear() { source = nil; context?.clearCaches() }
-        func update(_ source: CIImage, recipe: Recipe, original: Bool, active: Bool, view: MTKView) {
-            let changed = self.source !== source || self.recipe != recipe || self.original != original || self.active != active
-            self.source = source; self.recipe = recipe; self.original = original; self.active = active
+        func update(_ source: CIImage, recipe: Recipe, original: Bool, rangePreview: ColorRange?, active: Bool, view: MTKView) {
+            let changed = self.source !== source || self.recipe != recipe || self.original != original || self.rangePreview != rangePreview || self.active != active
+            self.source = source; self.recipe = recipe; self.original = original; self.rangePreview = rangePreview; self.active = active
             guard changed else { return }; dirty = true
             if active && !drawing { view.setNeedsDisplay() }
         }
@@ -47,7 +49,7 @@ struct LivePreview: UIViewRepresentable {
             drawing = true; dirty = false
             let began = CACurrentMediaTime()
             var originalRecipe = Recipe(); originalRecipe.copyFraming(from: recipe)
-            let image = ImageEngine.apply(source, recipe: original ? originalRecipe : recipe)
+            let image = ImageEngine.apply(source, recipe: original ? originalRecipe : recipe, rangePreview: original ? nil : rangePreview)
             let scale = min(size.width / image.extent.width, size.height / image.extent.height)
             let placed = image.transformed(by: .init(scaleX: scale,y: scale)).transformed(by: .init(translationX: (size.width-image.extent.width*scale)/2, y: (size.height-image.extent.height*scale)/2))
             let background = CIImage(color: CIColor(red: 0.025, green: 0.03, blue: 0.04)).cropped(to: CGRect(origin: .zero,size: size))

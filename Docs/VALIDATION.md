@@ -1,5 +1,20 @@
 # Validation
 
+## 0.3.0, build 3 — RGB curves and selective color
+
+Passed on the black iPhone 16 Pro using the Metal stitchable kernel and on the simulator using the portable Core Image fallback:
+
+- Isolated R/G/B channel changes and Master adjustment at known control points; 2,002 dense spline samples remained finite and bounded. The control graph uses the same shape-preserving curve model as the 1024-sample float tables.
+- All 24 selective color components (eight ranges × hue/saturation/brightness) changed their intended swatch while leaving an opposite hue and neutral gray unaffected. Positive/negative hue direction, red wrap continuity and alpha preservation passed.
+- Recipe/preset round trips, neutral defaults for older recipes, section reset isolation, and undo/redo of the new color controls passed.
+- Temporary range inspection dims unrelated colors before film effects; the normal render and JPEG/PNG export tests remained free of that preview overlay. Sampled exported color matched the edit render within the fixture's JPEG/PNG tolerances.
+- Existing geometry, original preservation, 19 legacy controls and 12/24/48MP synthetic export fixtures passed. Those large exports now include RGB and selective-color adjustments. They are simple gradients, not representative RAW benchmarks.
+
+The optimized iPhone 16 Pro sustained diagnostic requested **7,200 changes** and completed **6,693 coalesced renders** over **130.8 seconds**, with RGB curve values and selective hue/saturation changing continuously, plus a look, grain, bloom, straighten and crop. Render-completion p95 was **10.91 ms**, with **zero GPU failures** and **zero idle redraws**. Thermal state was **nominal at start and end**. Render completion is not touch-to-display latency or a guaranteed presented frame rate; no battery-energy or physical-temperature measurement was taken. Real RAW inputs, longer sessions and older physical devices still need coverage.
+
+The normal signed Release archive passed strict code-signature verification and was installed and launched on the black iPhone 16 Pro. [Raw reports](Verification/0.3.0) and current RGB/selective screenshots are retained with this version. Portrait, compact-phone and iPad layout inspection remains a visual check, not an automated tap/drag UI test.
+
+
 ## 0.2.0, build 2 — active sections and framing
 
 The simulator and iPhone 17 Pro processing suites passed for active-section indicators, section reset/undo, exact-value parsing, preset framing isolation, movable crops, 19 individual controls, and 400 geometry fixtures covering odd/even dimensions, four rotations, five angles, five ratios and both edge anchors. A fractional crop-boundary issue found by the fixture was corrected before release. JPEG and PNG exports retained the straightened crop; original-preservation and large-image checks still passed.

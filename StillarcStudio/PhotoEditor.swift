@@ -8,6 +8,11 @@ import UniformTypeIdentifiers
     @State private var session: EditSession
     @Bindable var library: StudioLibrary
     @State private var tool: Tool = .light
+    @State private var colorPanel: ColorPanel = .global
+    @State private var selectedRange: ColorRange = .orange
+    @State private var showRange = false
+    @State private var curveChannel: CurveChannel = .master
+    @State private var curvePoint: CurvePoint = .middle
     @State private var comparing = false
     @State private var export = false
     @State private var presets = false
@@ -34,7 +39,7 @@ import UniformTypeIdentifiers
                     VStack(spacing: 0) {
                         preview
                         tools
-                        controls.frame(height: min(280,geometry.size.height * 0.43)).background(StudioStyle.panel)
+                        controls.frame(height: min((tool == .curves || (tool == .color && colorPanel == .selective)) ? 360 : 280,geometry.size.height * ((tool == .curves || (tool == .color && colorPanel == .selective)) ? 0.54 : 0.43))).background(StudioStyle.panel)
                     }
                 }
             }
@@ -44,6 +49,11 @@ import UniformTypeIdentifiers
             await session.open(library: library)
             #if DEBUG
             let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("--color-mix") { colorPanel = .selective }
+            if arguments.contains("--range-preview") { showRange = true }
+            if arguments.contains("--show-color-example") {
+                session.change { $0 = Recipe(); $0.rgbCurves.master.shadows = 0.22; $0.rgbCurves.red.middle = 0.53; $0.rgbCurves.blue.shadows = 0.28; $0.selectiveColors.blue.saturation = -0.2; $0.selectiveColors.orange.brightness = 0.1 }
+            }
             if arguments.contains("--show-adjusted-example") {
                 session.change { $0.exposure = 0.25; $0.warmth = 0.12; $0.grain = 0.1; $0.crop = .portrait; $0.straighten = 3 }
             }
@@ -87,7 +97,7 @@ import UniformTypeIdentifiers
             ZStack {
                 StudioStyle.ink
                 if let source = session.source {
-                    LivePreview(source: source.image,recipe: session.recipe,original: comparing,active: phase == .active && !export && !presets)
+                    LivePreview(source: source.image,recipe: session.recipe,original: comparing,rangePreview: tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active: phase == .active && !export && !presets)
                         .scaleEffect(zoom * pinch).offset(x: offset.width+drag.width,y: offset.height+drag.height)
                         .gesture(MagnifyGesture().updating($pinch) { value,state,_ in state = value.magnification }.onEnded { value in zoom = min(4,max(1,zoom * value.magnification)); if zoom == 1 { offset = .zero } })
                         .simultaneousGesture(DragGesture(minimumDistance: 4).updating($drag) { value,state,_ in if zoom > 1 { state = value.translation } }.onChanged { value in
@@ -105,7 +115,7 @@ import UniformTypeIdentifiers
                 }
                 VStack {
                     HStack {
-                        Text(comparing ? "ORIGINAL" : (session.project.isRAW ? "RAW DEVELOP" : "LIVE PREVIEW"))
+                        Text(comparing ? "ORIGINAL" : (tool == .color && colorPanel == .selective && showRange ? "RANGE PREVIEW" : (session.project.isRAW ? "RAW DEVELOP" : "LIVE PREVIEW")))
                             .font(.system(size: 9,weight: .semibold,design: .monospaced)).tracking(1).padding(.horizontal,10).padding(.vertical,7).background(.black.opacity(0.65),in: Capsule())
                         Spacer()
                         Text("\(session.project.width) × \(session.project.height)").font(.system(size: 9,design: .monospaced)).foregroundStyle(.white.opacity(0.7))
@@ -141,7 +151,7 @@ import UniformTypeIdentifiers
         ScrollView {
             VStack(alignment: .leading,spacing: 22) {
                 HStack(alignment: .top) {
-                    Text(tool.help).font(.system(size: 11)).foregroundStyle(StudioStyle.secondary).lineSpacing(3).fixedSize(horizontal: false,vertical: true)
+                    Text(tool == .curves ? "RGB curves" : tool.help).font(.system(size: 11)).foregroundStyle(StudioStyle.secondary).lineSpacing(3).fixedSize(horizontal: false,vertical: true)
                     Spacer(minLength: 10)
                     Menu {
                         Button("Reset \(tool.rawValue.lowercased())",systemImage: "arrow.counterclockwise") { session.change { $0.reset(tool) }; if tool == .crop { zoom = 1; offset = .zero } }.disabled(!session.recipe.hasAdjustments(in: tool))
@@ -157,10 +167,7 @@ import UniformTypeIdentifiers
                     adjustment("Whites",key: \.whites)
                     adjustment("Blacks",key: \.blacks)
                 case .color:
-                    adjustment("Warmth",key: \.warmth)
-                    adjustment("Tint",key: \.tint)
-                    adjustment("Saturation",key: \.saturation)
-                    adjustment("Vibrance",key: \.vibrance)
+                    colorControls
                 case .film:
                     ScrollView(.horizontal,showsIndicators: false) {
                         HStack(spacing: 9) {
@@ -178,10 +185,7 @@ import UniformTypeIdentifiers
                     adjustment("Fade",key: \.fade,range: 0...1)
                     adjustment("Vignette",key: \.vignette,range: 0...1)
                 case .curves:
-                    CurveDiagram(recipe: session.recipe).frame(height: 100)
-                    adjustment("Dark tones",key: \.curveShadows)
-                    adjustment("Middle tones",key: \.curveMidtones)
-                    adjustment("Bright tones",key: \.curveHighlights)
+                    curveControls
                 case .detail:
                     adjustment("Sharpen",key: \.sharpen,range: 0...1)
                     adjustment("Noise reduction",key: \.noise,range: 0...1)
@@ -206,6 +210,63 @@ import UniformTypeIdentifiers
                 }
             }.padding(20).padding(.bottom,12)
         }.scrollIndicators(.hidden)
+    }
+    private var colorControls: some View {
+        VStack(alignment:.leading,spacing:18) {
+            Picker("Color tools",selection:$colorPanel) {
+                ForEach(ColorPanel.allCases,id: \.self) { Text($0.rawValue).tag($0) }
+            }.pickerStyle(.segmented)
+            if colorPanel == .global {
+                adjustment("Warmth",key: \.warmth)
+                adjustment("Tint",key: \.tint)
+                adjustment("Saturation",key: \.saturation)
+                adjustment("Vibrance",key: \.vibrance)
+            } else {
+                ColorRangePicker(selected:$selectedRange,adjustments:session.recipe.selectiveColors)
+                HStack {
+                    Text(selectedRange.title).font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Button { showRange.toggle() } label: { Label("Show range",systemImage:showRange ? "eye.fill" : "eye").font(.caption).foregroundStyle(showRange ? StudioStyle.blue : StudioStyle.secondary) }.accessibilityValue(showRange ? "On" : "Off")
+                    Button("Reset range") { session.change { $0.selectiveColors[keyPath:selectedRange.key] = ColorRangeAdjustment() } }
+                        .font(.caption).disabled(session.recipe.selectiveColors[keyPath:selectedRange.key].isNeutral)
+                }
+                adjustment("Hue",key:selectedRange.recipeKey(\.hue),range:-30...30,unit:"°")
+                adjustment("Saturation",key:selectedRange.recipeKey(\.saturation))
+                adjustment("Brightness",key:selectedRange.recipeKey(\.brightness))
+                Text(showRange ? "Selected colors stay visible; other colors dim. This view is before film effects and is never exported." : "Hue shifts this color, saturation changes its richness, and brightness makes it lighter or darker. Similar colors throughout the photo change together.")
+                    .font(.caption).foregroundStyle(StudioStyle.secondary).lineSpacing(3)
+            }
+        }
+    }
+    private var curveControls: some View {
+        VStack(alignment:.leading,spacing:12) {
+            Picker("Curve channel",selection:$curveChannel) {
+                ForEach(CurveChannel.allCases) { channel in Text(channel.rawValue + (session.recipe.rgbCurves[keyPath:channel.key].isNeutral ? "" : " •")).tag(channel) }
+            }.pickerStyle(.segmented)
+            HStack {
+                Menu {
+                    ForEach(CurvePoint.allCases) { point in Button(point.title) { curvePoint = point } }
+                    Divider()
+                    Button("Reset point") { session.change { $0[keyPath:curveChannel.recipeKey(curvePoint)] = curvePoint.input } }
+                    Button("Reset \(curveChannel.rawValue.lowercased()) curve") { session.change { $0.rgbCurves[keyPath:curveChannel.key] = ToneCurve() } }
+                } label: { HStack(spacing:5) { Text(curvePoint.title); Image(systemName:"chevron.down").font(.system(size:9)) }.font(.caption) }
+                Spacer()
+                Button {
+                    let key = curveChannel.recipeKey(curvePoint)
+                    numericEdit = NumericEdit(name:curvePoint.title,key:key,range:0...1,unit:"")
+                    numericText = String(format:"%.2f",session.recipe[keyPath:key]*100)
+                } label: { Text(String(format:"%.1f%%",session.recipe[keyPath:curveChannel.recipeKey(curvePoint)]*100)).font(.caption.monospacedDigit()).foregroundStyle(curveChannel.color).padding(.vertical,5) }.accessibilityLabel("Set exact curve output")
+            }
+            RGBCurveGraph(session:session,channel:curveChannel,selected:$curvePoint).frame(height:170)
+            Text(curveChannel.help).font(.caption).foregroundStyle(StudioStyle.secondary).lineSpacing(2)
+            DisclosureGroup("Additional tone shaping") {
+                VStack(spacing:18) {
+                    adjustment("Dark tones",key: \.curveShadows)
+                    adjustment("Middle tones",key: \.curveMidtones)
+                    adjustment("Bright tones",key: \.curveHighlights)
+                }.padding(.top,14)
+            }.font(.caption).padding(.top,4)
+        }
     }
     private func adjustment(_ name: String,key: WritableKeyPath<Recipe,Double>,range: ClosedRange<Double> = -1...1,unit: String = "",defaultValue: Double = 0) -> some View {
         VStack(spacing: 7) {
@@ -267,13 +328,16 @@ import UniformTypeIdentifiers
             if index % 120 == 0 { writeProgress(["stage":"running","step":index,"rendered":PreviewMetrics.shared.times.count,"active":UIApplication.shared.applicationState == .active]) }
             session.recipe.exposure = sin(Double(index) * 0.13)
             session.recipe.warmth = cos(Double(index) * 0.11) * 0.4
+            session.recipe.rgbCurves.red.middle = 0.5 + sin(Double(index)*0.07)*0.06
+            session.recipe.selectiveColors.blue.saturation = sin(Double(index)*0.09)*0.35
+            session.recipe.selectiveColors.orange.hue = cos(Double(index)*0.08)*8
             try? await Task.sleep(for: .milliseconds(16))
         }
         try? await Task.sleep(for: .seconds(1))
         let count = PreviewMetrics.shared.times.count
         try? await Task.sleep(for: .seconds(3))
         let times = PreviewMetrics.shared.times.sorted()
-        let report: [String: Any] = ["interrupted":interrupted,"version":"0.2.0","elapsedSeconds":CACurrentMediaTime()-began,"cancelled":Task.isCancelled,"requestedUpdates": steps,"rendered": count,"p95Milliseconds": times.isEmpty ? 0 : times[Int(Double(times.count-1)*0.95)],"extraIdleFrames": times.count-count,"gpuFailures": PreviewMetrics.shared.failures,"thermalStart": start,"thermalEnd": ProcessInfo.processInfo.thermalState.rawValue]
+        let report: [String: Any] = ["interrupted":interrupted,"version":"0.3.0","elapsedSeconds":CACurrentMediaTime()-began,"cancelled":Task.isCancelled,"requestedUpdates": steps,"rendered": count,"kernelBackend":ColorPipeline.backend,"p95Milliseconds": times.isEmpty ? 0 : times[Int(Double(times.count-1)*0.95)],"extraIdleFrames": times.count-count,"gpuFailures": PreviewMetrics.shared.failures,"thermalStart": start,"thermalEnd": ProcessInfo.processInfo.thermalState.rawValue]
         if let data = try? JSONSerialization.data(withJSONObject: report,options: .prettyPrinted) {
             try? data.write(to: documents.appendingPathComponent("preview-verification.json"),options: .atomic)
             writeProgress(["stage":"finished","rendered":count])

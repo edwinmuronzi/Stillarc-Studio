@@ -32,6 +32,7 @@ enum ImageEngine {
         return CIContext(options: [.workingColorSpace: working, .cacheIntermediates: false, .priorityRequestLow: true])
     }
     static func open(_ url: URL, maxDimension: Double? = nil) throws -> PreparedPhoto {
+        try ColorPipeline.prepare()
         let source = CGImageSourceCreateWithURL(url as CFURL, nil)
         let type = source.flatMap { CGImageSourceGetType($0) }.flatMap { UTType($0 as String) }
         let raw = type?.conforms(to: .rawImage) == true || ["dng","nef","arw","cr2","cr3","raf","orf","rw2"].contains(url.pathExtension.lowercased())
@@ -68,7 +69,7 @@ enum ImageEngine {
         image = image.transformed(by: .init(translationX: -image.extent.minX, y: -image.extent.minY))
         return PreparedPhoto(image: image, width: nativeWidth, height: nativeHeight, isRAW: raw)
     }
-    static func apply(_ source: CIImage, recipe r: Recipe) -> CIImage {
+    static func apply(_ source: CIImage, recipe r: Recipe, rangePreview: ColorRange? = nil) -> CIImage {
         var image = source
         func filter(_ name: String, _ values: [String: Any]) { image = image.applyingFilter(name, parameters: values) }
         if r.exposure != 0 { filter("CIExposureAdjust", [kCIInputEVKey: r.exposure]) }
@@ -85,6 +86,9 @@ enum ImageEngine {
         if r.curveShadows != 0 || r.curveMidtones != 0 || r.curveHighlights != 0 || r.fade != 0 || r.whites != 0 || r.blacks != 0 {
             filter("CIToneCurve", ["inputPoint0": CIVector(x: 0, y: r.fade * 0.15 + r.blacks * 0.08), "inputPoint1": CIVector(x: 0.25, y: 0.25 + r.curveShadows * 0.15 + r.blacks * 0.04), "inputPoint2": CIVector(x: 0.5, y: 0.5 + r.curveMidtones * 0.2), "inputPoint3": CIVector(x: 0.75, y: 0.75 + r.curveHighlights * 0.15 + r.whites * 0.04), "inputPoint4": CIVector(x: 1, y: 1 + r.whites * 0.16)])
         }
+        image = ColorPipeline.applyCurves(image,curves:r.rgbCurves)
+        image = ColorPipeline.applySelective(image,adjustments:r.selectiveColors,previewRange:rangePreview)
+        if rangePreview != nil { return PhotoFraming.apply(image,recipe:r) }
         if r.look != .original && r.lookAmount > 0 {
             let base = image
             switch r.look {

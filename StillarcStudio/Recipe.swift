@@ -2,6 +2,8 @@ import Foundation
 
 // Portable, versioned instructions. Source pixels are never changed.
 struct Recipe: Codable, Equatable, Sendable {
+    var rgbCurves = RGBCurves()
+    var selectiveColors = SelectiveColors()
     var exposure = 0.0
     var contrast = 0.0
     var highlights = 0.0
@@ -29,10 +31,12 @@ struct Recipe: Codable, Equatable, Sendable {
     var look = FilmLook.original
     var lookAmount = 1.0
     init() {}
-    private enum CodingKeys: String, CodingKey { case exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
+    private enum CodingKeys: String, CodingKey { case rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
     init(from decoder: Decoder) throws {
         self.init()
         let values = try decoder.container(keyedBy: CodingKeys.self)
+        rgbCurves = try values.decodeIfPresent(RGBCurves.self,forKey:.rgbCurves) ?? rgbCurves
+        selectiveColors = try values.decodeIfPresent(SelectiveColors.self,forKey:.selectiveColors) ?? selectiveColors
         exposure = try values.decodeIfPresent(Double.self, forKey: .exposure) ?? exposure
         contrast = try values.decodeIfPresent(Double.self, forKey: .contrast) ?? contrast
         highlights = try values.decodeIfPresent(Double.self, forKey: .highlights) ?? highlights
@@ -91,9 +95,9 @@ enum Tool: String, CaseIterable, Identifiable {
     var help: String {
         switch self {
         case .light: "Shape brightness and contrast without changing your original."
-        case .color: "Warm the light, balance a color cast, or make colors richer."
+        case .color: "Balance the whole photo or refine individual color ranges."
         case .film: "Build a look with texture, soft light and a film-inspired finish."
-        case .curves: "Fine-tune dark, middle and bright tones independently."
+        case .curves: "Shape brightness or individual red, green and blue tones."
         case .detail: "Bring out edges or soften visible digital noise."
         case .crop: "Drag the photo to reframe it. Straighten a horizon without leaving black corners."
         }
@@ -132,6 +136,8 @@ extension Recipe {
         copy.cropX = copy.cropX.isFinite ? min(1,max(0,copy.cropX)) : 0.5
         copy.cropY = copy.cropY.isFinite ? min(1,max(0,copy.cropY)) : 0.5
         copy.straighten = copy.straighten.isFinite ? min(15,max(-15,copy.straighten)) : 0
+        copy.rgbCurves = rgbCurves.validated()
+        copy.selectiveColors = selectiveColors.validated()
         copy.rotation = ((copy.rotation % 4) + 4) % 4
         return copy
     }
@@ -152,6 +158,8 @@ extension Tool {
 extension Recipe {
     func hasAdjustments(in tool: Tool) -> Bool {
         if tool.valueKeys.contains(where: { abs(self[keyPath: $0]) > 0.000001 }) { return true }
+        if tool == .curves && !rgbCurves.isNeutral { return true }
+        if tool == .color && !selectiveColors.isNeutral { return true }
         if tool == .film { return look != .original && lookAmount > 0.000001 }
         if tool == .crop { return crop != .original || rotation % 4 != 0 }
         return false
@@ -159,6 +167,8 @@ extension Recipe {
     mutating func reset(_ tool: Tool) {
         let neutral = Recipe()
         for key in tool.valueKeys { self[keyPath: key] = neutral[keyPath: key] }
+        if tool == .curves { rgbCurves = RGBCurves() }
+        if tool == .color { selectiveColors = SelectiveColors() }
         if tool == .film { look = .original; lookAmount = 1 }
         if tool == .crop { crop = .original; rotation = 0; straighten = 0; cropX = 0.5; cropY = 0.5 }
     }

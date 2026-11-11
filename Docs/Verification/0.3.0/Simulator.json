@@ -1,0 +1,96 @@
+{
+  "correctness": {
+    "colorTools": {
+      "alphaPreserved": true,
+      "channelIsolation": 3,
+      "compilationNote": "Dynamic libraries are not supported by this GPU",
+      "exportColorMatch": true,
+      "hueDirections": true,
+      "hueWrap": true,
+      "kernelBackend": "Core Image portable",
+      "neutralGray": true,
+      "oldRecipeMigration": true,
+      "passed": true,
+      "presetColorRoundTrip": true,
+      "rangePreviewNotExported": true,
+      "recipeRoundTrip": true,
+      "resetIsolation": true,
+      "selectiveComponents": 24,
+      "splineSamples": 2002
+    },
+    "colorUndoRedo": true,
+    "cropRepositioning": true,
+    "deletion": true,
+    "exportFormats": [
+      "JPEG",
+      "PNG"
+    ],
+    "geometryEdgeFixtures": 400,
+    "largeImageFixtures": [
+      {
+        "height": 3000,
+        "previewAndExportSeconds": 0.05442607402801514,
+        "width": 4000
+      },
+      {
+        "height": 4000,
+        "previewAndExportSeconds": 0.0894860029220581,
+        "width": 6000
+      },
+      {
+        "height": 6000,
+        "previewAndExportSeconds": 0.23641300201416016,
+        "width": 8000
+      }
+    ],
+    "legacyProjectMigration": true,
+    "looks": 5,
+    "numericValidation": true,
+    "originalPreserved": true,
+    "passed": true,
+    "presetFraming": true,
+    "presetPersistence": true,
+    "recipePersistence": true,
+    "sectionIndicators": true,
+    "sectionResetUndo": true,
+    "stressRenders": 120,
+    "stressSeconds": 0.13950204849243164,
+    "testedControls": [
+      "Exposure",
+      "Contrast",
+      "Highlights",
+      "Shadows",
+      "Whites",
+      "Blacks",
+      "Warmth",
+      "Tint",
+      "Saturation",
+      "Vibrance",
+      "Fade",
+      "Grain",
+      "Bloom",
+      "Vignette",
+      "Sharpen",
+      "Noise",
+      "Dark curve",
+      "Middle curve",
+      "Bright curve"
+    ],
+    "thermalState": 0,
+    "undoRedo": true
+  },
+  "preview": {
+    "extraIdleFrames": 0,
+    "thermalStart": 0,
+    "interrupted": false,
+    "requestedUpdates": 180,
+    "rendered": 180,
+    "thermalEnd": 0,
+    "version": "0.3.0",
+    "kernelBackend": "Core Image portable",
+    "p95Milliseconds": 10.69312496110797,
+    "elapsedSeconds": 7.367998208384961,
+    "cancelled": false,
+    "gpuFailures": 0
+  }
+}

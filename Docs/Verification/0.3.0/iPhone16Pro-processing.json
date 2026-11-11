@@ -1,0 +1,80 @@
+{
+  "colorTools": {
+    "alphaPreserved": true,
+    "channelIsolation": 3,
+    "compilationNote": "Ready",
+    "exportColorMatch": true,
+    "hueDirections": true,
+    "hueWrap": true,
+    "kernelBackend": "Metal stitchable",
+    "neutralGray": true,
+    "oldRecipeMigration": true,
+    "passed": true,
+    "presetColorRoundTrip": true,
+    "rangePreviewNotExported": true,
+    "recipeRoundTrip": true,
+    "resetIsolation": true,
+    "selectiveComponents": 24,
+    "splineSamples": 2002
+  },
+  "colorUndoRedo": true,
+  "cropRepositioning": true,
+  "deletion": true,
+  "exportFormats": [
+    "JPEG",
+    "PNG"
+  ],
+  "geometryEdgeFixtures": 400,
+  "largeImageFixtures": [
+    {
+      "height": 3000,
+      "previewAndExportSeconds": 0.10612499713897705,
+      "width": 4000
+    },
+    {
+      "height": 4000,
+      "previewAndExportSeconds": 0.11998105049133301,
+      "width": 6000
+    },
+    {
+      "height": 6000,
+      "previewAndExportSeconds": 0.2433919906616211,
+      "width": 8000
+    }
+  ],
+  "legacyProjectMigration": true,
+  "looks": 5,
+  "numericValidation": true,
+  "originalPreserved": true,
+  "passed": true,
+  "presetFraming": true,
+  "presetPersistence": true,
+  "recipePersistence": true,
+  "sectionIndicators": true,
+  "sectionResetUndo": true,
+  "stressRenders": 120,
+  "stressSeconds": 0.06528699398040771,
+  "testedControls": [
+    "Exposure",
+    "Contrast",
+    "Highlights",
+    "Shadows",
+    "Whites",
+    "Blacks",
+    "Warmth",
+    "Tint",
+    "Saturation",
+    "Vibrance",
+    "Fade",
+    "Grain",
+    "Bloom",
+    "Vignette",
+    "Sharpen",
+    "Noise",
+    "Dark curve",
+    "Middle curve",
+    "Bright curve"
+  ],
+  "thermalState": 0,
+  "undoRedo": true
+}
