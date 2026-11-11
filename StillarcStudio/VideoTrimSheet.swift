@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct VideoTrimSheet:View {
+    #if DEBUG
+    static var presentationCount = 0
+    #endif
     @Bindable var session:EditSession
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
@@ -9,11 +12,12 @@ struct VideoTrimSheet:View {
     private var step:Double { 1/max(1,session.project.video?.frameRate ?? 30) }
     var body:some View {
         NavigationStack {
-            Form {
+            // Keep the player outside Form: recycled cells can repeatedly tear it down during sheet layout.
+            VStack(spacing:0) {
                 if let video = session.project.video,let url = session.sourceURL,let source = session.source {
-                    Section { VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:false,active:phase == .active,showTrimButton:false).frame(height:180).listRowInsets(EdgeInsets()).clipShape(RoundedRectangle(cornerRadius:14)) }
+                    VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:false,active:phase == .active,showTrimButton:false).frame(height:180).clipShape(RoundedRectangle(cornerRadius:14)).padding(.horizontal,20).padding(.top,12)
                 }
-                Section {
+                Form { Section {
                     HStack { Text("Keep");Spacer();Text(time(range.upperBound-range.lowerBound)).monospacedDigit().foregroundStyle(StudioStyle.blue) }
                     Text("\(time(range.lowerBound)) → \(time(range.upperBound))").font(.title2.monospacedDigit()).frame(maxWidth:.infinity).padding(.vertical,12)
                     HStack(spacing:0) {
@@ -26,9 +30,14 @@ struct VideoTrimSheet:View {
                     Text("End · \(time(range.upperBound))").font(.subheadline.monospacedDigit())
                     Slider(value:Binding(get:{ range.upperBound },set:{ value in session.recipe.video.end = max(value,min(duration,range.lowerBound+min(step,duration))) }),in:0...duration,step:step,onEditingChanged:{ $0 ? session.begin() : session.end() }).accessibilityLabel("Trim end")
                     Button("Use entire clip") { session.change { $0.video.start = 0;$0.video.end = nil } }
-                } footer: { Text("Keep the part you want. The original stays intact; playback and export use this range. Adjustments remain editable, and undo restores your previous trim.") }
+                } footer: { Text("Keep the part you want. The original stays intact; playback and export use this range. Adjustments remain editable, and undo restores your previous trim.") } }
             }.navigationTitle("Trim video").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { dismiss() } }
         }.tint(StudioStyle.blue).presentationDetents([.large])
+        .onAppear {
+            #if DEBUG
+            Self.presentationCount += 1
+            #endif
+        }
     }
     private func time(_ value:Double) -> String { String(format:"%02d:%05.2f",Int(value)/60,value.truncatingRemainder(dividingBy:60)) }
 }

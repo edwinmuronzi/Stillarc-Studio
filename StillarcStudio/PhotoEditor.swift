@@ -57,6 +57,7 @@ import UniformTypeIdentifiers
             await session.open(library: library)
             #if DEBUG
             let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("--verify-trim-ui") { await verifyTrimUI() }
             if arguments.contains("--show-lut-example") { session.change { $0.lut = try? LUTVerification.example(dimension:33) }; tool = .film }
             if arguments.contains("--wheels") { colorPanel = .wheels }
             if arguments.contains("--mixer") { colorPanel = .mixer }
@@ -100,6 +101,34 @@ import UniformTypeIdentifiers
         }
         .alert("Unable to complete",isPresented: Binding(get: { session.error != nil },set: { if !$0 { session.error = nil } })) { Button("OK") { session.error = nil } } message: { Text(session.error ?? "") }
     }
+    #if DEBUG
+    private func verifyTrimUI() async {
+        guard session.project.isVideo else { return }
+        let original = session.recipe
+        let oldIdle = UIApplication.shared.isIdleTimerDisabled;UIApplication.shared.isIdleTimerDisabled = true
+        diagnosticsRunning = true
+        defer { session.recipe = original;diagnosticsRunning = false;UIApplication.shared.isIdleTimerDisabled = oldIdle }
+        let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("trim-ui-verification.json")
+        func report(_ value:[String:Any]) { if let data = try? JSONSerialization.data(withJSONObject:value,options:.prettyPrinted) { try? data.write(to:url,options:.atomic) } }
+        let playersBefore = VideoPlayback.creationCount,presentationsBefore = VideoTrimSheet.presentationCount
+        var delays = [Double]()
+        for cycle in 0..<5 {
+            report(["passed":false,"stage":"opening trim","cycle":cycle])
+            trimSheet = true
+            for step in 0..<90 {
+                let began = CACurrentMediaTime()
+                try? await Task.sleep(for:.milliseconds(16))
+                delays.append(CACurrentMediaTime()-began)
+                if step == 30 { session.recipe.video.start = (session.project.video?.duration ?? 1)*0.1;session.recipe.video.end = (session.project.video?.duration ?? 1)*0.8 }
+                if step == 60 { session.recipe.video = original.video }
+            }
+            trimSheet = false
+            try? await Task.sleep(for:.milliseconds(300))
+        }
+        let players = VideoPlayback.creationCount-playersBefore,presentations = VideoTrimSheet.presentationCount-presentationsBefore
+        report(["passed":presentations == 5 && players <= 6 && (delays.max() ?? 99)<1,"version":"0.7.1","playersCreated":players,"sheetsPresented":presentations,"stage":"complete","cycles":5,"heartbeatSamples":delays.count,"maxMainActorDelaySeconds":delays.max() ?? 0,"p95MainActorDelaySeconds":delays.sorted()[Int(Double(delays.count-1)*0.95)]])
+    }
+    #endif
     private var header: some View {
         HStack(spacing: 8) {
             Button { Task { await session.persist(library); dismiss() } } label: { Image(systemName: "chevron.left").frame(width: 44,height: 44) }.accessibilityLabel("Back to workspace")

@@ -1,5 +1,17 @@
 # Validation
 
+## 0.7.1, build 8 — Trim presentation freeze
+
+The 0.7.0 freeze was reproduced by opening the actual Trim sheet in the simulator. A main-thread sample showed repeated Form/collection-view layout, `VideoPreview.onDisappear → VideoPlayback.clear`, and player construction during presentation. The UI heartbeat remained stuck at the first opening. The live preview now sits outside the recycled Form cells in a stable sibling view; the form contains only trim controls.
+
+A new `--verify-trim-ui` Debug check opens the video editor, presents/dismisses Trim five times, changes and restores endpoints, and measures main-actor task wake-up delays. It asserts five actual sheet appearances, at most six player constructions (one editor plus five sheets), and no heartbeat stall of one second or more. Existing video edits are restored after the check. This exercises the real sheet lifecycle, not only export math; it is not an automated physical-touch test.
+
+On iPhone 16 Pro: **5 sheets / 6 players / 450 heartbeat samples**, p95 wake-up interval **18.24 ms**, maximum **118.01 ms**; the test passed. These intervals include a requested 16 ms sleep and do not measure touch-to-display latency. No new thermal claim is made for this short interaction check.
+
+The simulator also completed five presentations with six player constructions; the existing native trim/HDR/video export suite passed again. Normal Release archive and strict signature verification passed.
+
+[Native Trim interaction report](Verification/0.7.1/iPhone16Pro-trim-ui.json) · [Simulator Trim interaction report](Verification/0.7.1/Simulator-trim-ui.json)
+
 ## 0.7.0, build 7 — Video trim, HLG HDR and safe-area header
 
 Native iPhone 16 Pro correctness checks passed:

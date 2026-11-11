@@ -93,6 +93,10 @@ enum StudioStyle {
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("--verify-video-suite") { await VideoVerification.writeReport() }
                 if ProcessInfo.processInfo.arguments.contains("--verify-studio") { await StudioVerification.run(library: library) }
+                if ProcessInfo.processInfo.arguments.contains("--verify-trim-ui") {
+                    if let project = library.projects.first(where: { $0.isVideo }) { selected = project }
+                    else if let url = try? await VideoFixtures.make(profile:.standard,frames:90) { selected = await library.add(url);try? FileManager.default.removeItem(at:url.deletingLastPathComponent()) }
+                }
                 if ProcessInfo.processInfo.arguments.contains("--demo-editor"), let project = await addDemo() { selected = project }
                 #endif
             }
@@ -181,7 +185,7 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Trim & HDR · 0.7.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Trim & HDR · 0.7.1").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
                     Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export JPEG/PNG photographs or trimmed HEVC video with audio in SDR or 10-bit HLG HDR.")
                     Label("Originals stay untouched",systemImage: "lock.shield")
                     Label("No account or upload required",systemImage: "wifi.slash")

@@ -4,6 +4,9 @@ import MetalKit
 import CoreImage
 
 @MainActor @Observable final class VideoPlayback {
+    #if DEBUG
+    static var creationCount = 0
+    #endif
     let player = AVPlayer()
     let output = AVPlayerItemVideoOutput(pixelBufferAttributes:VideoEngine.pixelAttributes)
     let descriptor:VideoDescriptor
@@ -27,6 +30,9 @@ import CoreImage
     private var resumeAfterScrub = false
     private var observedItem:AVPlayerItem?
     init(url:URL,descriptor:VideoDescriptor) {
+        #if DEBUG
+        Self.creationCount += 1
+        #endif
         self.descriptor = descriptor
         player.automaticallyWaitsToMinimizeStalling = false
         let item = AVPlayerItem(url:url);item.preferredForwardBufferDuration = 0.2; observedItem = item
