@@ -56,6 +56,19 @@ actor ProjectVault {
             return project
         } catch { try? FileManager.default.removeItem(at: dir); try? FileManager.default.removeItem(at: final); throw error }
     }
+    func saveVersion(_ project:Project,version:EditVersion,recipe:Recipe) throws {
+        let directory = root.appendingPathComponent(project.id.uuidString).appendingPathComponent("versions")
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+        try JSONEncoder().encode(recipe).write(to:directory.appendingPathComponent(version.id.uuidString+".json"),options:.atomic)
+    }
+    func loadVersion(_ project:Project,version:EditVersion) throws -> Recipe {
+        let url = root.appendingPathComponent(project.id.uuidString).appendingPathComponent("versions").appendingPathComponent(version.id.uuidString+".json")
+        return try JSONDecoder().decode(Recipe.self,from:Data(contentsOf:url))
+    }
+    func removeVersion(_ project:Project,version:EditVersion) throws {
+        let url = root.appendingPathComponent(project.id.uuidString).appendingPathComponent("versions").appendingPathComponent(version.id.uuidString+".json")
+        if FileManager.default.fileExists(atPath:url.path) { try FileManager.default.removeItem(at:url) }
+    }
     func remove(_ project: Project) throws {
         // Remove the index first: a failed cleanup cannot leave a broken library item.
         try FileManager.default.removeItem(at: root.appendingPathComponent(project.id.uuidString + ".json"))
@@ -68,7 +81,8 @@ actor ProjectVault {
     var loading = true
     var importing = false
     var error: String?
-    let vault = ProjectVault()
+    let vault:ProjectVault
+    init(vault:ProjectVault = ProjectVault()) { self.vault = vault }
     func load() async {
         do { (projects, looks) = try await vault.load() } catch { self.error = error.localizedDescription }
         loading = false
@@ -111,6 +125,7 @@ actor ProjectVault {
     var recipe: Recipe
     var source: PreparedPhoto?
     var error: String?
+    var versionsBusy = false
     var busy = true
     var saving = false
     var saved = true
@@ -141,6 +156,29 @@ actor ProjectVault {
     func change(_ body: (inout Recipe) -> Void) { begin(); body(&recipe); end() }
     func undo() { guard let previous = undoStack.popLast() else { return }; redoStack.append(recipe); recipe = previous }
     func redo() { guard let next = redoStack.popLast() else { return }; undoStack.append(recipe); recipe = next }
+    func saveVersion(name:String,library:StudioLibrary) async {
+        let name = name.trimmingCharacters(in:.whitespacesAndNewlines)
+        guard !versionsBusy,!name.isEmpty,(project.versions?.count ?? 0)<20 else { return }
+        versionsBusy = true;defer { versionsBusy = false }
+        let version = EditVersion(name:String(name.prefix(80))),snapshot = recipe,previous = project.versions
+        do {
+            try await library.vault.saveVersion(project,version:version,recipe:snapshot)
+            project.versions = (previous ?? [])+[version]
+            if !(await persist(library)) { project.versions = previous;try? await library.vault.removeVersion(project,version:version) }
+        } catch { self.error = error.localizedDescription }
+    }
+    @discardableResult func restoreVersion(_ version:EditVersion,library:StudioLibrary) async -> Bool {
+        guard !versionsBusy else { return false };versionsBusy = true;defer { versionsBusy = false }
+        do { let restored = try await library.vault.loadVersion(project,version:version);change { $0 = restored };return await persist(library) }
+        catch { self.error = error.localizedDescription;return false }
+    }
+    func deleteVersion(_ version:EditVersion,library:StudioLibrary) async {
+        guard !versionsBusy else { return };versionsBusy = true;defer { versionsBusy = false }
+        let previous = project.versions
+        project.versions = previous?.filter { $0.id != version.id }
+        if await persist(library) { try? await library.vault.removeVersion(project,version:version) }
+        else { project.versions = previous }
+    }
     func scheduleSave(_ library: StudioLibrary) {
         saved = false; saveTask?.cancel()
         saveTask = Task { [weak self] in
@@ -148,11 +186,12 @@ actor ProjectVault {
             guard let self else { return }; await self.persist(library)
         }
     }
-    func persist(_ library: StudioLibrary) async {
+    @discardableResult func persist(_ library: StudioLibrary) async -> Bool {
         project.recipe = recipe; project.modified = Date()
         let snapshot = project
         let success = await library.save(snapshot)
         if recipe == snapshot.recipe { saved = success }
+        return success
     }
 }
 

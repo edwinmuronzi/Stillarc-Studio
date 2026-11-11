@@ -10,6 +10,21 @@ import ImageIO
             var report = try await Task.detached(priority: .userInitiated) {
                 try await verify()
             }.value
+            let versionRoot = FileManager.default.temporaryDirectory.appendingPathComponent("StudioVersionSession-\(UUID())")
+            defer { try? FileManager.default.removeItem(at:versionRoot) }
+            let versionLibrary = StudioLibrary(vault:ProjectVault(root:versionRoot))
+            let versionProject = Project(id:UUID(),name:"Versions",sourceName:"test.jpg",created:Date(),modified:Date(),recipe:Recipe(),width:8,height:2,isRAW:false)
+            let versionSession = EditSession(versionProject)
+            await versionSession.saveVersion(name:"First",library:versionLibrary)
+            try require(versionSession.project.versions?.count == 1,"Save-version action failed")
+            let version = versionSession.project.versions![0]
+            versionSession.change { $0.exposure = 1 }
+            await versionSession.restoreVersion(version,library:versionLibrary)
+            try require(versionSession.recipe.exposure == 0,"Restore-version action failed")
+            versionSession.undo();try require(versionSession.recipe.exposure == 1,"Undo restore failed")
+            await versionSession.deleteVersion(version,library:versionLibrary)
+            try require(versionSession.project.versions?.isEmpty == true,"Delete-version action failed")
+            report["versionActions"] = true
             let fixture = Project(id: UUID(),name: "History",sourceName: "test.jpg",created: Date(),modified: Date(),recipe: Recipe(),width: 1,height: 1,isRAW: false)
             let session = EditSession(fixture)
             session.begin(); session.recipe.exposure = 0.5; session.recipe.exposure = 1; session.end()
@@ -174,7 +189,7 @@ import ImageIO
                 guard context.createCGImage(image,from: image.extent) != nil else { throw StudioError.render }
             }
         }
-        return ["scopesGeometry":try ScopeGeometryVerification.run(),"logInput":logReport,"lutTools":lutReport,"gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
+        return ["versionsComparison":try await VersionComparisonVerification.run(),"scopesGeometry":try ScopeGeometryVerification.run(),"logInput":logReport,"lutTools":lutReport,"gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
     }
 }
 #endif

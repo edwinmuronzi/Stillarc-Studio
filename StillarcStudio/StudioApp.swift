@@ -93,7 +93,7 @@ enum StudioStyle {
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("--verify-video-suite") { await VideoVerification.writeReport() }
                 if ProcessInfo.processInfo.arguments.contains("--verify-studio") { await StudioVerification.run(library: library) }
-                if ProcessInfo.processInfo.arguments.contains("--verify-trim-ui") {
+                if ProcessInfo.processInfo.arguments.contains("--verify-trim-ui") || ProcessInfo.processInfo.arguments.contains("--verify-versions-ui") {
                     if let project = library.projects.first(where: { $0.isVideo }) { selected = project }
                     else if let url = try? await VideoFixtures.make(profile:.standard,frames:90) { selected = await library.add(url);try? FileManager.default.removeItem(at:url.deletingLastPathComponent()) }
                 }
@@ -185,9 +185,10 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Scopes & framing · 0.8.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Compare & versions · 0.9.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
                     Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export JPEG/PNG photographs or trimmed HEVC video with audio in SDR or 10-bit HLG HDR.")
                     Text("Use Scopes to inspect brightness and color. Free crop, flips and perspective help refine your composition; every change stays reversible.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
+                    Text("Drag the split divider to compare original and edit. Save complete versions under Looks to try different grades and return to a favorite.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Label("Originals stay untouched",systemImage: "lock.shield")
                     Label("No account or upload required",systemImage: "wifi.slash")
                     Label("Preview draws only when needed",systemImage: "leaf")

@@ -28,7 +28,9 @@ Next: other camera Log and wide-gamut input/output transforms, 1D shapers, LUT s
 
 ## 4 — Selective edits and workflow
 
-Brush/linear/radial and color/luminance masks with invert, feather, add/subtract and overlays. Then on-device subject/sky selection, healing and carefully bounded advanced noise reduction. Multiple versions, favorites/ratings, project recovery, batch copy/paste, batch export and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
+Implemented in 0.9: fitted draggable split before/after and up to 20 complete source-specific edit versions, with restore/undo/delete. Snapshots are separate immutable recipe files, not duplicated media.
+
+Next: copy/paste adjustments between sources, then brush/linear/radial and color/luminance masks with invert, feather, add/subtract and overlays. Then on-device subject/sky selection, healing and carefully bounded advanced noise reduction. Multiple versions, favorites/ratings, project recovery, batch copy/paste, batch export and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
 
 ## 5 — Video grading
 

@@ -1,5 +1,17 @@
 # Validation
 
+## 0.9.0, build 10 — Split comparison and complete versions
+
+New checks passed for split boundaries at 0%, 25%, 50% and 100%, plus disabled-comparison graph bypass. Immutable snapshot files retained complete recipes (including LUT, input, framing and trim) after later autosaves. Version index reopening, source-byte preservation, deletion and older-project defaults passed. Isolated main-actor tests exercise Save version, Restore, Undo restore and Delete through the same EditSession methods used by the UI.
+
+The optimized iPhone 16 Pro diagnostic combined **1080p/30 fps Log 2 playback**, HDR preview, trimmed playback, a 65-point LUT, scopes and a continuously moving split divider with **7,200 grading changes**. Over **127.91 seconds**, it completed **7,413 renders**, decoded **3,642 frames** and ran **601 scope jobs**, with **0 GPU failures**, **0 extra settled frames** and **0 scope jobs after hiding**. GPU submission-to-completion p95 was **13.05 ms**; scope worker-to-main-return p95 was **14.33 ms** including scheduling. Thermal state was **nominal → nominal**. This is not touch-to-display latency, measured presentation FPS, a physical-temperature/energy benchmark or a complex real-camera/long 4K test.
+
+Comparison is a preview-only composite of two graphs from the same frame, in one Metal submission, with matching framing. It never creates a second video player or enters the export recipe. Named versions are source-specific immutable recipe files; only the metadata index accompanies normal project autosave. They do not duplicate media. Restore is undoable, while confirmed deletion removes that saved snapshot. Up to 20 versions can be retained per project.
+
+The full native/simulator photo suite passed; five distinct Versions-panel presentations completed with no new video players. The five-cycle Trim regression remained green. UI diagnostics wait for the parent editor transition to settle before presenting child sheets. The normal Release archive passed compilation and strict signature verification.
+
+[Native photo/version actions](Verification/0.9.0/iPhone16Pro-photo.json) · [Native Versions panel](Verification/0.9.0/iPhone16Pro-versions-ui.json) · [Native Trim panel](Verification/0.9.0/iPhone16Pro-trim-ui.json) · [Simulator photo/version actions](Verification/0.9.0/Simulator-photo.json) · [Simulator Versions panel](Verification/0.9.0/Simulator-versions-ui.json) · [Native split/scopes stress report](Verification/0.9.0/iPhone16Pro-split-scopes-preview.json)
+
 ## 0.8.0, build 9 — Scopes and geometry
 
 RGB histogram bin references and the HDR linear 0–8× scale passed, alongside waveform/vectorscope raster generation. Thirty-six combinations of rotation, horizontal/vertical perspective and free crop rendered without transparent interior corners. Independent crop dimensions, mirrored-pixel references, legacy defaults, reset/active dots, recipe persistence and creative-preset isolation are covered. The full photo suite and existing video trim/HDR/audio/geometry checks remained green.

@@ -1,0 +1,21 @@
+{
+  "trimmedPlayback" : true,
+  "decodedFrames" : 3642,
+  "idleFrames" : 0,
+  "thermalStart" : 0,
+  "thermalEnd" : 0,
+  "interrupted" : false,
+  "p95Milliseconds" : 13.048416665697005,
+  "elapsedSeconds" : 127.91241854166583,
+  "gpuFailures" : 0,
+  "passed" : true,
+  "version" : "0.9.0",
+  "splitComparison" : true,
+  "scopeJobsAfterHide" : 0,
+  "scopeJobs" : 601,
+  "requestedUpdates" : 7200,
+  "scopesEnabled" : true,
+  "rendered" : 7413,
+  "hdrPreview" : true,
+  "scopeAnalysisP95Milliseconds" : 14.331833332107635
+}

@@ -1,0 +1,11 @@
+{
+  "maxMainActorDelaySeconds" : 0.12241533333144616,
+  "passed" : true,
+  "playersCreated" : 6,
+  "heartbeatSamples" : 450,
+  "version" : "0.7.1",
+  "stage" : "complete",
+  "p95MainActorDelaySeconds" : 0.017389416669175262,
+  "sheetsPresented" : 5,
+  "cycles" : 5
+}

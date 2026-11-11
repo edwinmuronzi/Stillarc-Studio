@@ -6,13 +6,14 @@ struct VideoPreviewVerification:View {
     @State private var playback:VideoPlayback?
     @State private var recipe = Recipe()
     @State private var scopeSampler = ScopeSampler()
+    @State private var split = 0.5
     @State private var status = "Preparing private video fixture…"
     @State private var progress = 0.0
     @Environment(\.scenePhase) private var phase
     var body:some View {
         VStack(spacing:16) {
             Text("Studio Log/video preview check").font(.headline)
-            if let playback { VideoMetalView(playback:playback,recipe:recipe,original:false,rangePreview:nil,active:phase == .active,scopes:scopeSampler).frame(maxHeight:.infinity) }
+            if let playback { VideoMetalView(playback:playback,recipe:recipe,original:false,rangePreview:nil,active:phase == .active,scopes:scopeSampler,split:split).frame(maxHeight:.infinity) }
             Text(status).font(.caption.monospaced()).foregroundStyle(StudioStyle.secondary)
             ProgressView(value:progress)
         }.padding(24).background(StudioStyle.ink)
@@ -48,6 +49,7 @@ struct VideoPreviewVerification:View {
                 var interrupted = false
                 for step in 0..<steps {
                     if Task.isCancelled || UIApplication.shared.applicationState != .active { interrupted = true;break }
+                    split = 0.5+sin(Double(step)*0.05)*0.4
                     recipe.input.exposure = sin(Double(step)*0.04)*0.5
                     recipe.lutAmount = 0.5+sin(Double(step)*0.1)*0.5
                     recipe.exposure = sin(Double(step)*0.08)*0.3
@@ -62,7 +64,7 @@ struct VideoPreviewVerification:View {
                 let count = PreviewMetrics.shared.times.count
                 try await Task.sleep(for:.seconds(3))
                 let times = PreviewMetrics.shared.times.sorted(),idleFrames = times.count-count,decoded = player.frameNumber-startFrames
-                let result:[String:Any] = ["passed":!interrupted && decoded>0 && count>0 && idleFrames == 0 && scopeSampler.completed == scopeCount && scopeSampler.completed>0 && PreviewMetrics.shared.failures == 0,"version":"0.8.0","scopesEnabled":true,"scopeJobs":scopeSampler.completed,"scopeJobsAfterHide":scopeSampler.completed-scopeCount,"scopeAnalysisP95Milliseconds":scopeSampler.analysisTimes.sorted().dropFirst(Int(Double(scopeSampler.analysisTimes.count)*0.95)).first ?? 0,"hdrPreview":true,"trimmedPlayback":true,"requestedUpdates":steps,"rendered":count,"decodedFrames":decoded,"elapsedSeconds":CACurrentMediaTime()-began,"p95Milliseconds":times.isEmpty ? 9999 : times[min(times.count-1,Int(Double(times.count)*0.95))],"gpuFailures":PreviewMetrics.shared.failures,"idleFrames":idleFrames,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
+                let result:[String:Any] = ["passed":!interrupted && decoded>0 && count>0 && idleFrames == 0 && scopeSampler.completed == scopeCount && scopeSampler.completed>0 && PreviewMetrics.shared.failures == 0,"version":"0.9.0","splitComparison":true,"scopesEnabled":true,"scopeJobs":scopeSampler.completed,"scopeJobsAfterHide":scopeSampler.completed-scopeCount,"scopeAnalysisP95Milliseconds":scopeSampler.analysisTimes.sorted().dropFirst(Int(Double(scopeSampler.analysisTimes.count)*0.95)).first ?? 0,"hdrPreview":true,"trimmedPlayback":true,"requestedUpdates":steps,"rendered":count,"decodedFrames":decoded,"elapsedSeconds":CACurrentMediaTime()-began,"p95Milliseconds":times.isEmpty ? 9999 : times[min(times.count-1,Int(Double(times.count)*0.95))],"gpuFailures":PreviewMetrics.shared.failures,"idleFrames":idleFrames,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
                 try JSONSerialization.data(withJSONObject:result,options:.prettyPrinted).write(to:reportURL,options:.atomic)
                 status = "Video preview check complete";progress = 1
             } catch {

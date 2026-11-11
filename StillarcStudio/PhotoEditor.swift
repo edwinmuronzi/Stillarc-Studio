@@ -19,6 +19,9 @@ import UniformTypeIdentifiers
     @State private var curveChannel: CurveChannel = .master
     @State private var curvePoint: CurvePoint = .middle
     @State private var comparing = false
+    @State private var splitComparison = false
+    @State private var splitPosition = 0.5
+    @State private var versionsSheet = false
     @State private var export = false
     @State private var presets = false
     @State private var inputSheet = false
@@ -61,6 +64,7 @@ import UniformTypeIdentifiers
             await session.open(library: library)
             #if DEBUG
             let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("--split") { splitComparison = true }
             if arguments.contains("--scopes") { scopesVisible = true;scopeSampler.setEnabled(true) }
             if arguments.contains("--verify-trim-ui") { await verifyTrimUI() }
             if arguments.contains("--show-lut-example") { session.change { $0.lut = try? LUTVerification.example(dimension:33) }; tool = .film }
@@ -79,6 +83,17 @@ import UniformTypeIdentifiers
             }
             if let flag = arguments.firstIndex(of: "--tool"), arguments.count > flag + 1, let selected = Tool(rawValue: arguments[flag+1]) { tool = selected }
             #endif
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--verify-versions-ui") {
+                // Let the editor’s full-screen presentation finish before presenting a child sheet.
+                try? await Task.sleep(for:.seconds(1))
+                let start = CACurrentMediaTime(),players = VideoPlayback.creationCount,presentations = VersionsSheet.presentationCount
+                for _ in 0..<5 { versionsSheet = true;try? await Task.sleep(for:.milliseconds(700));versionsSheet = false;try? await Task.sleep(for:.milliseconds(700)) }
+                let result:[String:Any] = ["passed":VideoPlayback.creationCount-players<=1 && VersionsSheet.presentationCount-presentations == 5,"sheetsPresented":VersionsSheet.presentationCount-presentations,"cycles":5,"playersCreated":VideoPlayback.creationCount-players,"elapsedSeconds":CACurrentMediaTime()-start]
+                let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("versions-ui-verification.json")
+                if let data = try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted) { try? data.write(to:url,options:.atomic) }
+            }
+            #endif
             await runPreviewCheckIfRequested()
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("--verify-editor-layout") {
@@ -92,6 +107,7 @@ import UniformTypeIdentifiers
         .onChange(of: phase) { _, phase in if phase != .active { Task { await session.persist(library) } } }
         .onDisappear { Task { await session.persist(library) } }
         .sheet(isPresented: $export) { ExportSheet(session: session) }
+        .sheet(isPresented:$versionsSheet) { VersionsSheet(session:session,library:library) }
         .sheet(isPresented: $presets) { PresetsSheet(session: session,library: library) }
         .sheet(isPresented:$trimSheet) { VideoTrimSheet(session:session) }
         .sheet(isPresented:$inputSheet) { InputConversionSheet(session:session) }
@@ -156,23 +172,26 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:comparing,active:phase == .active && !export && !presets && !trimSheet,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:comparing,active:phase == .active && !export && !presets && !versionsSheet && !trimSheet,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
                         } else {
-                            LivePreview(source:source.image,recipe:session.recipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !export && !presets,scopes:scopesActive ? scopeSampler : nil)
+                            LivePreview(source:source.image,recipe:session.recipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !export && !presets && !versionsSheet,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil)
                         }
                     }
                         .scaleEffect(zoom * pinch).offset(x: offset.width+drag.width,y: offset.height+drag.height)
-                        .gesture(MagnifyGesture().updating($pinch) { value,state,_ in state = value.magnification }.onEnded { value in zoom = min(4,max(1,zoom * value.magnification)); if zoom == 1 { offset = .zero } })
+                        .gesture(MagnifyGesture().updating($pinch) { value,state,_ in if !splitComparison { state = value.magnification } }.onEnded { value in guard !splitComparison else { return };zoom = min(4,max(1,zoom * value.magnification)); if zoom == 1 { offset = .zero } })
                         .simultaneousGesture(DragGesture(minimumDistance: 4).updating($drag) { value,state,_ in if zoom > 1 { state = value.translation } }.onChanged { value in
-                            if tool == .crop && zoom == 1 && pinch == 1 && session.recipe.crop != .original { moveCrop(value,previewSize: geometry.size) }
+                            if !splitComparison && tool == .crop && zoom == 1 && pinch == 1 && session.recipe.crop != .original { moveCrop(value,previewSize: geometry.size) }
                         }.onEnded { value in
                             if cropDragStart != nil { cropDragStart = nil; session.end() }
                             else if zoom > 1 { offset.width += value.translation.width; offset.height += value.translation.height }
                         })
-                        .onTapGesture(count: 2) { withAnimation(.easeOut(duration: 0.2)) { zoom = zoom > 1 ? 1 : 2; offset = .zero } }
+                        .onTapGesture(count: 2) { guard !splitComparison else { return };withAnimation(.easeOut(duration: 0.2)) { zoom = zoom > 1 ? 1 : 2; offset = .zero } }
                         .accessibilityLabel(comparing ? "Original photograph" : "Edited photograph")
                 } else if session.busy { ProgressView("Preparing your media…").font(.caption) }
                 else { ContentUnavailableView("Could not open media",systemImage: "photo.badge.exclamationmark",description: Text(session.error ?? "Return to the workspace and try another file.")) }
+                if splitComparison,!comparing,let source = session.source {
+                    SplitComparisonDivider(sourceSize:source.image.extent.size,recipe:session.recipe,fraction:$splitPosition)
+                }
                 if tool == .crop && zoom == 1 && pinch == 1, let source = session.source {
                     FramingGrid(sourceSize: source.image.extent.size,recipe: session.recipe).allowsHitTesting(false)
                 }
@@ -187,17 +206,21 @@ import UniformTypeIdentifiers
                     }
                     Spacer()
                     HStack {
-                        Button { presets = true } label: { Label("Looks",systemImage: "square.stack").font(.caption.weight(.medium)).padding(.horizontal,13).padding(.vertical,10).background(.ultraThinMaterial,in: Capsule()) }.disabled(session.source == nil)
+                        Menu {
+                            Button("Looks & presets",systemImage:"square.stack") { presets = true }
+                            Button("Saved versions",systemImage:"clock.arrow.circlepath") { versionsSheet = true }
+                        } label: { Label("Looks",systemImage: "square.stack").font(.caption.weight(.medium)).padding(.horizontal,13).padding(.vertical,10).background(.ultraThinMaterial,in: Capsule()) }.disabled(session.source == nil)
                         Spacer()
+                        Button { splitComparison.toggle();zoom = 1;offset = .zero } label: { Image(systemName:"rectangle.lefthalf.inset.filled").frame(width:36,height:36).background(splitComparison ? StudioStyle.blue : Color.black.opacity(0.6),in:Circle()).foregroundStyle(.white) }.accessibilityLabel("Split before and after").accessibilityValue(splitComparison ? "On" : "Off")
                         Text("Hold to compare").font(.caption).padding(.horizontal,13).padding(.vertical,10).background(.ultraThinMaterial,in: Capsule())
                             .onLongPressGesture(minimumDuration: .infinity,pressing: { comparing = $0 },perform: {})
                             .accessibilityAddTraits(.isButton).accessibilityAction { comparing.toggle() }
                     }
                 }.padding(15)
-            }.frame(width: geometry.size.width,height: geometry.size.height).clipped()
+            }.coordinateSpace(name:"comparisonPreview").frame(width: geometry.size.width,height: geometry.size.height).clipped()
         }
     }
-    private var scopesActive:Bool { scopesVisible && phase == .active && !export && !presets && !trimSheet && !inputSheet }
+    private var scopesActive:Bool { scopesVisible && phase == .active && !export && !presets && !versionsSheet && !trimSheet && !inputSheet }
     @ViewBuilder private var scopePanel:some View {
         if scopesVisible { ScopePanel(sampler:scopeSampler,mode:$scopeMode) }
     }

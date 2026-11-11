@@ -127,6 +127,7 @@ struct Project: Identifiable, Codable, Equatable, Sendable {
     var width: Int
     var height: Int
     var isRAW: Bool
+    var versions:[EditVersion]? = nil
     var video: VideoDescriptor? = nil
     var isVideo:Bool { video != nil }
 }
