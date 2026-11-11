@@ -78,7 +78,13 @@ struct LivePreview: UIViewRepresentable {
                 image = ComparisonRender.combine(original:before,edited:image,fraction:split)
             }
             scopes?.offer(image,hdr:hdr)
-            if !original { image = MaskEngine.overlay(image,layer:maskPreview) }
+            if !original {
+                var reference:CIImage? = nil
+                if maskPreview?.isRange == true {
+                    reference = HDRPipeline.maskReference(recipe.input.profile != .standard ? (signalSource ?? source) : source,recipe:recipe,hdr:hdr)
+                }
+                image = MaskEngine.overlay(image,layer:maskPreview,reference:reference)
+            }
             let scale = min(size.width / image.extent.width, size.height / image.extent.height)
             let placed = image.transformed(by: .init(scaleX: scale,y: scale)).transformed(by: .init(translationX: (size.width-image.extent.width*scale)/2, y: (size.height-image.extent.height*scale)/2))
             let background = CIImage(color: CIColor(red: 0.025, green: 0.03, blue: 0.04)).cropped(to: CGRect(origin: .zero,size: size))

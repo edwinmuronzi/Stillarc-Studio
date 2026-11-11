@@ -6,17 +6,20 @@ enum MaskEngine {
             let image = CIImage(color:CIColor(red:0.18,green:0.2,blue:0.3)).cropped(to:CGRect(x:0,y:0,width:32,height:32))
             var a = LocalMask(kind:.linear);a.exposure = 0.2;a.warmth = 0.1
             var b = LocalMask(kind:.radial);b.saturation = 0.1;b.contrast = 0.1
-            let graph = MaskEngine.overlay(MaskEngine.apply(image,layers:[a,b]),layer:b)
+            var c = LocalMask(kind:.color);c.exposure = 0.1
+            var d = LocalMask(kind:.luminance);d.exposure = 0.1
+            let graph = MaskEngine.overlay(MaskEngine.apply(image,layers:[a,b,c,d]),layer:c,reference:image)
             _ = ImageEngine.context().createCGImage(graph,from:graph.extent,format:.RGBAh,colorSpace:ImageEngine.working)
         }
     }
     private static let warmup = Warmup()
-    static func prepare() { _ = warmup }
-    static func weight(_ layer:LocalMask,extent:CGRect,preview:Bool = false) -> CIImage {
+    static func prepare() throws { try RangeMaskKernel.prepare();_ = warmup }
+    static func weight(_ layer:LocalMask,extent:CGRect,preview:Bool = false,reference:CIImage? = nil) -> CIImage {
         let m = layer.validated(),angle = m.angle*Double.pi/180
         let center = CGPoint(x:extent.minX+extent.width*m.centerX,y:extent.minY+extent.height*(1-m.centerY))
         var mask:CIImage
-        if m.kind == .brush { mask = BrushMaskRasterizer.image(m.brush,extent:extent,preview:preview) }
+        if m.isRange { mask = reference.map { RangeMaskKernel.image($0,layer:m) } ?? CIImage(color:.black).cropped(to:extent) }
+        else if m.kind == .brush { mask = BrushMaskRasterizer.image(m.brush,extent:extent,preview:preview) }
         else if m.kind == .linear {
             let dx = cos(angle)*extent.width*m.width*m.feather,dy = sin(angle)*extent.height*m.width*m.feather
             mask = CIFilter(name:"CILinearGradient",parameters:["inputPoint0":CIVector(x:center.x-dx/2,y:center.y-dy/2),"inputPoint1":CIVector(x:center.x+dx/2,y:center.y+dy/2),"inputColor0":CIColor.black,"inputColor1":CIColor.white])!.outputImage!
@@ -40,13 +43,13 @@ enum MaskEngine {
             if m.exposure != 0 { adjusted = adjusted.applyingFilter("CIExposureAdjust",parameters:[kCIInputEVKey:m.exposure]) }
             if m.warmth != 0 { adjusted = adjusted.applyingFilter("CITemperatureAndTint",parameters:["inputNeutral":CIVector(x:6500,y:0),"inputTargetNeutral":CIVector(x:6500+m.warmth*2400,y:0)]) }
             if m.saturation != 0 || m.contrast != 0 { adjusted = adjusted.applyingFilter("CIColorControls",parameters:[kCIInputSaturationKey:1+m.saturation,kCIInputContrastKey:1+m.contrast*0.5]) }
-            image = adjusted.applyingFilter("CIBlendWithMask",parameters:[kCIInputBackgroundImageKey:image,kCIInputMaskImageKey:weight(m,extent:image.extent,preview:preview)])
+            image = adjusted.applyingFilter("CIBlendWithMask",parameters:[kCIInputBackgroundImageKey:image,kCIInputMaskImageKey:weight(m,extent:image.extent,preview:preview,reference:source)])
         }
         return image
     }
-    static func overlay(_ image:CIImage,layer:LocalMask?) -> CIImage {
+    static func overlay(_ image:CIImage,layer:LocalMask?,reference:CIImage? = nil) -> CIImage {
         guard let layer else { return image }
         let red = CIImage(color:CIColor(red:1,green:0.1,blue:0.05,alpha:0.3)).cropped(to:image.extent).composited(over:image)
-        return red.applyingFilter("CIBlendWithMask",parameters:[kCIInputBackgroundImageKey:image,kCIInputMaskImageKey:weight(layer,extent:image.extent,preview:true)])
+        return red.applyingFilter("CIBlendWithMask",parameters:[kCIInputBackgroundImageKey:image,kCIInputMaskImageKey:weight(layer,extent:image.extent,preview:true,reference:reference ?? image)])
     }
 }

@@ -61,6 +61,11 @@ enum HDRTrimVerification {
         defer { try? FileManager.default.removeItem(at:second.url) }
         let secondDescriptor = try await VideoEngine.describe(second.url),secondPoster = try await VideoEngine.poster(second.url,descriptor:secondDescriptor,maxDimension:450)
         try require(abs(pixel(secondPoster.image)[0]-4)<0.2,"HDR input was tone-mapped twice")
+        var ranged = roundtrip;var highlight = LocalMask(kind:.luminance);highlight.selection = MaskSelection(lower:0.9,upper:1);highlight.exposure = -1;ranged.masks = [highlight]
+        let rangeExport = try await VideoEngine.export(source:result.url,descriptor:converted,recipe:ranged,progress:{ _ in })
+        defer { try? FileManager.default.removeItem(at:rangeExport.url) }
+        let rangeInfo = try await VideoEngine.describe(rangeExport.url),rangePoster = try await VideoEngine.poster(rangeExport.url,descriptor:rangeInfo,maxDimension:450)
+        try require(rangeInfo.hdrTransfer == "HLG" && abs(pixel(rangePoster.image)[0]-2)<0.2,"HDR luminance-mask export lost headroom/selection")
         let pq = try await VideoFixtures.make(profile:.standard,frames:18,linear:[4,4,4],hdr:"PQ")
         defer { try? FileManager.default.removeItem(at:pq.deletingLastPathComponent()) }
         let pqDescriptor = try await VideoEngine.describe(pq)

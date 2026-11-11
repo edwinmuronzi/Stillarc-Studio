@@ -111,6 +111,21 @@ enum VideoVerification {
                 let base = patch(prepared.image,0.5,0.5),center = patch(maskPoster.image,0.35,0.8),outside = patch(maskPoster.image,0.5,0.3),erased = patch(maskPoster.image,0.5,0.8)
                 try require((0..<3).allSatisfy { abs(center[$0]-base[$0]*2)<0.015 && abs(outside[$0]-base[$0])<0.015 && abs(erased[$0]-base[$0])<0.015 },"Video mask changed outside pixels or exported the guide")
 
+                for kind in [LocalMaskKind.color,.luminance] {
+                    var range = LocalMask(kind:kind);range.exposure = 1
+                    range.selection = MaskSelection(hue:30,tolerance:90,lower:0,upper:1)
+                    for invert in [false,true] {
+                        range.inverted = invert;var test = recipe;test.masks = [range]
+                        let encoded = try await VideoEngine.export(source:url,descriptor:descriptor,recipe:test,tenBit:false,progress:{ _ in })
+                        let info = try await VideoEngine.describe(encoded.url)
+                        let poster = try await VideoEngine.poster(encoded.url,descriptor:info,maxDimension:450)
+                        let actual = patch(poster.image,0.5,0.5),factor:Float = invert ? 1 : 2
+                        try require((0..<3).allSatisfy { abs(actual[$0]-base[$0]*factor)<0.015 },"Encoded range selection/guide mismatch")
+                        try require(try await frameTimes(encoded.url).count == originalTimes.count,"Range export dropped frames")
+                        try? FileManager.default.removeItem(at:encoded.url)
+                    }
+                }
+
             }
             checks.append(["profile":profile.rawValue,"frames":originalTimes.count,"audioTracks":originalAudio.count,"width":result.width,"height":result.height,"metadata":true,"color":true,"originalPreserved":true,"projectRoundTrip":true,"cancellation":true])
         }
@@ -124,7 +139,7 @@ enum VideoVerification {
         try require(largeResult.width == 2160 && largeResult.height == 2160,"4K source crop geometry changed")
         try require(try await frameTimes(largeResult.url).count == 3,"4K export dropped frames")
         #endif
-        return ["passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","clips":checks,"photoInput":try LogVerification.run(),"trimHDR":try await HDRTrimVerification.run()]
+        return ["passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","clips":checks,"photoInput":try LogVerification.run(),"encodedColorLuminanceMasks":true,"trimHDR":try await HDRTrimVerification.run()]
     }
     @MainActor static func writeReport() async {
         let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("video-verification.json")

@@ -1,0 +1,31 @@
+{
+  "hdrPreview" : true,
+  "brushRaster" : {
+    "reusedRasterJobs" : 4378,
+    "p95Milliseconds" : 9.0912083251168951,
+    "queued" : 0,
+    "jobs" : 4379
+  },
+  "scopesEnabled" : true,
+  "gpuFailures" : 0,
+  "requestedUpdates" : 7200,
+  "idleFrames" : 0,
+  "thermalEnd" : 1,
+  "maskGuideVisible" : true,
+  "colorAndLuminanceMasks" : true,
+  "liveBrushPainting" : true,
+  "scopeJobsAfterHide" : 0,
+  "activeMaskLayers" : 4,
+  "rendered" : 4426,
+  "version" : "0.13.0",
+  "splitComparison" : true,
+  "decodedFrames" : 3716,
+  "scopeJobs" : 593,
+  "trimmedPlayback" : true,
+  "elapsedSeconds" : 130.64069074999134,
+  "p95Milliseconds" : 19.464666664134711,
+  "interrupted" : false,
+  "scopeAnalysisP95Milliseconds" : 12.791499990271404,
+  "passed" : true,
+  "thermalStart" : 1
+}

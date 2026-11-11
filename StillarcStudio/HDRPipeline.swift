@@ -24,6 +24,16 @@ enum HDRPipeline {
     }
     private static let kernels = Kernels()
     static func prepare() throws { guard kernels.scale != nil,kernels.divide != nil,kernels.multiply != nil else { throw StudioError.render } }
+    /// Same globally graded, framed selection input used inside MaskEngine, without local layers.
+    static func maskReference(_ source:CIImage,recipe:Recipe,hdr:Bool) -> CIImage {
+        var base = recipe;base.masks = []
+        guard hdr else { return ImageEngine.apply(source,recipe:base,preview:true) }
+        var input = recipe.input;input.softHighlights = false
+        let decoded = LogConversion.apply(source,input:input)
+        guard let scale = kernels.scale?.apply(extent:decoded.extent,arguments:[decoded,decoded]),let normalized = kernels.divide?.apply(extent:decoded.extent,arguments:[decoded,scale]) else { return decoded }
+        base.input = InputConversion()
+        return ImageEngine.apply(normalized,recipe:base,preview:true)
+    }
     static func grade(_ source:CIImage,recipe:Recipe,hdr:Bool,rangePreview:ColorRange? = nil,preview:Bool = false) -> CIImage {
         guard hdr else { return ImageEngine.apply(source,recipe:recipe,rangePreview:rangePreview,preview:preview) }
         var input = recipe.input;input.softHighlights = false

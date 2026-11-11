@@ -191,10 +191,10 @@ import UniformTypeIdentifiers
         let players = VideoPlayback.creationCount
         tool = .masks;splitComparison = false;session.recipe.masks = []
         var delays = [Double]()
-        for i in 0..<4 { let layer = LocalMask(kind:i%2 == 0 ? .radial : .linear);session.change { $0.masks.append(layer) };selectedMaskID = layer.id;try? await Task.sleep(for:.milliseconds(100)) }
+        for i in 0..<4 { let layer = LocalMask(kind:[LocalMaskKind.color,.luminance,.radial,.linear][i]);session.change { $0.masks.append(layer) };selectedMaskID = layer.id;try? await Task.sleep(for:.milliseconds(100)) }
         for step in 0..<180 {
             let began = CACurrentMediaTime()
-            if session.recipe.masks.count == 4 { session.recipe.masks[0].centerX = 0.5+sin(Double(step)*0.1)*0.2;session.recipe.masks[0].exposure = 0.5;session.recipe.masks[1].inverted = step%30<15 }
+            if session.recipe.masks.count == 4 { session.recipe.masks[0].selection?.hue = Double(step*2);session.recipe.masks[0].exposure = 0.5;session.recipe.masks[1].selection?.upper = 0.6+sin(Double(step)*0.04)*0.3;session.recipe.masks[1].inverted = step%30<15;selectedMaskID = session.recipe.masks[step%2].id }
             showMask = step%60<40
             try? await Task.sleep(for:.milliseconds(16));delays.append(CACurrentMediaTime()-began)
         }
@@ -274,7 +274,7 @@ import UniformTypeIdentifiers
                 else { ContentUnavailableView("Could not open media",systemImage: "photo.badge.exclamationmark",description: Text(session.error ?? "Return to the workspace and try another file.")) }
                 if tool == .masks,!comparing,let layer = selectedMask,let source = session.source {
                     if layer.kind == .brush { if isPaintingBrush { BrushMaskCanvas(session:session,id:layer.id,sourceSize:source.image.extent.size,erase:brushMode == .erase) } }
-                    else { MaskPositionHandle(session:session,id:layer.id,sourceSize:source.image.extent.size) }
+                    else if !layer.isRange { MaskPositionHandle(session:session,id:layer.id,sourceSize:source.image.extent.size) }
                 }
                 if splitComparison,!comparing,let source = session.source {
                     SplitComparisonDivider(sourceSize:source.image.extent.size,recipe:session.recipe,fraction:$splitPosition)
@@ -430,9 +430,9 @@ import UniformTypeIdentifiers
     }
     private var maskControls:some View {
         VStack(alignment:.leading,spacing:12) {
-            HStack {
-                ForEach(LocalMaskKind.allCases) { kind in Button("+ \(kind.rawValue)") { guard session.recipe.masks.count<4 else { return };var layer = LocalMask(kind:kind);layer = layer.validated();session.change { $0.masks.append(layer) };selectedMaskID = layer.id;if kind == .brush { brushMode = .paint;showMask = true } }.disabled(session.recipe.masks.count>=4) }
-            }.buttonStyle(.bordered).font(.caption)
+            ScrollView(.horizontal,showsIndicators:false) { HStack {
+                ForEach(LocalMaskKind.allCases) { kind in Button("+ \(kind.rawValue)") { guard session.recipe.masks.count<4 else { return };var layer = LocalMask(kind:kind);layer = layer.validated();session.change { $0.masks.append(layer) };selectedMaskID = layer.id;if kind == .brush { brushMode = .paint };showMask = true }.disabled(session.recipe.masks.count>=4) }
+            }}.buttonStyle(.bordered).font(.caption)
             if let layer = selectedMask {
                 ScrollView(.horizontal) {
                     HStack { ForEach(Array(session.recipe.masks.enumerated()),id:\.element.id) { index,mask in Button("\(index+1) · \(mask.kind.rawValue)") { selectedMaskID = mask.id }.buttonStyle(.bordered).tint(mask.id == layer.id ? StudioStyle.blue : .gray) } }
@@ -443,6 +443,30 @@ import UniformTypeIdentifiers
                     Button { updateMask { $0.enabled.toggle() } } label: { Label("On",systemImage:"power").font(.caption) }.tint(layer.enabled ? StudioStyle.blue : .gray).accessibilityValue(layer.enabled ? "On" : "Off")
                     Button { updateMask { $0.inverted.toggle() } } label: { Label("Invert",systemImage:"circle.lefthalf.filled").font(.caption) }.tint(layer.inverted ? StudioStyle.blue : .gray).accessibilityValue(layer.inverted ? "On" : "Off")
                 }.buttonStyle(.bordered)
+                if layer.kind == .color {
+                    HStack(spacing:8) {
+                        ForEach(Array([0.0,30,60,120,180,240,300].enumerated()),id:\.offset) { _,hue in
+                            Button { updateMask { if $0.selection == nil { $0.selection = MaskSelection() };$0.selection?.hue = hue } } label: {
+                                Circle().fill(Color(hue:hue/360,saturation:0.9,brightness:0.95)).frame(width:26,height:26).overlay(Circle().stroke(abs((layer.selection?.hue ?? 0)-hue)<1 ? .white : .clear,lineWidth:2))
+                            }.accessibilityLabel("Select hue \(Int(hue)) degrees")
+                        }
+                    }
+                    selectionSlider("Color hue (degrees)",key:\.hue,range:0...360)
+                    selectionSlider("Color range (degrees)",key:\.tolerance,range:1...180)
+                    selectionSlider("Minimum saturation (%)",key:\.minimumSaturation,range:0...1,scale:100)
+                    selectionSlider("Soft transition (%)",key:\.softness,range:0.005...0.5,scale:100)
+                    Text("Pick a color, then widen Color range to include similar shades. Minimum saturation keeps gray areas out. The red guide shows the selected pixels.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                } else if layer.kind == .luminance {
+                    HStack {
+                        Button("Shadows") { updateMask { $0.selection = MaskSelection(lower:0,upper:0.35) } }
+                        Button("Midtones") { updateMask { $0.selection = MaskSelection(lower:0.3,upper:0.7) } }
+                        Button("Highlights") { updateMask { $0.selection = MaskSelection(lower:0.65,upper:1) } }
+                    }.buttonStyle(.bordered).font(.caption)
+                    selectionSlider("Darkest selected (%)",key:\.lower,range:0...1,scale:100)
+                    selectionSlider("Brightest selected (%)",key:\.upper,range:0...1,scale:100)
+                    selectionSlider("Soft transition (%)",key:\.softness,range:0.005...0.5,scale:100)
+                    Text("Select dark, middle or bright areas, then adjust them below. Soft transition blends the edges. Brightness is measured before local adjustments; it is not an exposure meter.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                }
                 maskSlider("Exposure",key:\.exposure,range:-3...3)
                 maskSlider("Warmth",key:\.warmth,range:-1...1)
                 maskSlider("Saturation",key:\.saturation,range:-1...1)
@@ -455,7 +479,7 @@ import UniformTypeIdentifiers
                         Text("Size and softness apply to new strokes. \(layer.brush?.strokes.count ?? 0)/64 strokes; up to 2,048 points per stroke. Lift and start another stroke if it stops extending.").font(.caption2).foregroundStyle(StudioStyle.secondary)
                         Button("Clear painted area",role:.destructive) { updateMask { $0.brush = BrushDrawing() } }
                     }.font(.caption)
-                } else {
+                } else if !layer.isRange {
                 DisclosureGroup("Shape, position & feather") {
                 maskSlider("Horizontal position",key:\.centerX,range:0...1)
                 maskSlider("Vertical position",key:\.centerY,range:0...1)
@@ -467,7 +491,20 @@ import UniformTypeIdentifiers
                 }
                 Button("Delete selected mask",role:.destructive) { let id = layer.id;session.change { $0.masks.removeAll { $0.id == id } };selectedMaskID = nil }
             }
-            Text("Up to four masks. Drag the center in the fitted preview, or use position sliders. Feather softens the edge; invert adjusts the other side. For brush masks, paint directly on the image; View restores preview controls and video scrubbing. Painting pauses video. Size/softness apply to new strokes; undo removes a whole stroke. Masks are anchored to the current crop, stay with this source, and are excluded from reusable looks and copy/paste. Video masks stay fixed, without tracking or keyframes. The red guide is never exported.").font(.caption).foregroundStyle(StudioStyle.secondary)
+            Text("Up to four masks. Drag the center in the fitted preview, or use position sliders. Feather softens the edge; invert adjusts the other side. For brush masks, paint directly on the image; View restores preview controls and video scrubbing. Painting pauses video. Size/softness apply to new strokes; undo removes a whole stroke. Masks are anchored to the current crop, stay with this source, and are excluded from reusable looks and copy/paste. Brush and gradient masks stay fixed in video. Color and luminance masks select matching pixels in each frame, without object tracking or keyframes. The red guide is never exported.").font(.caption).foregroundStyle(StudioStyle.secondary)
+        }
+    }
+    private func selectionSlider(_ name:String,key:WritableKeyPath<MaskSelection,Double>,range:ClosedRange<Double>,scale:Double = 1) -> some View {
+        VStack(spacing:5) {
+            HStack { Text(name);Spacer();Text((selectedMask?.selection ?? MaskSelection())[keyPath:key]*scale,format:.number.precision(.fractionLength(1))).monospacedDigit() }.font(.caption)
+            Slider(value:Binding(get:{ (selectedMask?.selection ?? MaskSelection())[keyPath:key] },set:{ value in
+                guard let layer = selectedMask,let index = session.recipe.masks.firstIndex(where:{ $0.id == layer.id }) else { return }
+                var selection = session.recipe.masks[index].selection ?? MaskSelection()
+                selection[keyPath:key] = value
+                if key == \MaskSelection.lower { selection.upper = max(selection.upper,value) }
+                if key == \MaskSelection.upper { selection.lower = min(selection.lower,value) }
+                session.recipe.masks[index].selection = selection
+            }),in:range,onEditingChanged:{ editing in if editing { session.begin() } else { session.end() } }).tint(StudioStyle.blue)
         }
     }
     private func maskSlider(_ name:String,key:WritableKeyPath<LocalMask,Double>,range:ClosedRange<Double>,displayScale:Double = 1) -> some View {

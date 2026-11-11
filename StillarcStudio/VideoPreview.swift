@@ -238,7 +238,13 @@ struct VideoMetalView:UIViewRepresentable {
             }
             if !recipe.video.hdr { image = image.applyingFilter("CIColorClamp",parameters:["inputMinComponents":CIVector(x:0,y:0,z:0,w:0),"inputMaxComponents":CIVector(x:1,y:1,z:1,w:1)]) }
             scopes?.offer(image,hdr:recipe.video.hdr)
-            if !original { image = MaskEngine.overlay(image,layer:maskPreview) }
+            if !original {
+                var reference:CIImage? = nil
+                if maskPreview?.isRange == true {
+                    reference = HDRPipeline.maskReference(source,recipe:recipe,hdr:recipe.video.hdr)
+                }
+                image = MaskEngine.overlay(image,layer:maskPreview,reference:reference)
+            }
             let scale = min(size.width/image.extent.width,size.height/image.extent.height)
             let placed = image.transformed(by:.init(scaleX:scale,y:scale)).transformed(by:.init(translationX:(size.width-image.extent.width*scale)/2,y:(size.height-image.extent.height*scale)/2))
             let background = CIImage(color:CIColor(red:0.025,green:0.03,blue:0.04)).cropped(to:CGRect(origin:.zero,size:size))

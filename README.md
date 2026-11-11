@@ -2,7 +2,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.12 brush masks milestone**, not a finished PeekLUT/Lightroom replacement. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.13 color and luminance masks milestone**, not a finished PeekLUT/Lightroom replacement. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"></p>
 
@@ -10,12 +10,17 @@ This is the **0.12 brush masks milestone**, not a finished PeekLUT/Lightroom rep
 
 ## What works in this milestone
 
+- **Masks → + Color:** choose a swatch or hue, then widen Color range to include similar colors. Minimum saturation protects gray areas. Adjust local exposure, warmth, saturation or contrast below; Soft transition blends the selection edge.
+- **Masks → + Luminance:** choose Shadows, Midtones or Highlights, or set the darkest/brightest selected levels. This lets you brighten a dark area without changing everything else. The levels are a perceptual brightness scale (square root of linear Rec.709 luminance), not a calibrated exposure meter. HDR selection uses the existing normalized creative image before headroom restoration.
+- **Guide** shows the selected area in red and is preview-only. Both range types support Strength, Invert, On/off, deletion, undo/redo, saved projects and complete versions, within the shared four-mask limit. They stay out of presets/copied grades. Selection is based on the globally graded, framed image before any local layers, so changing local exposure does not move its own selection. Changing global grading can change the selection.
+- In video, color/brightness selection is recalculated from each frame at full export resolution. It follows matching pixels, without object tracking, temporal smoothing or keyframes; changing light or colors may change coverage. Brush and gradient masks remain spatially fixed.
+
 - Choose **Masks → + Brush**, then paint directly on the fitted image. **Eraser** removes selected areas; **View** restores preview controls and video scrubbing. Painting pauses video and hides preview overlays so the image is unobstructed. Guide shows the selected region in red; change Exposure or the other local controls to affect it.
 - Expand **Brush size & soft edge** to set the radius and softness of new strokes. Existing strokes keep the tip they were painted with. Layer Strength blends the complete painted mask. Undo/redo works by whole stroke; Clear painted area is also undoable. Paint/Eraser add/remove the final selected area even with Invert enabled.
 - Brush vectors save with the project and complete versions; they stay out of reusable grades and copied adjustments. Each brush layer supports up to 64 strokes and 2,048 points per stroke, within the existing four-layer mask limit. Lift and start another stroke at the point limit. Masks remain fixed across video; there are no tracking/keyframes or AI subject masks yet.
 
 - Open **Masks**, add **Linear** for a gradual adjustment across the frame or **Radial** for an oval area. Drag the center in the fitted preview; expand **Shape, position & feather** to resize, rotate or soften the edge. Adjust local exposure, warmth, saturation and contrast, blend with Strength, invert the area, or switch the adjustment off. Keep up to four layers; overlapping layers apply in order.
-- The **Guide** eye button shows the selected area in red; the red guide never appears in exports and scopes read the actual grade. Masks work with photos and video, save with the project and complete versions, and support undo/redo. They are anchored to the current cropped frame—not tracked subjects—so reframing changes their relationship to the scene. Creative presets and copied grades exclude spatial masks; applying either preserves destination masks. Video masks are static across the clip, without keyframes. Subject/sky AI selection and motion tracking are not available yet.
+- The **Guide** eye button shows the selected area in red; the red guide never appears in exports and scopes read the actual grade. Masks work with photos and video, save with the project and complete versions, and support undo/redo. They are anchored to the current cropped frame—not tracked subjects—so reframing changes their relationship to the scene. Creative presets and copied grades exclude spatial masks; applying either preserves destination masks. Brush/gradient masks are static across the clip; color/luminance masks evaluate each frame, without keyframes or object tracking. Subject/sky AI selection and motion tracking are not available yet.
 
 - Open **Looks → Copy adjustments** and choose sections to copy. On another photo or clip, open **Looks → Paste adjustments**, choose which copied sections to apply, and paste. Options include Light, White balance, Color & color mix, Curves, Color wheels, Channel mixer, Built-in look, LUT, Film texture and Detail. Selected sections replace existing values, including neutral/Off settings; unselected adjustments stay unchanged.
 - Paste preserves each destination’s crop, flips, perspective, input profile/exposure, video trim, HDR choice, masks and saved versions. It is one undoable change and works between photos and video clips. The LUT travels with the internal clipboard; no media is duplicated or placed on the system clipboard. Copied settings survive app restarts until replaced or cleared from the Paste panel.
@@ -76,6 +81,8 @@ HDR grading keeps per-pixel highlight headroom outside the display-referred crea
 The editor header owns its window-safe insets, including after foregrounding, rotation and export-sheet presentation, so Back/Undo/Export stay below the status bar and away from the camera cutout.
 
 ## Designed for responsiveness
+
+Color/luminance selections use a compiled per-pixel GPU kernel shared by preview and full-resolution export, with no CPU image readback or per-frame bitmap construction. Kernels warm on the decode worker. Disabled/neutral layers bypass processing. Range guides use the same pre-local selection reference, including HDR normalization.
 
 Brush preview rasterization uses a serial background worker with newest-request coalescing, incremental drawing and at most eight cached raster contexts. Preview mask resolution is capped at 768 pixels on its long edge; a completed raster wakes a paused preview without reopening media. Full exports replay the vectors at the full framed-source size with 16-bit grayscale coverage. Video export prepares each brush mask once for the entire clip. No per-frame stroke replay or permanent low-resolution export mask is used. The original media stays untouched.
 

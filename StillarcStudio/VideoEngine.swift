@@ -53,7 +53,7 @@ enum VideoEngine {
         return (orient(managed),orient(raw))
     }
     static func poster(_ url:URL,descriptor:VideoDescriptor,maxDimension:Double = 1600) async throws -> PreparedPhoto {
-        try ColorPipeline.prepare();try LogConversion.prepare();try HDRPipeline.prepare();MaskEngine.prepare()
+        try ColorPipeline.prepare();try LogConversion.prepare();try HDRPipeline.prepare();try MaskEngine.prepare()
         let asset = AVURLAsset(url:url)
         guard let track = try await asset.loadTracks(withMediaType:.video).first else { throw StudioError.unreadable }
         let reader = try AVAssetReader(asset:asset)
@@ -69,7 +69,7 @@ enum VideoEngine {
 
     static func export(source:URL,descriptor:VideoDescriptor,recipe:Recipe,tenBit:Bool = true,progress:@escaping @Sendable (Double) async -> Void,cooling:@escaping @Sendable (Bool) async -> Void = { _ in }) async throws -> ExportResult {
         try Task.checkCancellation()
-        try ColorPipeline.prepare(); try LogConversion.prepare();try HDRPipeline.prepare();MaskEngine.prepare()
+        try ColorPipeline.prepare(); try LogConversion.prepare();try HDRPipeline.prepare();try MaskEngine.prepare()
         let asset = AVURLAsset(url:source)
         guard let track = try await asset.loadTracks(withMediaType:.video).first else { throw StudioError.unreadable }
         let reader = try AVAssetReader(asset:asset)

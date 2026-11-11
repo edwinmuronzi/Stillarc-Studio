@@ -196,3 +196,7 @@ The script builds Debug, installs, and runs processing/export/persistence and pr
 - Physical older iPhones, older supported OS releases, memory pressure, low storage, interruptions and accessibility sizes/VoiceOver.
 - Manual Photos/Files picker, permission-denied and Save to Photos/share-sheet flows. Automated tests avoid changing the real Photos library.
 - User testing of crop positioning needs, advanced tool discoverability and whether the simplified initial controls meet actual tasks.
+
+## Color and luminance masks — 0.13.0
+
+[Versioned test evidence](Verification/0.13.0/README.md) covers simulator and physical iPhone 17 Pro pixel references, persistence, rendered-view updates and encoded exports. New checks verify hue wraparound/neutral protection, soft brightness ranges, a stable pre-local reference, preview-only guides, and HDR normalization/headroom. The existing `--verify-studio --verify-video-suite --verify-mask-ui` flags run these checks; `--verify-video-preview --sustained-preview` exercises changing color/luminance masks alongside brush painting, HDR playback, a LUT, scopes and split comparison.

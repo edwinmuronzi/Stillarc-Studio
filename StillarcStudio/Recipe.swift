@@ -115,7 +115,7 @@ enum Tool: String, CaseIterable, Identifiable {
         case .film: "Build a look with texture, soft light and a film-inspired finish."
         case .curves: "Shape brightness or individual red, green and blue tones."
         case .detail: "Bring out edges or soften visible digital noise."
-        case .masks:"Adjust a chosen area with a soft linear, radial or brush mask."
+        case .masks:"Adjust a chosen area with a soft linear, radial, brush, color or luminance mask."
         case .crop: "Drag the photo to reframe it. Straighten a horizon without leaving black corners."
         }
     }

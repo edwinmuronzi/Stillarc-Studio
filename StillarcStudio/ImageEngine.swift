@@ -39,7 +39,7 @@ enum ImageEngine {
     static func open(_ url: URL, maxDimension: Double? = nil) throws -> PreparedPhoto {
         try ColorPipeline.prepare()
         try LogConversion.prepare()
-        MaskEngine.prepare()
+        try MaskEngine.prepare()
         let source = CGImageSourceCreateWithURL(url as CFURL, nil)
         let type = source.flatMap { CGImageSourceGetType($0) }.flatMap { UTType($0 as String) }
         let raw = type?.conforms(to: .rawImage) == true || ["dng","nef","arw","cr2","cr3","raf","orf","rw2"].contains(url.pathExtension.lowercased())
