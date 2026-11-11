@@ -1,0 +1,13 @@
+{
+  "elapsedSeconds": 130.00672241666643,
+  "version": "0.2.0",
+  "p95Milliseconds": 13.703000000077736,
+  "interrupted": false,
+  "cancelled": false,
+  "extraIdleFrames": 0,
+  "gpuFailures": 0,
+  "requestedUpdates": 7200,
+  "rendered": 5799,
+  "thermalEnd": 1,
+  "thermalStart": 1
+}

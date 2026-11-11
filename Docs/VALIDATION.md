@@ -1,4 +1,16 @@
-# Validation — 0.1.0, build 1
+# Validation
+
+## 0.2.0, build 2 — active sections and framing
+
+The simulator and iPhone 17 Pro processing suites passed for active-section indicators, section reset/undo, exact-value parsing, preset framing isolation, movable crops, 19 individual controls, and 400 geometry fixtures covering odd/even dimensions, four rotations, five angles, five ratios and both edge anchors. A fractional crop-boundary issue found by the fixture was corrected before release. JPEG and PNG exports retained the straightened crop; original-preservation and large-image checks still passed.
+
+The strengthened simulator legacy fixture also checked that non-neutral 0.1 edits survive migration with neutral defaults for new fields. Indicators are derived from the recipe, so reopening and applying recipes use the same logic. Reset is per section and undoable; a zero-strength look alone does not light the Film dot.
+
+The first fresh 0.2 phone preview check requested 180 changes with film, grain, bloom, straightening and cropping enabled. It completed 151 coalesced renders, zero GPU failures and zero idle redraws; p95 render completion was 12.83 ms. Thermal state stayed fair. Coalescing means intermediate requests may be skipped so the newest state wins; this is not a claim of 60 displayed frames per second. Raw results are under Verification/0.2.0.
+
+The final uninterrupted 0.2 phone run requested 7,200 updates and completed 5,799 coalesced renders over 130.0 seconds, with p95 render completion 13.70 ms, zero GPU failures and zero idle redraws. Thermal state remained fair. This is a sample-photo test with a look, grain, bloom, straighten and crop active, not a claim of 60 displayed fps or negligible battery use. Interrupted attempts were excluded. The diagnostic now reads live application activity, records interruptions, and temporarily disables automatic screen locking only during the explicit test, restoring the prior setting afterward. These hooks are absent from production.
+
+## 0.1.0, build 1 — foundation
 
 11 November 2026. This is a first working photo-editor milestone. Checks below do not establish feature parity with other editors, certify every iPhone or prove negligible energy use.
 

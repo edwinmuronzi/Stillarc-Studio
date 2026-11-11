@@ -21,7 +21,7 @@ enum StudioError: LocalizedError {
         }
     }
 }
-// Separate queues/contexts for import/export and display: exports cannot block slider updates.
+// Background import/export contexts are separate from display; the GPU remains a shared resource.
 enum ImageEngine {
     static let working = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)!
     static let output = CGColorSpace(name: CGColorSpace.sRGB)!
@@ -82,8 +82,8 @@ enum ImageEngine {
             filter("CIColorControls", [kCIInputContrastKey: 1 + r.contrast * 0.5, kCIInputSaturationKey: 1 + r.saturation])
         }
         if r.vibrance != 0 { filter("CIVibrance", ["inputAmount": r.vibrance]) }
-        if r.curveShadows != 0 || r.curveMidtones != 0 || r.curveHighlights != 0 || r.fade != 0 {
-            filter("CIToneCurve", ["inputPoint0": CIVector(x: 0, y: r.fade * 0.15), "inputPoint1": CIVector(x: 0.25, y: 0.25 + r.curveShadows * 0.15), "inputPoint2": CIVector(x: 0.5, y: 0.5 + r.curveMidtones * 0.2), "inputPoint3": CIVector(x: 0.75, y: 0.75 + r.curveHighlights * 0.15), "inputPoint4": CIVector(x: 1, y: 1)])
+        if r.curveShadows != 0 || r.curveMidtones != 0 || r.curveHighlights != 0 || r.fade != 0 || r.whites != 0 || r.blacks != 0 {
+            filter("CIToneCurve", ["inputPoint0": CIVector(x: 0, y: r.fade * 0.15 + r.blacks * 0.08), "inputPoint1": CIVector(x: 0.25, y: 0.25 + r.curveShadows * 0.15 + r.blacks * 0.04), "inputPoint2": CIVector(x: 0.5, y: 0.5 + r.curveMidtones * 0.2), "inputPoint3": CIVector(x: 0.75, y: 0.75 + r.curveHighlights * 0.15 + r.whites * 0.04), "inputPoint4": CIVector(x: 1, y: 1 + r.whites * 0.16)])
         }
         if r.look != .original && r.lookAmount > 0 {
             let base = image
@@ -116,14 +116,9 @@ enum ImageEngine {
             image = texture.applyingFilter("CISoftLightBlendMode", parameters: [kCIInputBackgroundImageKey: image])
         }
         if r.vignette > 0 { filter("CIVignette", [kCIInputIntensityKey: r.vignette * 1.6, kCIInputRadiusKey: max(image.extent.width,image.extent.height) * 0.6]) }
-        if r.rotation % 4 != 0 { image = image.oriented(forExifOrientation: [1,6,3,8][((r.rotation % 4) + 4) % 4]) }
-        if let ratio = r.crop.ratio {
-            let e = image.extent
-            let w = floor(min(e.width, e.height * ratio)), h = floor(min(e.height, e.width / ratio))
-            image = image.cropped(to: CGRect(x: floor(e.midX - w/2), y: floor(e.midY - h/2), width: w, height: h))
-        }
-        return image.transformed(by: .init(translationX: -image.extent.minX, y: -image.extent.minY))
+        return PhotoFraming.apply(image, recipe: r)
     }
+
     static func export(source: URL, recipe: Recipe, format: ExportFormat) throws -> ExportResult {
         try autoreleasepool {
             let original = try open(source)

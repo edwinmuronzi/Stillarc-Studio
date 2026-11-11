@@ -46,7 +46,7 @@ struct LivePreview: UIViewRepresentable {
             let size = view.drawableSize; guard size.width > 0 && size.height > 0 else { return }
             drawing = true; dirty = false
             let began = CACurrentMediaTime()
-            var originalRecipe = Recipe(); originalRecipe.crop = recipe.crop; originalRecipe.rotation = recipe.rotation
+            var originalRecipe = Recipe(); originalRecipe.copyFraming(from: recipe)
             let image = ImageEngine.apply(source, recipe: original ? originalRecipe : recipe)
             let scale = min(size.width / image.extent.width, size.height / image.extent.height)
             let placed = image.transformed(by: .init(scaleX: scale,y: scale)).transformed(by: .init(translationX: (size.width-image.extent.width*scale)/2, y: (size.height-image.extent.height*scale)/2))

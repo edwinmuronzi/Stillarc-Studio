@@ -20,6 +20,7 @@ root = Path(sys.argv[1]) / 'Documents'
 correctness = json.loads((root / 'studio-verification.json').read_text())
 preview = json.loads((root / 'preview-verification.json').read_text())
 assert correctness['passed'], correctness
+assert not preview.get('interrupted', False) and not preview.get('cancelled', False), preview
 assert preview['gpuFailures'] == 0, preview
 assert preview['extraIdleFrames'] == 0, preview
 assert preview['rendered'] > 0, preview

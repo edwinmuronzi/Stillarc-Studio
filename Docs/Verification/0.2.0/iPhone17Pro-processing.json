@@ -1,0 +1,61 @@
+{
+  "cropRepositioning" : true,
+  "deletion" : true,
+  "exportFormats" : [
+    "JPEG",
+    "PNG"
+  ],
+  "geometryEdgeFixtures" : 400,
+  "largeImageFixtures" : [
+    {
+      "height" : 3000,
+      "previewAndExportSeconds" : 0.048156023025512695,
+      "width" : 4000
+    },
+    {
+      "height" : 4000,
+      "previewAndExportSeconds" : 0.075388073921203613,
+      "width" : 6000
+    },
+    {
+      "height" : 6000,
+      "previewAndExportSeconds" : 0.15438199043273926,
+      "width" : 8000
+    }
+  ],
+  "legacyProjectMigration" : true,
+  "looks" : 5,
+  "numericValidation" : true,
+  "originalPreserved" : true,
+  "passed" : true,
+  "presetFraming" : true,
+  "presetPersistence" : true,
+  "recipePersistence" : true,
+  "sectionIndicators" : true,
+  "sectionResetUndo" : true,
+  "stressRenders" : 120,
+  "stressSeconds" : 0.070227980613708496,
+  "testedControls" : [
+    "Exposure",
+    "Contrast",
+    "Highlights",
+    "Shadows",
+    "Whites",
+    "Blacks",
+    "Warmth",
+    "Tint",
+    "Saturation",
+    "Vibrance",
+    "Fade",
+    "Grain",
+    "Bloom",
+    "Vignette",
+    "Sharpen",
+    "Noise",
+    "Dark curve",
+    "Middle curve",
+    "Bright curve"
+  ],
+  "thermalState" : 0,
+  "undoRedo" : true
+}

@@ -6,6 +6,8 @@ struct Recipe: Codable, Equatable, Sendable {
     var contrast = 0.0
     var highlights = 0.0
     var shadows = 0.0
+    var whites = 0.0
+    var blacks = 0.0
     var warmth = 0.0
     var tint = 0.0
     var saturation = 0.0
@@ -19,10 +21,47 @@ struct Recipe: Codable, Equatable, Sendable {
     var curveShadows = 0.0
     var curveMidtones = 0.0
     var curveHighlights = 0.0
+    var straighten = 0.0
+    var cropX = 0.5
+    var cropY = 0.5
     var rotation = 0
     var crop = Crop.original
     var look = FilmLook.original
     var lookAmount = 1.0
+    init() {}
+    private enum CodingKeys: String, CodingKey { case exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
+    init(from decoder: Decoder) throws {
+        self.init()
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        exposure = try values.decodeIfPresent(Double.self, forKey: .exposure) ?? exposure
+        contrast = try values.decodeIfPresent(Double.self, forKey: .contrast) ?? contrast
+        highlights = try values.decodeIfPresent(Double.self, forKey: .highlights) ?? highlights
+        shadows = try values.decodeIfPresent(Double.self, forKey: .shadows) ?? shadows
+        whites = try values.decodeIfPresent(Double.self, forKey: .whites) ?? whites
+        blacks = try values.decodeIfPresent(Double.self, forKey: .blacks) ?? blacks
+        warmth = try values.decodeIfPresent(Double.self, forKey: .warmth) ?? warmth
+        tint = try values.decodeIfPresent(Double.self, forKey: .tint) ?? tint
+        saturation = try values.decodeIfPresent(Double.self, forKey: .saturation) ?? saturation
+        vibrance = try values.decodeIfPresent(Double.self, forKey: .vibrance) ?? vibrance
+        fade = try values.decodeIfPresent(Double.self, forKey: .fade) ?? fade
+        grain = try values.decodeIfPresent(Double.self, forKey: .grain) ?? grain
+        bloom = try values.decodeIfPresent(Double.self, forKey: .bloom) ?? bloom
+        vignette = try values.decodeIfPresent(Double.self, forKey: .vignette) ?? vignette
+        sharpen = try values.decodeIfPresent(Double.self, forKey: .sharpen) ?? sharpen
+        noise = try values.decodeIfPresent(Double.self, forKey: .noise) ?? noise
+        curveShadows = try values.decodeIfPresent(Double.self, forKey: .curveShadows) ?? curveShadows
+        curveMidtones = try values.decodeIfPresent(Double.self, forKey: .curveMidtones) ?? curveMidtones
+        curveHighlights = try values.decodeIfPresent(Double.self, forKey: .curveHighlights) ?? curveHighlights
+        straighten = try values.decodeIfPresent(Double.self, forKey: .straighten) ?? straighten
+        cropX = try values.decodeIfPresent(Double.self, forKey: .cropX) ?? cropX
+        cropY = try values.decodeIfPresent(Double.self, forKey: .cropY) ?? cropY
+        rotation = try values.decodeIfPresent(Int.self, forKey: .rotation) ?? rotation
+        crop = try values.decodeIfPresent(Crop.self, forKey: .crop) ?? crop
+        look = try values.decodeIfPresent(FilmLook.self, forKey: .look) ?? look
+        lookAmount = try values.decodeIfPresent(Double.self, forKey: .lookAmount) ?? lookAmount
+        self = validated()
+    }
+
 }
 enum Crop: String, CaseIterable, Codable, Sendable {
     case original = "Original", square = "1:1", portrait = "4:5", landscape = "3:2", cinema = "16:9"
@@ -56,7 +95,7 @@ enum Tool: String, CaseIterable, Identifiable {
         case .film: "Build a look with texture, soft light and a film-inspired finish."
         case .curves: "Fine-tune dark, middle and bright tones independently."
         case .detail: "Bring out edges or soften visible digital noise."
-        case .crop: "Choose a centered frame or rotate the photograph."
+        case .crop: "Drag the photo to reframe it. Straighten a horizon without leaving black corners."
         }
     }
 }
@@ -85,12 +124,46 @@ struct PresetDocument: Codable {
 extension Recipe {
     func validated() -> Recipe {
         var copy = self
-        let signed: [WritableKeyPath<Recipe, Double>] = [\.contrast, \.highlights, \.shadows, \.warmth, \.tint, \.saturation, \.vibrance, \.curveShadows, \.curveMidtones, \.curveHighlights]
+        let signed: [WritableKeyPath<Recipe, Double>] = [\.contrast, \.highlights, \.shadows, \.whites, \.blacks, \.warmth, \.tint, \.saturation, \.vibrance, \.curveShadows, \.curveMidtones, \.curveHighlights]
         let positive: [WritableKeyPath<Recipe, Double>] = [\.fade, \.grain, \.bloom, \.vignette, \.sharpen, \.noise, \.lookAmount]
         for key in signed { copy[keyPath: key] = copy[keyPath: key].isFinite ? min(1, max(-1, copy[keyPath: key])) : 0 }
         for key in positive { copy[keyPath: key] = copy[keyPath: key].isFinite ? min(1, max(0, copy[keyPath: key])) : 0 }
         copy.exposure = copy.exposure.isFinite ? min(3,max(-3,copy.exposure)) : 0
+        copy.cropX = copy.cropX.isFinite ? min(1,max(0,copy.cropX)) : 0.5
+        copy.cropY = copy.cropY.isFinite ? min(1,max(0,copy.cropY)) : 0.5
+        copy.straighten = copy.straighten.isFinite ? min(15,max(-15,copy.straighten)) : 0
         copy.rotation = ((copy.rotation % 4) + 4) % 4
         return copy
     }
+}
+
+extension Tool {
+    var valueKeys: [WritableKeyPath<Recipe, Double>] {
+        switch self {
+        case .light: [\.exposure, \.contrast, \.highlights, \.shadows, \.whites, \.blacks]
+        case .color: [\.warmth, \.tint, \.saturation, \.vibrance]
+        case .film: [\.grain, \.bloom, \.fade, \.vignette]
+        case .curves: [\.curveShadows, \.curveMidtones, \.curveHighlights]
+        case .detail: [\.sharpen, \.noise]
+        case .crop: [\.straighten]
+        }
+    }
+}
+extension Recipe {
+    func hasAdjustments(in tool: Tool) -> Bool {
+        if tool.valueKeys.contains(where: { abs(self[keyPath: $0]) > 0.000001 }) { return true }
+        if tool == .film { return look != .original && lookAmount > 0.000001 }
+        if tool == .crop { return crop != .original || rotation % 4 != 0 }
+        return false
+    }
+    mutating func reset(_ tool: Tool) {
+        let neutral = Recipe()
+        for key in tool.valueKeys { self[keyPath: key] = neutral[keyPath: key] }
+        if tool == .film { look = .original; lookAmount = 1 }
+        if tool == .crop { crop = .original; rotation = 0; straighten = 0; cropX = 0.5; cropY = 0.5 }
+    }
+    mutating func copyFraming(from source: Recipe) {
+        crop = source.crop; rotation = source.rotation; straighten = source.straighten; cropX = source.cropX; cropY = source.cropY
+    }
+    var colorPreset: Recipe { var copy = self; copy.reset(.crop); return copy }
 }

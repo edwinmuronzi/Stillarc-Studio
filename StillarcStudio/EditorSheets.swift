@@ -85,7 +85,7 @@ import UniformTypeIdentifiers
                     ForEach(library.looks) { look in
                         HStack {
                             Button {
-                                session.change { recipe in let crop = recipe.crop, rotation = recipe.rotation; recipe = look.recipe; recipe.crop = crop; recipe.rotation = rotation }
+                                session.change { recipe in let framing = recipe; recipe = look.recipe; recipe.copyFraming(from: framing) }
                                 dismiss()
                             } label: { Label(look.name,systemImage: "camera.filters").foregroundStyle(.white) }
                             Spacer()
@@ -105,7 +105,7 @@ import UniformTypeIdentifiers
                     TextField("Preset name",text: $name)
                     Button("Cancel",role: .cancel) {}
                     Button("Save") {
-                        var recipe = session.recipe; recipe.crop = .original; recipe.rotation = 0
+                        let recipe = session.recipe.colorPreset
                         Task { await library.saveLook(name: name,recipe: recipe); name = "" }
                     }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 } message: { Text("Give this combination of adjustments a name.") }

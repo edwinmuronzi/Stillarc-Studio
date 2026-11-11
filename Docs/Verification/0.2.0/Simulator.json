@@ -1,0 +1,76 @@
+{
+  "correctness": {
+    "cropRepositioning": true,
+    "deletion": true,
+    "exportFormats": [
+      "JPEG",
+      "PNG"
+    ],
+    "geometryEdgeFixtures": 400,
+    "largeImageFixtures": [
+      {
+        "height": 3000,
+        "previewAndExportSeconds": 0.049539923667907715,
+        "width": 4000
+      },
+      {
+        "height": 4000,
+        "previewAndExportSeconds": 0.08056199550628662,
+        "width": 6000
+      },
+      {
+        "height": 6000,
+        "previewAndExportSeconds": 0.2372729778289795,
+        "width": 8000
+      }
+    ],
+    "legacyProjectMigration": true,
+    "looks": 5,
+    "numericValidation": true,
+    "originalPreserved": true,
+    "passed": true,
+    "presetFraming": true,
+    "presetPersistence": true,
+    "recipePersistence": true,
+    "sectionIndicators": true,
+    "sectionResetUndo": true,
+    "stressRenders": 120,
+    "stressSeconds": 0.20522403717041016,
+    "testedControls": [
+      "Exposure",
+      "Contrast",
+      "Highlights",
+      "Shadows",
+      "Whites",
+      "Blacks",
+      "Warmth",
+      "Tint",
+      "Saturation",
+      "Vibrance",
+      "Fade",
+      "Grain",
+      "Bloom",
+      "Vignette",
+      "Sharpen",
+      "Noise",
+      "Dark curve",
+      "Middle curve",
+      "Bright curve"
+    ],
+    "thermalState": 0,
+    "undoRedo": true
+  },
+  "preview": {
+    "p95Milliseconds": 9.767708135768771,
+    "thermalStart": 0,
+    "cancelled": false,
+    "extraIdleFrames": 0,
+    "rendered": 180,
+    "gpuFailures": 0,
+    "thermalEnd": 0,
+    "elapsedSeconds": 7.22260612482205,
+    "interrupted": false,
+    "version": "0.2.0",
+    "requestedUpdates": 180
+  }
+}

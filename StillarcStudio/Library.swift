@@ -91,7 +91,7 @@ actor ProjectVault {
     func saveLook(name: String, recipe: Recipe) async {
         let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { return }
-        let updated = looks + [SavedLook(name: cleaned, recipe: recipe)]
+        let updated = looks + [SavedLook(name: cleaned, recipe: recipe.colorPreset)]
         do { try await vault.saveLooks(updated); looks = updated } catch { self.error = error.localizedDescription }
     }
     func removeLook(_ look: SavedLook) async {

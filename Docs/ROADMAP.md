@@ -1,6 +1,6 @@
 # Studio roadmap
 
-The destination is a coherent photo/video development and grading app informed by PeekLUT, Lightroom and selected specialist tools. The current source implements milestone 1 only. Later items are not exposed as nonfunctional buttons.
+The destination is a coherent photo/video development and grading app informed by PeekLUT, Lightroom and selected specialist tools. The current source implements milestone 1 and the first part of milestone 2. Later items are not exposed as nonfunctional buttons.
 
 ## 1 — Working photo foundation (0.1)
 
@@ -8,7 +8,9 @@ Local project copies and original preservation; Photos/Files import; Apple-suppo
 
 ## 2 — Precise photo development
 
-Free-position crop, straighten/perspective and lens corrections. Whites/blacks, texture/clarity/dehaze with predictable processing order. RGB curves and levels, HSL ranges, selected-color preview, color wheels and channel mixer. RGB histogram, waveform and vectorscope that update at a bounded rate only while visible. Numeric inputs, accessible adjustable controls and iPad keyboard shortcuts. Validate RAW camera fixtures, wide-gamut/HDR interpretation and export matching before adding HDR output.
+Implemented in 0.2: active-adjustment indicators, section resets, exact numeric entry, repositioned aspect-ratio crops, straightening and Whites/Blacks. Existing 0.1 recipes migrate with neutral defaults.
+
+Next: freeform crop bounds, perspective and lens corrections; texture/clarity/dehaze with predictable processing order. RGB curves and levels, HSL ranges, selected-color preview, color wheels and channel mixer. RGB histogram, waveform and vectorscope that update at a bounded rate only while visible. Numeric inputs, accessible adjustable controls and iPad keyboard shortcuts. Validate RAW camera fixtures, wide-gamut/HDR interpretation and export matching before adding HDR output.
 
 ## 3 — Reusable grades and film
 
