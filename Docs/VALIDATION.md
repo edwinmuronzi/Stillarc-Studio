@@ -1,5 +1,17 @@
 # Validation
 
+## 0.8.0, build 9 — Scopes and geometry
+
+RGB histogram bin references and the HDR linear 0–8× scale passed, alongside waveform/vectorscope raster generation. Thirty-six combinations of rotation, horizontal/vertical perspective and free crop rendered without transparent interior corners. Independent crop dimensions, mirrored-pixel references, legacy defaults, reset/active dots, recipe persistence and creative-preset isolation are covered. The full photo suite and existing video trim/HDR/audio/geometry checks remained green.
+
+The optimized iPhone 16 Pro sustained test ran **1080p/30 fps Log 2 playback**, a trimmed range, HDR preview, a 65-point LUT and continuous grading with scope analysis enabled. Across **128.69 seconds**, it completed **6,893 renders**, decoded **3,661 frames**, and completed **601 scope jobs**, with **0 GPU failures**, **0 scope jobs after hiding**, and **0 extra settled idle frames**. GPU submission-to-completion p95 was **16.98 ms**; scope worker-to-main-return p95 was **14.80 ms**, including scheduling. These are not touch-to-display latency or measured presentation FPS. Thermal state was **nominal → nominal**. No physical temperature or battery-energy benchmark was recorded; generated constant-color footage is not a complex real-camera/long 4K benchmark.
+
+Scopes use a 128×72 graded sample at no more than 5 Hz. They are preview guides, not full-resolution/sensor scopes, and may miss tiny clipped areas. HDR uses a fixed 0–8× SDR-white scale; values above it land at the ceiling. Vectorscope chroma normalizes super-white brightness. Geometry changes intentionally discard some edges during perspective correction. Free crop uses independent size sliders and framing drag/position controls; draggable crop-corner handles are future work.
+
+The final native photo/geometry suite and five Trim-sheet open/adjust/close cycles also passed. Normal Release compilation/archive and strict signature verification passed.
+
+[Native photo/geometry](Verification/0.8.0/iPhone16Pro-photo.json) · [Native Trim lifecycle](Verification/0.8.0/iPhone16Pro-trim-ui.json) · [Native scope playback report](Verification/0.8.0/iPhone16Pro-scopes-HDR-preview.json) · [Native video regression](Verification/0.8.0/iPhone16Pro-video.json) · [Simulator photo/geometry/scopes](Verification/0.8.0/Simulator-photo.json) · [Simulator Trim lifecycle](Verification/0.8.0/Simulator-trim-ui.json)
+
 ## 0.7.1, build 8 — Trim presentation freeze
 
 The 0.7.0 freeze was reproduced by opening the actual Trim sheet in the simulator. A main-thread sample showed repeated Form/collection-view layout, `VideoPreview.onDisappear → VideoPlayback.clear`, and player construction during presentation. The UI heartbeat remained stuck at the first opening. The live preview now sits outside the recycled Form cells in a stable sibling view; the form contains only trim controls.

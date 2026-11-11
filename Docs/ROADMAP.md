@@ -14,7 +14,9 @@ Implemented in 0.3: five-point Master/R/G/B curves, exact point values, eight-ra
 
 Implemented in 0.2: active-adjustment indicators, section resets, exact numeric entry, repositioned aspect-ratio crops, straightening and Whites/Blacks. Existing 0.1 recipes migrate with neutral defaults.
 
-Next: freeform crop bounds, perspective and lens corrections; texture/clarity/dehaze with predictable processing order. Levels and freely placed extra curve points. RGB histogram, waveform and vectorscope that update at a bounded rate only while visible. Numeric inputs, accessible adjustable controls and iPad keyboard shortcuts. Validate RAW camera fixtures, wide-gamut/HDR interpretation and export matching before adding HDR photo output.
+Implemented in 0.8: independent free-crop width/height, horizontal/vertical flips, perspective correction and on-demand RGB histogram/waveform/vectorscope for photo/video previews.
+
+Next: draggable crop corner handles and lens corrections; texture/clarity/dehaze with predictable processing order. Levels and freely placed extra curve points. Numeric inputs, accessible adjustable controls and iPad keyboard shortcuts. Validate RAW camera fixtures, wide-gamut/HDR interpretation and export matching before adding HDR photo output.
 
 ## 3 — Reusable grades and film
 

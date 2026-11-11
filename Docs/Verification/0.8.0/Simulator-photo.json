@@ -1,0 +1,133 @@
+{
+  "colorTools" : {
+    "alphaPreserved" : true,
+    "channelIsolation" : 3,
+    "compilationNote" : "Dynamic libraries are not supported by this GPU",
+    "exportColorMatch" : true,
+    "hueDirections" : true,
+    "hueWrap" : true,
+    "kernelBackend" : "Core Image portable",
+    "neutralGray" : true,
+    "oldRecipeMigration" : true,
+    "passed" : true,
+    "presetColorRoundTrip" : true,
+    "rangePreviewNotExported" : true,
+    "recipeRoundTrip" : true,
+    "resetIsolation" : true,
+    "selectiveComponents" : 24,
+    "splineSamples" : 2002
+  },
+  "colorUndoRedo" : true,
+  "cropRepositioning" : true,
+  "deletion" : true,
+  "exportFormats" : [
+    "JPEG",
+    "PNG"
+  ],
+  "geometryEdgeFixtures" : 480,
+  "gradingTools" : {
+    "alphaPreserved" : true,
+    "balanceBlend" : true,
+    "brightnessPreserved" : true,
+    "exportMatch" : true,
+    "exposureOnlyMatchesReference" : true,
+    "legacyMigration" : true,
+    "mixerParameters" : 12,
+    "monochrome" : true,
+    "negativeMixing" : true,
+    "passed" : true,
+    "rangeInspectionExcludesGrading" : true,
+    "recipePresetRoundTrip" : true,
+    "resetIsolation" : true,
+    "swap" : true,
+    "tonalIsolation" : true,
+    "wheelZones" : 4
+  },
+  "gradingUndoRedo" : true,
+  "largeImageFixtures" : [
+    {
+      "height" : 3000,
+      "previewAndExportSeconds" : 0.24167501926422119,
+      "width" : 4000
+    },
+    {
+      "height" : 4000,
+      "previewAndExportSeconds" : 0.27989709377288818,
+      "width" : 6000
+    },
+    {
+      "height" : 6000,
+      "previewAndExportSeconds" : 0.45834803581237793,
+      "width" : 8000
+    }
+  ],
+  "legacyProjectMigration" : true,
+  "logInput" : {
+    "bothGamuts" : true,
+    "curveVectors" : 16,
+    "exposureAlpha" : true,
+    "highlightShoulder" : true,
+    "passed" : true,
+    "persistence" : true,
+    "presetInputIsolation" : true,
+    "standardBypass" : true
+  },
+  "looks" : 5,
+  "lutTools" : {
+    "alpha" : true,
+    "channelOrdering" : true,
+    "domain" : true,
+    "exportMatch" : true,
+    "identity" : true,
+    "malformedRejected" : 11,
+    "passed" : true,
+    "portable65PointPreset" : true,
+    "rangeInspectionExcludesLUT" : true,
+    "resetIndicators" : true,
+    "strengthLinearBlend" : true
+  },
+  "lutUndoRedo" : true,
+  "numericValidation" : true,
+  "originalPreserved" : true,
+  "passed" : true,
+  "presetFraming" : true,
+  "presetPersistence" : true,
+  "recipePersistence" : true,
+  "scopesGeometry" : {
+    "geometryCombinations" : 36,
+    "geometryPersistence" : true,
+    "HDRScale" : true,
+    "legacyDefaults" : true,
+    "passed" : true,
+    "presetIsolation" : true,
+    "rasterScopes" : true,
+    "RGBBins" : true
+  },
+  "sectionIndicators" : true,
+  "sectionResetUndo" : true,
+  "stressRenders" : 120,
+  "stressSeconds" : 0.79295408725738525,
+  "testedControls" : [
+    "Exposure",
+    "Contrast",
+    "Highlights",
+    "Shadows",
+    "Whites",
+    "Blacks",
+    "Warmth",
+    "Tint",
+    "Saturation",
+    "Vibrance",
+    "Fade",
+    "Grain",
+    "Bloom",
+    "Vignette",
+    "Sharpen",
+    "Noise",
+    "Dark curve",
+    "Middle curve",
+    "Bright curve"
+  ],
+  "thermalState" : 0,
+  "undoRedo" : true
+}

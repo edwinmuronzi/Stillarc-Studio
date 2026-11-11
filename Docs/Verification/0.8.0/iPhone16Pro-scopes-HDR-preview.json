@@ -1,0 +1,20 @@
+{
+  "scopeJobsAfterHide" : 0,
+  "scopeJobs" : 601,
+  "version" : "0.8.0",
+  "scopesEnabled" : true,
+  "p95Milliseconds" : 16.980749998765532,
+  "passed" : true,
+  "requestedUpdates" : 7200,
+  "decodedFrames" : 3661,
+  "thermalEnd" : 0,
+  "trimmedPlayback" : true,
+  "rendered" : 6893,
+  "hdrPreview" : true,
+  "gpuFailures" : 0,
+  "thermalStart" : 0,
+  "interrupted" : false,
+  "elapsedSeconds" : 128.69126133333339,
+  "scopeAnalysisP95Milliseconds" : 14.798208332649665,
+  "idleFrames" : 0
+}

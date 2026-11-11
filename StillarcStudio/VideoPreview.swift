@@ -129,11 +129,12 @@ struct VideoPreview:View {
     let url:URL;let descriptor:VideoDescriptor;let poster:PreparedPhoto;let recipe:Recipe;let original:Bool;let active:Bool
     var onTrim:() -> Void = {}
     var showTrimButton = true
+    var scopes:ScopeSampler? = nil
     var rangePreview:ColorRange?
     @State private var playback:VideoPlayback?
     var body:some View {
         Group {
-            if let playback { VideoPreviewContent(playback:playback,poster:poster,recipe:recipe,original:original,active:active,onTrim:onTrim,showTrimButton:showTrimButton,rangePreview:rangePreview) }
+            if let playback { VideoPreviewContent(playback:playback,poster:poster,recipe:recipe,original:original,active:active,onTrim:onTrim,showTrimButton:showTrimButton,scopes:scopes,rangePreview:rangePreview) }
             else { LivePreview(source:poster.image,recipe:recipe,signalSource:poster.signalImage,original:original,active:active,hdr:recipe.video.hdr) }
         }
         .task { if playback == nil { let controller = VideoPlayback(url:url,descriptor:descriptor);controller.setEdit(recipe.video);controller.setActive(active);playback = controller } }
@@ -144,10 +145,10 @@ struct VideoPreview:View {
 }
 private struct VideoPreviewContent:View {
     @Bindable var playback:VideoPlayback
-    let poster:PreparedPhoto;let recipe:Recipe;let original:Bool;let active:Bool;let onTrim:() -> Void;let showTrimButton:Bool;let rangePreview:ColorRange?
+    let poster:PreparedPhoto;let recipe:Recipe;let original:Bool;let active:Bool;let onTrim:() -> Void;let showTrimButton:Bool;let scopes:ScopeSampler?;let rangePreview:ColorRange?
     var body:some View {
         ZStack(alignment:.bottom) {
-            VideoMetalView(playback:playback,recipe:recipe,original:original,rangePreview:rangePreview,active:active)
+            VideoMetalView(playback:playback,recipe:recipe,original:original,rangePreview:rangePreview,active:active,scopes:scopes)
             if playback.frame == nil { LivePreview(source:poster.image,recipe:recipe,signalSource:poster.signalImage,original:original,active:active,hdr:recipe.video.hdr) }
             HStack(spacing:12) {
                 Button { playback.toggle() } label: { Image(systemName:playback.playing ? "pause.fill" : "play.fill").frame(width:36,height:36) }.disabled(!playback.ready).accessibilityLabel(playback.playing ? "Pause video" : "Play video")
@@ -168,6 +169,7 @@ private final class VideoFrameLease: @unchecked Sendable {
 struct VideoMetalView:UIViewRepresentable {
     @Bindable var playback:VideoPlayback
     let recipe:Recipe;let original:Bool;let rangePreview:ColorRange?;let active:Bool
+    var scopes:ScopeSampler? = nil
     func makeCoordinator() -> Renderer { Renderer() }
     func makeUIView(context:Context) -> MTKView {
         let view = MTKView(frame:.zero,device:context.coordinator.device)
@@ -181,7 +183,7 @@ struct VideoMetalView:UIViewRepresentable {
         _ = playback.frameNumber
         (view.layer as? CAMetalLayer)?.colorspace = recipe.video.hdr ? ImageEngine.working : ImageEngine.output
         (view.layer as? CAMetalLayer)?.wantsExtendedDynamicRangeContent = recipe.video.hdr
-        context.coordinator.update(buffer:playback.frame,descriptor:playback.descriptor,recipe:recipe,original:original,range:rangePreview,active:active,view:view)
+        context.coordinator.update(buffer:playback.frame,descriptor:playback.descriptor,recipe:recipe,original:original,range:rangePreview,active:active,scopes:scopes,view:view)
     }
     static func dismantleUIView(_ view:MTKView,coordinator:Renderer) { view.delegate = nil;coordinator.clear() }
     @MainActor final class Renderer:NSObject,MTKViewDelegate {
@@ -191,11 +193,12 @@ struct VideoMetalView:UIViewRepresentable {
         private var buffer:CVPixelBuffer?
         private var descriptor:VideoDescriptor?
         private var recipe = Recipe(), original = false, active = true, dirty = true, drawing = false
+        private var scopes:ScopeSampler?
         private var range:ColorRange?
         func clear() { buffer = nil;context?.clearCaches() }
-        func update(buffer:CVPixelBuffer?,descriptor:VideoDescriptor,recipe:Recipe,original:Bool,range:ColorRange?,active:Bool,view:MTKView) {
-            guard self.buffer !== buffer || self.recipe != recipe || self.original != original || self.range != range || self.active != active else { return }
-            self.buffer = buffer;self.descriptor = descriptor;self.recipe = recipe;self.original = original;self.range = range;self.active = active;dirty = true
+        func update(buffer:CVPixelBuffer?,descriptor:VideoDescriptor,recipe:Recipe,original:Bool,range:ColorRange?,active:Bool,scopes:ScopeSampler?,view:MTKView) {
+            guard self.buffer !== buffer || self.recipe != recipe || self.original != original || self.range != range || self.active != active || self.scopes !== scopes else { return }
+            self.buffer = buffer;self.descriptor = descriptor;self.recipe = recipe;self.original = original;self.range = range;self.active = active;self.scopes = scopes;dirty = true
             if active && !drawing { view.setNeedsDisplay() }
         }
         func mtkView(_ view:MTKView,drawableSizeWillChange size:CGSize) { dirty = true;if active && !drawing { view.setNeedsDisplay() } }
@@ -210,6 +213,7 @@ struct VideoMetalView:UIViewRepresentable {
             let source = selected.input.profile == .standard ? pair.managed : pair.signal
             var image = HDRPipeline.grade(source,recipe:selected,hdr:recipe.video.hdr,rangePreview:original ? nil : range)
             if !recipe.video.hdr { image = image.applyingFilter("CIColorClamp",parameters:["inputMinComponents":CIVector(x:0,y:0,z:0,w:0),"inputMaxComponents":CIVector(x:1,y:1,z:1,w:1)]) }
+            scopes?.offer(image,hdr:recipe.video.hdr)
             let scale = min(size.width/image.extent.width,size.height/image.extent.height)
             let placed = image.transformed(by:.init(scaleX:scale,y:scale)).transformed(by:.init(translationX:(size.width-image.extent.width*scale)/2,y:(size.height-image.extent.height*scale)/2))
             let background = CIImage(color:CIColor(red:0.025,green:0.03,blue:0.04)).cropped(to:CGRect(origin:.zero,size:size))

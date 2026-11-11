@@ -5,25 +5,27 @@ import AVFoundation
 struct VideoPreviewVerification:View {
     @State private var playback:VideoPlayback?
     @State private var recipe = Recipe()
+    @State private var scopeSampler = ScopeSampler()
     @State private var status = "Preparing private video fixture…"
     @State private var progress = 0.0
     @Environment(\.scenePhase) private var phase
     var body:some View {
         VStack(spacing:16) {
             Text("Studio Log/video preview check").font(.headline)
-            if let playback { VideoMetalView(playback:playback,recipe:recipe,original:false,rangePreview:nil,active:phase == .active).frame(maxHeight:.infinity) }
+            if let playback { VideoMetalView(playback:playback,recipe:recipe,original:false,rangePreview:nil,active:phase == .active,scopes:scopeSampler).frame(maxHeight:.infinity) }
             Text(status).font(.caption.monospaced()).foregroundStyle(StudioStyle.secondary)
             ProgressView(value:progress)
         }.padding(24).background(StudioStyle.ink)
         .task {
             let idle = UIApplication.shared.isIdleTimerDisabled;UIApplication.shared.isIdleTimerDisabled = true
-            defer { UIApplication.shared.isIdleTimerDisabled = idle;playback?.clear() }
+            defer { scopeSampler.setEnabled(false);UIApplication.shared.isIdleTimerDisabled = idle;playback?.clear() }
             let reportURL = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("video-preview-verification.json")
             do {
                 let url = try await Task.detached(priority:.userInitiated) { try await VideoFixtures.make(profile:.appleLog2,frames:300,audioTracks:1,width:1920,height:1080) }.value
                 defer { try? FileManager.default.removeItem(at:url.deletingLastPathComponent()) }
                 let descriptor = try await VideoEngine.describe(url)
                 try await Task.detached { try ColorPipeline.prepare();try LogConversion.prepare() }.value
+                scopeSampler.setEnabled(true)
                 let player = VideoPlayback(url:url,descriptor:descriptor);player.looping = true;player.player.isMuted = true;playback = player
                 for _ in 0..<100 { if player.ready { break };try await Task.sleep(for:.milliseconds(100)) }
                 guard player.ready else { throw StudioError.unreadable }
@@ -54,11 +56,13 @@ struct VideoPreviewVerification:View {
                     if step % 120 == 0 { status = "Decoded \(player.frameNumber-startFrames) frames · \(step)/\(steps) edits";progress = Double(step)/Double(steps) }
                     try await Task.sleep(for:.milliseconds(16))
                 }
+                scopeSampler.setEnabled(false)
                 player.pause();try await Task.sleep(for:.seconds(1))
+                let scopeCount = scopeSampler.completed
                 let count = PreviewMetrics.shared.times.count
                 try await Task.sleep(for:.seconds(3))
                 let times = PreviewMetrics.shared.times.sorted(),idleFrames = times.count-count,decoded = player.frameNumber-startFrames
-                let result:[String:Any] = ["passed":!interrupted && decoded>0 && count>0 && idleFrames == 0 && PreviewMetrics.shared.failures == 0,"version":"0.7.0","hdrPreview":true,"trimmedPlayback":true,"requestedUpdates":steps,"rendered":count,"decodedFrames":decoded,"elapsedSeconds":CACurrentMediaTime()-began,"p95Milliseconds":times.isEmpty ? 9999 : times[min(times.count-1,Int(Double(times.count)*0.95))],"gpuFailures":PreviewMetrics.shared.failures,"idleFrames":idleFrames,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
+                let result:[String:Any] = ["passed":!interrupted && decoded>0 && count>0 && idleFrames == 0 && scopeSampler.completed == scopeCount && scopeSampler.completed>0 && PreviewMetrics.shared.failures == 0,"version":"0.8.0","scopesEnabled":true,"scopeJobs":scopeSampler.completed,"scopeJobsAfterHide":scopeSampler.completed-scopeCount,"scopeAnalysisP95Milliseconds":scopeSampler.analysisTimes.sorted().dropFirst(Int(Double(scopeSampler.analysisTimes.count)*0.95)).first ?? 0,"hdrPreview":true,"trimmedPlayback":true,"requestedUpdates":steps,"rendered":count,"decodedFrames":decoded,"elapsedSeconds":CACurrentMediaTime()-began,"p95Milliseconds":times.isEmpty ? 9999 : times[min(times.count-1,Int(Double(times.count)*0.95))],"gpuFailures":PreviewMetrics.shared.failures,"idleFrames":idleFrames,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
                 try JSONSerialization.data(withJSONObject:result,options:.prettyPrinted).write(to:reportURL,options:.atomic)
                 status = "Video preview check complete";progress = 1
             } catch {

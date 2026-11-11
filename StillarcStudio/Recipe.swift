@@ -2,6 +2,7 @@ import Foundation
 
 // Portable, versioned instructions. Source pixels are never changed.
 struct Recipe: Codable, Equatable, Sendable {
+    var geometry = GeometrySettings()
     var video = VideoEdit()
     var input = InputConversion()
     var lut: LUTAsset?
@@ -37,10 +38,11 @@ struct Recipe: Codable, Equatable, Sendable {
     var look = FilmLook.original
     var lookAmount = 1.0
     init() {}
-    private enum CodingKeys: String, CodingKey { case video, input, lut, lutAmount, colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
+    private enum CodingKeys: String, CodingKey { case geometry, video, input, lut, lutAmount, colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
     init(from decoder: Decoder) throws {
         self.init()
         let values = try decoder.container(keyedBy: CodingKeys.self)
+        geometry = (try values.decodeIfPresent(GeometrySettings.self,forKey:.geometry) ?? GeometrySettings()).validated()
         video = try values.decodeIfPresent(VideoEdit.self,forKey:.video) ?? VideoEdit()
         input = try values.decodeIfPresent(InputConversion.self,forKey:.input) ?? InputConversion()
         lut = try values.decodeIfPresent(LUTAsset.self,forKey:.lut)
@@ -80,9 +82,9 @@ struct Recipe: Codable, Equatable, Sendable {
 
 }
 enum Crop: String, CaseIterable, Codable, Sendable {
-    case original = "Original", square = "1:1", portrait = "4:5", landscape = "3:2", cinema = "16:9"
+    case free = "Free", original = "Original", square = "1:1", portrait = "4:5", landscape = "3:2", cinema = "16:9"
     var ratio: Double? {
-        switch self { case .original: nil; case .square: 1; case .portrait: 0.8; case .landscape: 1.5; case .cinema: 16.0 / 9 }
+        switch self { case .original, .free: nil; case .square: 1; case .portrait: 0.8; case .landscape: 1.5; case .cinema: 16.0 / 9 }
     }
 }
 enum FilmLook: String, CaseIterable, Codable, Sendable {
@@ -148,6 +150,7 @@ extension Recipe {
         for key in signed { copy[keyPath: key] = copy[keyPath: key].isFinite ? min(1, max(-1, copy[keyPath: key])) : 0 }
         for key in positive { copy[keyPath: key] = copy[keyPath: key].isFinite ? min(1, max(0, copy[keyPath: key])) : 0 }
         copy.exposure = copy.exposure.isFinite ? min(3,max(-3,copy.exposure)) : 0
+        copy.geometry = copy.geometry.validated()
         copy.cropX = copy.cropX.isFinite ? min(1,max(0,copy.cropX)) : 0.5
         copy.cropY = copy.cropY.isFinite ? min(1,max(0,copy.cropY)) : 0.5
         copy.straighten = copy.straighten.isFinite ? min(15,max(-15,copy.straighten)) : 0
@@ -179,7 +182,7 @@ extension Recipe {
         if tool == .curves && !rgbCurves.isNeutral { return true }
         if tool == .color && (!selectiveColors.isNeutral || !colorWheels.isNeutral || !channelMixer.isNeutral) { return true }
         if tool == .film { return (look != .original && lookAmount > 0.000001) || (lut != nil && lutAmount > 0.000001) }
-        if tool == .crop { return crop != .original || rotation % 4 != 0 }
+        if tool == .crop { return crop != .original || rotation % 4 != 0 || !geometry.isNeutral }
         return false
     }
     mutating func reset(_ tool: Tool) {
@@ -188,10 +191,10 @@ extension Recipe {
         if tool == .curves { rgbCurves = RGBCurves() }
         if tool == .color { selectiveColors = SelectiveColors(); colorWheels = ColorWheels(); channelMixer = ChannelMixer() }
         if tool == .film { look = .original; lookAmount = 1; lut = nil; lutAmount = 1 }
-        if tool == .crop { crop = .original; rotation = 0; straighten = 0; cropX = 0.5; cropY = 0.5 }
+        if tool == .crop { geometry = GeometrySettings();crop = .original; rotation = 0; straighten = 0; cropX = 0.5; cropY = 0.5 }
     }
     mutating func copyFraming(from source: Recipe) {
-        crop = source.crop; rotation = source.rotation; straighten = source.straighten; cropX = source.cropX; cropY = source.cropY
+        geometry = source.geometry;crop = source.crop; rotation = source.rotation; straighten = source.straighten; cropX = source.cropX; cropY = source.cropY
     }
     var colorPreset: Recipe { var copy = self; copy.reset(.crop); copy.input = InputConversion(); copy.video = VideoEdit(); return copy }
 }

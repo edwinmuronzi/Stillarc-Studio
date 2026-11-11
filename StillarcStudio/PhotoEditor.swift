@@ -7,6 +7,9 @@ import UniformTypeIdentifiers
     @Environment(\.scenePhase) private var phase
     @State private var session: EditSession
     @Bindable var library: StudioLibrary
+    @State private var scopesVisible = false
+    @State private var scopeMode = ScopeMode.histogram
+    @State private var scopeSampler = ScopeSampler()
     @State private var tool: Tool = .light
     @State private var colorPanel: ColorPanel = .global
     @State private var wheelZone: WheelZone = .shadows
@@ -41,11 +44,12 @@ import UniformTypeIdentifiers
                 if geometry.size.width > 800 {
                     HStack(spacing: 0) {
                         preview
-                        VStack(spacing: 0) { tools; controls }.frame(width: 340).background(StudioStyle.panel)
+                        VStack(spacing: 0) { scopePanel;tools; controls }.frame(width: 340).background(StudioStyle.panel)
                     }
                 } else {
                     VStack(spacing: 0) {
                         preview
+                        scopePanel
                         tools
                         controls.frame(height: min((tool == .curves || (tool == .color && colorPanel != .global)) ? 360 : 280,geometry.size.height * ((tool == .curves || (tool == .color && colorPanel != .global)) ? 0.54 : 0.43))).background(StudioStyle.panel)
                     }
@@ -57,6 +61,7 @@ import UniformTypeIdentifiers
             await session.open(library: library)
             #if DEBUG
             let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("--scopes") { scopesVisible = true;scopeSampler.setEnabled(true) }
             if arguments.contains("--verify-trim-ui") { await verifyTrimUI() }
             if arguments.contains("--show-lut-example") { session.change { $0.lut = try? LUTVerification.example(dimension:33) }; tool = .film }
             if arguments.contains("--wheels") { colorPanel = .wheels }
@@ -81,6 +86,8 @@ import UniformTypeIdentifiers
             }
             #endif
         }
+        .onChange(of:scopesActive) { _,value in scopeSampler.setEnabled(value) }
+        .onDisappear { scopeSampler.setEnabled(false) }
         .onChange(of: session.recipe) { _, _ in if !diagnosticsRunning { session.scheduleSave(library) } }
         .onChange(of: phase) { _, phase in if phase != .active { Task { await session.persist(library) } } }
         .onDisappear { Task { await session.persist(library) } }
@@ -149,9 +156,9 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:comparing,active:phase == .active && !export && !presets && !trimSheet,onTrim:{ trimSheet = true },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:comparing,active:phase == .active && !export && !presets && !trimSheet,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
                         } else {
-                            LivePreview(source:source.image,recipe:session.recipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !export && !presets)
+                            LivePreview(source:source.image,recipe:session.recipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !export && !presets,scopes:scopesActive ? scopeSampler : nil)
                         }
                     }
                         .scaleEffect(zoom * pinch).offset(x: offset.width+drag.width,y: offset.height+drag.height)
@@ -176,7 +183,7 @@ import UniformTypeIdentifiers
                                 .font(.system(size:9,weight:.semibold,design:.monospaced)).tracking(1).padding(.horizontal,10).padding(.vertical,7).background(.black.opacity(0.65),in:Capsule())
                         }.disabled(session.project.isRAW).accessibilityLabel("Input conversion")
                         Spacer()
-                        Text("\(session.project.width) × \(session.project.height)").font(.system(size: 9,design: .monospaced)).foregroundStyle(.white.opacity(0.7))
+                        Button { scopesVisible.toggle() } label: { Label("Scopes",systemImage:"chart.bar.xaxis").foregroundStyle(scopesVisible ? Color.white : StudioStyle.blue).font(.caption2).padding(8).background(scopesVisible ? StudioStyle.blue : Color.black.opacity(0.65),in:Capsule()) }
                     }
                     Spacer()
                     HStack {
@@ -189,6 +196,10 @@ import UniformTypeIdentifiers
                 }.padding(15)
             }.frame(width: geometry.size.width,height: geometry.size.height).clipped()
         }
+    }
+    private var scopesActive:Bool { scopesVisible && phase == .active && !export && !presets && !trimSheet && !inputSheet }
+    @ViewBuilder private var scopePanel:some View {
+        if scopesVisible { ScopePanel(sampler:scopeSampler,mode:$scopeMode) }
     }
     private var tools: some View {
         HStack(spacing: 0) {
@@ -273,6 +284,16 @@ import UniformTypeIdentifiers
                         }
                     }
                     Button { session.change { $0.rotation = ($0.rotation + 1) % 4 }; zoom = 1; offset = .zero } label: { Label("Rotate 90°",systemImage: "rotate.right").font(.subheadline).frame(maxWidth: .infinity).padding(14).background(.white.opacity(0.05),in: RoundedRectangle(cornerRadius: 12)) }
+                    HStack {
+                        Button { session.change { $0.geometry.flipHorizontal.toggle() } } label: { Label("Flip H",systemImage:"arrow.left.and.right.righttriangle.left.righttriangle.right").frame(maxWidth:.infinity) }
+                        Button { session.change { $0.geometry.flipVertical.toggle() } } label: { Label("Flip V",systemImage:"arrow.up.and.down.righttriangle.up.righttriangle.down").frame(maxWidth:.infinity) }
+                    }.buttonStyle(.bordered).font(.caption)
+                    if session.recipe.crop == .free {
+                        adjustment("Crop width (%)",key:\.geometry.width,range:0.1...1,defaultValue:1)
+                        adjustment("Crop height (%)",key:\.geometry.height,range:0.1...1,defaultValue:1)
+                    }
+                    adjustment("Horizontal perspective",key:\.geometry.horizontal,range:-0.3...0.3)
+                    adjustment("Vertical perspective",key:\.geometry.vertical,range:-0.3...0.3)
                     adjustment("Straighten",key: \.straighten,range: -15...15,unit: "°")
                     if session.recipe.crop != .original, let source = session.source {
                         let size = PhotoFraming.orientedSize(source.image.extent.size,recipe: session.recipe)
@@ -280,7 +301,7 @@ import UniformTypeIdentifiers
                         if size.width-window.width > 1 { adjustment("Horizontal framing",key: \.cropX,range: 0...1,defaultValue: 0.5) }
                         if size.height-window.height > 1 { adjustment("Vertical framing",key: \.cropY,range: 0...1,defaultValue: 0.5) }
                     }
-                    Text("Choose a ratio and drag the photo to move the frame. Straightening automatically trims the edges to avoid black corners. Tap any adjustment number for an exact value.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                    Text("Choose Free to resize width and height independently, then drag the photo to position it. Perspective straightens leaning buildings; some edges are trimmed. Straightening automatically trims the edges to avoid black corners. Tap any adjustment number for an exact value.").font(.caption).foregroundStyle(StudioStyle.secondary)
                 }
             }.padding(20).padding(.bottom,12)
         }.scrollIndicators(.hidden)
