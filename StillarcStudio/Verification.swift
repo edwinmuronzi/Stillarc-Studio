@@ -25,6 +25,16 @@ import ImageIO
             await versionSession.deleteVersion(version,library:versionLibrary)
             try require(versionSession.project.versions?.isEmpty == true,"Delete-version action failed")
             report["versionActions"] = true
+            var copied = Recipe();copied.exposure = 0.6;copied.lut = try LUTVerification.example()
+            let copySuccess = await versionLibrary.copyAdjustments(name:"Source",recipe:copied,sections:[.light,.lut])
+            try require(copySuccess && versionLibrary.adjustmentClipboard != nil,"Copy action failed")
+            let baseline = versionSession.recipe
+            if let clip = versionLibrary.adjustmentClipboard { versionSession.change { $0 = $0.pasting(clip.recipe,sections:Set(clip.sections)) } }
+            try require(versionSession.recipe.exposure == 0.6 && versionSession.recipe.lut == copied.lut,"Paste action failed")
+            versionSession.undo();try require(versionSession.recipe == baseline,"Paste undo failed")
+            versionSession.redo();try require(versionSession.recipe.exposure == 0.6,"Paste redo failed")
+            await versionLibrary.clearCopiedAdjustments();try require(versionLibrary.adjustmentClipboard == nil,"Clear action failed")
+            report["transferActionsUndoRedo"] = true
             let fixture = Project(id: UUID(),name: "History",sourceName: "test.jpg",created: Date(),modified: Date(),recipe: Recipe(),width: 1,height: 1,isRAW: false)
             let session = EditSession(fixture)
             session.begin(); session.recipe.exposure = 0.5; session.recipe.exposure = 1; session.end()
@@ -189,7 +199,7 @@ import ImageIO
                 guard context.createCGImage(image,from: image.extent) != nil else { throw StudioError.render }
             }
         }
-        return ["versionsComparison":try await VersionComparisonVerification.run(),"scopesGeometry":try ScopeGeometryVerification.run(),"logInput":logReport,"lutTools":lutReport,"gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
+        return ["adjustmentTransfer":try await AdjustmentTransferVerification.run(),"versionsComparison":try await VersionComparisonVerification.run(),"scopesGeometry":try ScopeGeometryVerification.run(),"logInput":logReport,"lutTools":lutReport,"gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
     }
 }
 #endif

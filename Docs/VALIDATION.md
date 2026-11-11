@@ -1,5 +1,15 @@
 # Validation
 
+## 0.10.0, build 11 — Selective adjustment copy/paste
+
+Native iPhone 16 Pro and simulator checks passed for all ten selectable sections, full-grade paste, unselected-section retention, empty-paste no-op and neutral LUT clearing. Destination crop/geometry/rotation/straighten/position, input conversion/exposure, trim and HDR choice stayed intact. Partial copy excluded unselected LUT/source data; the complete copied LUT snapshot reopened intact, stayed unchanged after editing the source, was excluded from project indexing and cleared correctly. Isolated application-action tests exercised Copy, Paste, Undo, Redo and Clear through the same methods used by the UI.
+
+The actual Copy and Paste panels were populated with all ten sections and presented/dismissed five times each on device and simulator, with ten distinct panel lifetimes and no new video-player creation loop. The diagnostic restores/clears only its temporary seeded clipboard and does not paste into the user's project. Full photo regression and existing native video trim/HDR/audio checks remained green.
+
+This feature adds no rendering stage: copy stores a filtered immutable recipe once, and paste changes the existing recipe in a single undo transaction. Storage encoding/decoding happens on the project-vault actor. Preview/scopes pause behind the panels. No new sustained thermal or energy claim is made for this workflow-only update; the earlier renderer measurements remain documented below.
+
+[Native copy/paste contracts/actions](Verification/0.10.0/iPhone16Pro-photo.json) · [Native populated panels](Verification/0.10.0/iPhone16Pro-transfer-ui.json) · [Native video regression](Verification/0.10.0/iPhone16Pro-video.json) · [Simulator contracts/actions](Verification/0.10.0/Simulator-photo.json) · [Simulator populated panels](Verification/0.10.0/Simulator-transfer-ui.json)
+
 ## 0.9.0, build 10 — Split comparison and complete versions
 
 New checks passed for split boundaries at 0%, 25%, 50% and 100%, plus disabled-comparison graph bypass. Immutable snapshot files retained complete recipes (including LUT, input, framing and trim) after later autosaves. Version index reopening, source-byte preservation, deletion and older-project defaults passed. Isolated main-actor tests exercise Save version, Restore, Undo restore and Delete through the same EditSession methods used by the UI.

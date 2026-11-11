@@ -22,7 +22,7 @@ actor ProjectVault {
     }
     func load() throws -> ([Project], [SavedLook]) {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        let projects = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil))?.filter { $0.pathExtension == "json" && $0.lastPathComponent != "looks.json" }.compactMap { try? JSONDecoder().decode(Project.self, from: Data(contentsOf: $0)) } ?? []
+        let projects = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil))?.filter { $0.pathExtension == "json" && $0.lastPathComponent != "looks.json" && $0.lastPathComponent != "adjustments-clipboard.json" }.compactMap { try? JSONDecoder().decode(Project.self, from: Data(contentsOf: $0)) } ?? []
         let lookURL = root.appendingPathComponent("looks.json")
         let looks = FileManager.default.fileExists(atPath: lookURL.path) ? try JSONDecoder().decode([SavedLook].self, from: Data(contentsOf: lookURL)) : []
         return (projects.sorted { $0.modified > $1.modified }, looks)
@@ -31,6 +31,19 @@ actor ProjectVault {
     func save(_ project: Project) throws {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         try JSONEncoder().encode(project).write(to: root.appendingPathComponent(project.id.uuidString + ".json"), options: .atomic)
+    }
+    func loadClipboard() throws -> AdjustmentClipboard? {
+        let url = root.appendingPathComponent("adjustments-clipboard.json")
+        guard FileManager.default.fileExists(atPath:url.path) else { return nil }
+        let clip = try JSONDecoder().decode(AdjustmentClipboard.self,from:Data(contentsOf:url))
+        guard clip.schema == 1,!clip.sections.isEmpty else { throw StudioError.unsupportedPreset }
+        return clip
+    }
+    func saveClipboard(_ clip:AdjustmentClipboard?) throws {
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        let url = root.appendingPathComponent("adjustments-clipboard.json")
+        if let clip { try JSONEncoder().encode(clip).write(to:url,options:.atomic) }
+        else if FileManager.default.fileExists(atPath:url.path) { try FileManager.default.removeItem(at:url) }
     }
     func saveLooks(_ looks: [SavedLook]) throws {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -78,14 +91,25 @@ actor ProjectVault {
 @MainActor @Observable final class StudioLibrary {
     var projects: [Project] = []
     var looks: [SavedLook] = []
+    var adjustmentClipboard:AdjustmentClipboard?
     var loading = true
     var importing = false
     var error: String?
     let vault:ProjectVault
     init(vault:ProjectVault = ProjectVault()) { self.vault = vault }
     func load() async {
-        do { (projects, looks) = try await vault.load() } catch { self.error = error.localizedDescription }
+        do { (projects, looks) = try await vault.load();adjustmentClipboard = try await vault.loadClipboard() } catch { self.error = error.localizedDescription }
         loading = false
+    }
+    @discardableResult func copyAdjustments(name:String,recipe:Recipe,sections:Set<AdjustmentSection>) async -> Bool {
+        guard !sections.isEmpty else { return false }
+        let clip = AdjustmentClipboard(name:name,recipe:recipe,sections:sections)
+        do { try await vault.saveClipboard(clip);adjustmentClipboard = clip;return true }
+        catch { self.error = error.localizedDescription;return false }
+    }
+    @discardableResult func clearCopiedAdjustments() async -> Bool {
+        do { try await vault.saveClipboard(nil);adjustmentClipboard = nil;return true }
+        catch { self.error = error.localizedDescription;return false }
     }
     func add(_ url: URL) async -> Project? {
         guard !importing else { return nil }; importing = true

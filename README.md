@@ -2,13 +2,16 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.9 split comparison and saved versions milestone**, not a finished PeekLUT/Lightroom replacement. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.10 selective copy/paste milestone**, not a finished PeekLUT/Lightroom replacement. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"></p>
 
 [LUTs, wheels, channel mixer, curves and color-mix screenshots](Docs/Screenshots)
 
 ## What works in this milestone
+
+- Open **Looks → Copy adjustments** and choose sections to copy. On another photo or clip, open **Looks → Paste adjustments**, choose which copied sections to apply, and paste. Options include Light, White balance, Color & color mix, Curves, Color wheels, Channel mixer, Built-in look, LUT, Film texture and Detail. Selected sections replace existing values, including neutral/Off settings; unselected adjustments stay unchanged.
+- Paste preserves each destination’s crop, flips, perspective, input profile/exposure, video trim, HDR choice and saved versions. It is one undoable change and works between photos and video clips. The LUT travels with the internal clipboard; no media is duplicated or placed on the system clipboard. Copied settings survive app restarts until replaced or cleared from the Paste panel.
 
 - Tap the **split comparison icon** beside Hold to compare, then drag the round divider. Original is on the left, your edit on the right, with matching framing. Comparison returns to a fitted view; turn it off to zoom normally. Photo and video share one decoded source/frame. The divider is a preview tool and never appears in exports. Scopes follow the displayed comparison.
 - Open **Looks → Saved versions**, enter a name and save the complete current edit. Keep up to 20 named versions per photo/clip, including input conversion, framing, trim, HDR choice and LUT. Restore returns to the preview; Undo recovers the edit you had before restoring. Delete removes that saved snapshot, not the source. Versions stay with this project; Looks presets are for reusing grades on other media. No media files are duplicated.
@@ -43,9 +46,9 @@ No sign-in, server processing, analytics SDK or upload is required. Imported pro
 ## Try a LUT
 
 1. Save [Studio Cool.cube](Docs/Examples/Studio-Cool.cube) to Files on your iPhone, or use your own display-sRGB creative LUT.
-2. Open a photo, tap **Looks → Import .cube LUT**, and choose the file. It is applied to the current edit and saved in Your presets for later use.
+2. Open a photo, tap **Looks → Looks & presets → Import .cube LUT**, and choose the file. It is applied to the current edit and saved in Your presets for later use.
 3. Open **Film → LUT strength** and drag to blend the effect. Zero leaves the other adjustments active; Remove detaches the LUT.
-4. Use **Looks → Save current adjustments** to keep the LUT together with your other edits. Use a preset's menu to export the portable Studio JSON or delete it. Exporting a preset does not produce a new `.cube` file.
+4. Use **Looks → Looks & presets → Save current adjustments** to keep the LUT together with your other edits. Use a preset's menu to export the portable Studio JSON or delete it. Exporting a preset does not produce a new `.cube` file.
 
 The included Studio Cool LUT is a subtle original demonstration, not a camera conversion or measured film emulation.
 
@@ -66,6 +69,8 @@ HDR grading keeps per-pixel highlight headroom outside the display-referred crea
 The editor header owns its window-safe insets, including after foregrounding, rotation and export-sheet presentation, so Back/Undo/Export stay below the status bar and away from the camera cutout.
 
 ## Designed for responsiveness
+
+Copy builds a small immutable instruction snapshot; LUT data shares immutable storage in memory. Clipboard encoding/decoding and atomic file writes run on the storage actor, once per explicit copy, rather than on slider changes. The clipboard file is excluded from media-project indexing. Paste changes the existing recipe in one transaction; it does not reopen the original, create a new player or process/export media. Preview playback and scope sampling pause while either copy/paste panel is open.
 
 Split comparison composites two graphs from the same source/frame into one Metal command; it does not create a second player. With comparison off, the extra graph is skipped. Saved versions are immutable recipe files created only on explicit Save. Ordinary autosave updates a small version index instead of re-encoding every saved LUT/recipe. Restoring decodes the chosen snapshot on the storage actor. Versions are local app data; deleting the project or uninstalling Studio removes them.
 

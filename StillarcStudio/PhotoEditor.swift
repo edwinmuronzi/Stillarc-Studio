@@ -22,6 +22,7 @@ import UniformTypeIdentifiers
     @State private var splitComparison = false
     @State private var splitPosition = 0.5
     @State private var versionsSheet = false
+    @State private var transferSheet:AdjustmentTransferMode?
     @State private var export = false
     @State private var presets = false
     @State private var inputSheet = false
@@ -94,6 +95,23 @@ import UniformTypeIdentifiers
                 if let data = try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted) { try? data.write(to:url,options:.atomic) }
             }
             #endif
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--verify-transfer-ui") {
+                try? await Task.sleep(for:.seconds(1))
+                let seeded = library.adjustmentClipboard == nil
+                if seeded { await library.copyAdjustments(name:"Transfer UI check",recipe:Recipe(),sections:Set(AdjustmentSection.allCases)) }
+                let players = VideoPlayback.creationCount,presentations = AdjustmentTransferSheet.presentedIDs.count,start = CACurrentMediaTime()
+                for _ in 0..<5 {
+                    transferSheet = .copy;try? await Task.sleep(for:.milliseconds(700));transferSheet = nil;try? await Task.sleep(for:.milliseconds(700))
+                    transferSheet = .paste;try? await Task.sleep(for:.milliseconds(700));transferSheet = nil;try? await Task.sleep(for:.milliseconds(700))
+                }
+                if seeded { await library.clearCopiedAdjustments() }
+                let count = AdjustmentTransferSheet.presentedIDs.count-presentations
+                let result:[String:Any] = ["passed":count == 10 && VideoPlayback.creationCount-players<=1,"sheetsPresented":count,"playersCreated":VideoPlayback.creationCount-players,"elapsedSeconds":CACurrentMediaTime()-start]
+                let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("transfer-ui-verification.json")
+                if let data = try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted) { try? data.write(to:url,options:.atomic) }
+            }
+            #endif
             await runPreviewCheckIfRequested()
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("--verify-editor-layout") {
@@ -107,6 +125,7 @@ import UniformTypeIdentifiers
         .onChange(of: phase) { _, phase in if phase != .active { Task { await session.persist(library) } } }
         .onDisappear { Task { await session.persist(library) } }
         .sheet(isPresented: $export) { ExportSheet(session: session) }
+        .sheet(item:$transferSheet) { mode in AdjustmentTransferSheet(mode:mode,session:session,library:library) }
         .sheet(isPresented:$versionsSheet) { VersionsSheet(session:session,library:library) }
         .sheet(isPresented: $presets) { PresetsSheet(session: session,library: library) }
         .sheet(isPresented:$trimSheet) { VideoTrimSheet(session:session) }
@@ -172,9 +191,9 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:comparing,active:phase == .active && !export && !presets && !versionsSheet && !trimSheet,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:comparing,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
                         } else {
-                            LivePreview(source:source.image,recipe:session.recipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !export && !presets && !versionsSheet,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil)
+                            LivePreview(source:source.image,recipe:session.recipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil)
                         }
                     }
                         .scaleEffect(zoom * pinch).offset(x: offset.width+drag.width,y: offset.height+drag.height)
@@ -209,6 +228,9 @@ import UniformTypeIdentifiers
                         Menu {
                             Button("Looks & presets",systemImage:"square.stack") { presets = true }
                             Button("Saved versions",systemImage:"clock.arrow.circlepath") { versionsSheet = true }
+                            Divider()
+                            Button("Copy adjustments",systemImage:"doc.on.doc") { transferSheet = .copy }
+                            Button("Paste adjustments",systemImage:"doc.on.clipboard") { transferSheet = .paste }.disabled(library.adjustmentClipboard == nil)
                         } label: { Label("Looks",systemImage: "square.stack").font(.caption.weight(.medium)).padding(.horizontal,13).padding(.vertical,10).background(.ultraThinMaterial,in: Capsule()) }.disabled(session.source == nil)
                         Spacer()
                         Button { splitComparison.toggle();zoom = 1;offset = .zero } label: { Image(systemName:"rectangle.lefthalf.inset.filled").frame(width:36,height:36).background(splitComparison ? StudioStyle.blue : Color.black.opacity(0.6),in:Circle()).foregroundStyle(.white) }.accessibilityLabel("Split before and after").accessibilityValue(splitComparison ? "On" : "Off")
@@ -220,7 +242,7 @@ import UniformTypeIdentifiers
             }.coordinateSpace(name:"comparisonPreview").frame(width: geometry.size.width,height: geometry.size.height).clipped()
         }
     }
-    private var scopesActive:Bool { scopesVisible && phase == .active && !export && !presets && !versionsSheet && !trimSheet && !inputSheet }
+    private var scopesActive:Bool { scopesVisible && phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && !inputSheet }
     @ViewBuilder private var scopePanel:some View {
         if scopesVisible { ScopePanel(sampler:scopeSampler,mode:$scopeMode) }
     }
