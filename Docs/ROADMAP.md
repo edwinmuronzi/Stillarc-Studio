@@ -18,7 +18,9 @@ Next: freeform crop bounds, perspective and lens corrections; texture/clarity/de
 
 ## 3 — Reusable grades and film
 
-Strict .cube parsing (domains, ranges, sizes), managed input/working/output transforms, LUT stacking with strength, LUT export for compatible global color operations, and separate full-recipe export for effects that LUTs cannot carry. Build film density/print response, luminance-aware grain and physically motivated halation independently of bloom. Measure effect scale consistency across preview/export. Define a versioned Camera/Studio shared-look contract before either app claims exchange compatibility.
+Implemented in 0.5: one display-sRGB 3D .cube LUT, strict size/domain/value validation, live strength, self-contained schema-2 Studio look presets, preserved framing, reset/undo and full-resolution export matching. Immutable imported tables are shared by history; parsing and saving run away from the UI actor.
+
+Next: explicit camera Log and wide-gamut input/output transforms, 1D shapers, LUT stacking, LUT export for compatible global color operations, and separate full-recipe export for effects that LUTs cannot carry. Build film density/print response, luminance-aware grain and physically motivated halation independently of bloom. Measure effect scale consistency across preview/export. Define a versioned Camera/Studio shared-look contract before either app claims exchange compatibility.
 
 ## 4 — Selective edits and workflow
 

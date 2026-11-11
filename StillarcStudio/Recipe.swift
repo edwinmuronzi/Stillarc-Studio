@@ -2,6 +2,8 @@ import Foundation
 
 // Portable, versioned instructions. Source pixels are never changed.
 struct Recipe: Codable, Equatable, Sendable {
+    var lut: LUTAsset?
+    var lutAmount = 1.0
     var colorWheels = ColorWheels()
     var channelMixer = ChannelMixer()
     var rgbCurves = RGBCurves()
@@ -33,10 +35,12 @@ struct Recipe: Codable, Equatable, Sendable {
     var look = FilmLook.original
     var lookAmount = 1.0
     init() {}
-    private enum CodingKeys: String, CodingKey { case colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
+    private enum CodingKeys: String, CodingKey { case lut, lutAmount, colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
     init(from decoder: Decoder) throws {
         self.init()
         let values = try decoder.container(keyedBy: CodingKeys.self)
+        lut = try values.decodeIfPresent(LUTAsset.self,forKey:.lut)
+        lutAmount = try values.decodeIfPresent(Double.self,forKey:.lutAmount) ?? 1
         colorWheels = try values.decodeIfPresent(ColorWheels.self,forKey:.colorWheels) ?? colorWheels
         channelMixer = try values.decodeIfPresent(ChannelMixer.self,forKey:.channelMixer) ?? channelMixer
         rgbCurves = try values.decodeIfPresent(RGBCurves.self,forKey:.rgbCurves) ?? rgbCurves
@@ -127,13 +131,14 @@ struct PresetDocument: Codable {
     var schema = 1
     var name: String
     var recipe: Recipe
+    init(name: String, recipe: Recipe) { self.name = name; self.recipe = recipe; schema = recipe.lut == nil ? 1 : 2 }
 }
 
 extension Recipe {
     func validated() -> Recipe {
         var copy = self
         let signed: [WritableKeyPath<Recipe, Double>] = [\.contrast, \.highlights, \.shadows, \.whites, \.blacks, \.warmth, \.tint, \.saturation, \.vibrance, \.curveShadows, \.curveMidtones, \.curveHighlights]
-        let positive: [WritableKeyPath<Recipe, Double>] = [\.fade, \.grain, \.bloom, \.vignette, \.sharpen, \.noise, \.lookAmount]
+        let positive: [WritableKeyPath<Recipe, Double>] = [\.fade, \.grain, \.bloom, \.vignette, \.sharpen, \.noise, \.lookAmount, \.lutAmount]
         for key in signed { copy[keyPath: key] = copy[keyPath: key].isFinite ? min(1, max(-1, copy[keyPath: key])) : 0 }
         for key in positive { copy[keyPath: key] = copy[keyPath: key].isFinite ? min(1, max(0, copy[keyPath: key])) : 0 }
         copy.exposure = copy.exposure.isFinite ? min(3,max(-3,copy.exposure)) : 0
@@ -166,7 +171,7 @@ extension Recipe {
         if tool.valueKeys.contains(where: { abs(self[keyPath: $0]) > 0.000001 }) { return true }
         if tool == .curves && !rgbCurves.isNeutral { return true }
         if tool == .color && (!selectiveColors.isNeutral || !colorWheels.isNeutral || !channelMixer.isNeutral) { return true }
-        if tool == .film { return look != .original && lookAmount > 0.000001 }
+        if tool == .film { return (look != .original && lookAmount > 0.000001) || (lut != nil && lutAmount > 0.000001) }
         if tool == .crop { return crop != .original || rotation % 4 != 0 }
         return false
     }
@@ -175,7 +180,7 @@ extension Recipe {
         for key in tool.valueKeys { self[keyPath: key] = neutral[keyPath: key] }
         if tool == .curves { rgbCurves = RGBCurves() }
         if tool == .color { selectiveColors = SelectiveColors(); colorWheels = ColorWheels(); channelMixer = ChannelMixer() }
-        if tool == .film { look = .original; lookAmount = 1 }
+        if tool == .film { look = .original; lookAmount = 1; lut = nil; lutAmount = 1 }
         if tool == .crop { crop = .original; rotation = 0; straighten = 0; cropX = 0.5; cropY = 0.5 }
     }
     mutating func copyFraming(from source: Recipe) {

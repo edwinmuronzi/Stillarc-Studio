@@ -108,6 +108,7 @@ enum ImageEngine {
             }
             image = image.applyingFilter("CIDissolveTransition", parameters: [kCIInputTargetImageKey: base, kCIInputTimeKey: 1 - r.lookAmount])
         }
+        if let lut = r.lut, r.lutAmount > 0 { image = lut.apply(image,amount:r.lutAmount) }
         if r.noise > 0 { filter("CINoiseReduction", ["inputNoiseLevel": r.noise * 0.05, "inputSharpness": 0.2]) }
         if r.sharpen > 0 { filter("CISharpenLuminance", [kCIInputSharpnessKey: r.sharpen * 0.8]) }
         // Radius is proportional to image size so preview and full export share a visual scale.

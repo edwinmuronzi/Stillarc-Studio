@@ -88,11 +88,11 @@ actor ProjectVault {
     func remove(_ project: Project) async {
         do { try await vault.remove(project); projects.removeAll { $0.id == project.id } } catch { self.error = error.localizedDescription }
     }
-    func saveLook(name: String, recipe: Recipe) async {
+    @discardableResult func saveLook(name: String, recipe: Recipe) async -> Bool {
         let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleaned.isEmpty else { return }
+        guard !cleaned.isEmpty else { return false }
         let updated = looks + [SavedLook(name: cleaned, recipe: recipe.colorPreset)]
-        do { try await vault.saveLooks(updated); looks = updated } catch { self.error = error.localizedDescription }
+        do { try await vault.saveLooks(updated); looks = updated; return true } catch { self.error = error.localizedDescription; return false }
     }
     func removeLook(_ look: SavedLook) async {
         let updated = looks.filter { $0.id != look.id }

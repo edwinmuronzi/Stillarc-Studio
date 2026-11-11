@@ -71,6 +71,8 @@ import UniformTypeIdentifiers
     @State private var naming = false
     @State private var name = ""
     @State private var importing = false
+    @State private var importingLUT = false
+    @State private var loadingLUT = false
     @State private var shareURL: URL?
     @State private var error: String?
     var body: some View {
@@ -78,8 +80,10 @@ import UniformTypeIdentifiers
             List {
                 Section {
                     Button { naming = true } label: { Label("Save current adjustments",systemImage: "plus.circle") }
+                    Button { importingLUT = true } label: { Label("Import .cube LUT",systemImage:"cube.transparent") }.disabled(loadingLUT)
+                    if loadingLUT { ProgressView("Preparing LUT…") }
                     Button { importing = true } label: { Label("Import Studio preset",systemImage: "square.and.arrow.down") }
-                } footer: { Text("Presets save light, color and film adjustments. Crop and rotation stay with the photograph.") }
+                } footer: { Text("Presets save light, color, film and the LUT itself. Crop and rotation stay with the photograph. Import a display-sRGB LUT, then adjust its strength under Film.") }
                 Section("Your presets") {
                     if library.looks.isEmpty { Text("Your signature looks will live here.").foregroundStyle(StudioStyle.secondary) }
                     ForEach(library.looks) { look in
@@ -100,15 +104,22 @@ import UniformTypeIdentifiers
                     Section { ShareLink(item: shareURL) { Label("Share exported preset",systemImage: "square.and.arrow.up") } }
                 }
                 if let error { Section { Text(error).foregroundStyle(.orange) } }
-            }.scrollContentBackground(.hidden).background(StudioStyle.ink).navigationTitle("Your looks").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { dismiss() } }
+            }.scrollContentBackground(.hidden).background(StudioStyle.ink).navigationTitle("Your looks").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { dismiss() }.disabled(loadingLUT) }
+                .interactiveDismissDisabled(loadingLUT)
                 .alert("Save preset",isPresented: $naming) {
                     TextField("Preset name",text: $name)
                     Button("Cancel",role: .cancel) {}
                     Button("Save") {
                         let recipe = session.recipe.colorPreset
-                        Task { await library.saveLook(name: name,recipe: recipe); name = "" }
+                        Task { if await library.saveLook(name:name,recipe:recipe) { name = "" } else { error = library.error } }
                     }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 } message: { Text("Give this combination of adjustments a name.") }
+                .fileImporter(isPresented:$importingLUT,allowedContentTypes:[UTType(filenameExtension:"cube") ?? .data,.plainText]) { result in
+                    switch result {
+                    case .success(let url): Task { await importLUT(url) }
+                    case .failure(let failure): error = failure.localizedDescription
+                    }
+                }
                 .fileImporter(isPresented: $importing,allowedContentTypes: [.json]) { result in
                     switch result {
                     case .success(let url): Task { await importLook(url) }
@@ -116,6 +127,17 @@ import UniformTypeIdentifiers
                     }
                 }
         }.tint(StudioStyle.blue)
+    }
+    private func importLUT(_ url: URL) async {
+        loadingLUT = true; error = nil
+        defer { loadingLUT = false }
+        do {
+            let asset = try await Task.detached(priority:.userInitiated) { try LUTAsset.read(url) }.value
+            var preset = Recipe(); preset.lut = asset
+            guard await library.saveLook(name:asset.name.isEmpty ? "Imported LUT" : asset.name,recipe:preset) else { error = library.error; return }
+            session.change { $0.lut = asset; $0.lutAmount = 1 }
+            dismiss()
+        } catch { self.error = error.localizedDescription }
     }
     private func exportLook(_ look: SavedLook) async {
         do {
@@ -133,12 +155,12 @@ import UniformTypeIdentifiers
             let preset = try await Task.detached(priority: .userInitiated) {
                 let secured = url.startAccessingSecurityScopedResource()
                 defer { if secured { url.stopAccessingSecurityScopedResource() } }
-                let values = try url.resourceValues(forKeys: [.fileSizeKey]); guard (values.fileSize ?? 0) < 1_000_000 else { throw StudioError.unsupportedPreset }
+                let values = try url.resourceValues(forKeys: [.fileSizeKey]); guard (values.fileSize ?? 0) <= 8_000_000 else { throw StudioError.unsupportedPreset }
                 let preset = try JSONDecoder().decode(PresetDocument.self,from: Data(contentsOf: url))
-                guard preset.schema == 1 else { throw StudioError.unsupportedPreset }
+                guard (1...2).contains(preset.schema) else { throw StudioError.unsupportedPreset }
                 return preset
             }.value
-            await library.saveLook(name: preset.name,recipe: preset.recipe.validated())
+            if !(await library.saveLook(name:preset.name,recipe:preset.recipe.validated())) { error = library.error }
         } catch { self.error = error.localizedDescription }
     }
 }

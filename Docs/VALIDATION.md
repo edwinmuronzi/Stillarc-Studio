@@ -1,5 +1,19 @@
 # Validation
 
+## 0.5.0, build 5 — LUT import and reusable looks
+
+Passed on the black iPhone 16 Pro and simulator:
+
+- Display-sRGB identity, red-fastest channel ordering, non-default domains, endpoints, transparent colors/alpha and strength blending against a linear-light reference.
+- Eleven invalid .cube fixtures rejected, including 1D/combined tables, missing/extra rows, nonfinite values, invalid dimensions/domains and unsupported directives. Malformed embedded cube data was rejected.
+- A self-contained 65-point LUT preset survived schema-2 serialization with its strength; framing was excluded. Project and saved-look disk persistence, import file reading, LUT undo/redo, Film reset/undo and active-dot state passed. Existing recipe migrations remained intact.
+- Range inspection excluded the LUT. Full-size JPEG/PNG sampled exported colors matched the edit render. Existing geometry and 12/24/48MP synthetic gradient exports passed with a 65-point LUT and grading active; these are not complex RAW benchmarks.
+- Actual 65-point .cube text parsing and the included 17-point Studio Cool example passed a separate optimized Mac-host check (both parsed in 0.62 seconds combined). That is not an iPhone import-latency measurement.
+
+The optimized black iPhone 16 Pro diagnostic continuously varied a **65-point LUT's strength**, RGB curves, selective color, tonal wheels, channel mixer, exposure and warmth, with a built-in look, grain, bloom, crop and straighten active. It completed **7,200 renders for 7,200 requested updates** over **129.10 seconds**, with **9.83 ms render-completion p95**, **zero GPU failures** and **zero idle redraws**. Thermal state was **nominal at start and end**. These measurements do not establish touch-to-display latency, presented fps, battery energy or physical temperature; longer sessions, real RAW inputs and older physical devices remain unverified.
+
+The signed production Release archive passed strict signature verification and was installed and launched on the black iPhone 16 Pro. Portrait and compact iPhone LUT layouts were visually inspected; system document-picker taps and every touch interaction were not automated. [Raw reports](Verification/0.5.0) and [LUT screenshots](Screenshots/LUTStrength.png) are retained.
+
 ## 0.4.0, build 4 — color wheels and channel mixer
 
 Passed on the black iPhone 16 Pro using Metal stitchable functions and on the simulator using the portable Core Image path:

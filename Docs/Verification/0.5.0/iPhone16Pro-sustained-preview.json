@@ -1,0 +1,14 @@
+{
+  "elapsedSeconds" : 129.09957116666646,
+  "interrupted" : false,
+  "cancelled" : false,
+  "kernelBackend" : "Metal stitchable",
+  "p95Milliseconds" : 9.8311250003462192,
+  "thermalStart" : 0,
+  "thermalEnd" : 0,
+  "extraIdleFrames" : 0,
+  "requestedUpdates" : 7200,
+  "rendered" : 7200,
+  "version" : "0.5.0",
+  "gpuFailures" : 0
+}

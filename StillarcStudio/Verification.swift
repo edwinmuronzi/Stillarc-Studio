@@ -28,6 +28,14 @@ import ImageIO
             gradingSession.begin(); gradingSession.recipe.colorWheels.shadows.hue = 220; gradingSession.recipe.colorWheels.shadows.strength = 0.25; gradingSession.recipe.channelMixer.redGreen = 0.1; gradingSession.end()
             gradingSession.undo(); try require(gradingSession.recipe.colorWheels.isNeutral && gradingSession.recipe.channelMixer.isNeutral,"Wheel/mixer gesture undo failed")
             gradingSession.redo(); try require(gradingSession.recipe.colorWheels.shadows.strength == 0.25 && gradingSession.recipe.channelMixer.redGreen == 0.1,"Wheel/mixer gesture redo failed")
+            let lutSession = EditSession(fixture)
+            let lut = try LUTVerification.example()
+            lutSession.change { $0.lut = lut; $0.lutAmount = 0.4 }
+            lutSession.undo(); try require(lutSession.recipe.lut == nil,"LUT import undo failed")
+            lutSession.redo(); try require(lutSession.recipe.lut === lut && lutSession.recipe.lutAmount == 0.4,"LUT redo failed")
+            lutSession.change { $0.reset(.film) }; lutSession.undo()
+            try require(lutSession.recipe.lut === lut,"Undo Film reset did not restore LUT")
+            report["lutUndoRedo"] = true
             report["gradingUndoRedo"] = true
             report["colorUndoRedo"] = true
             report["undoRedo"] = true
@@ -43,6 +51,7 @@ import ImageIO
     }
     private nonisolated static func verify() async throws -> [String: Any] {
         let colorReport = try ColorVerification.run()
+        let lutReport = try LUTVerification.run()
         let gradingReport = try GradingVerification.run()
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("StudioQA-\(UUID())",isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -58,7 +67,7 @@ import ImageIO
         try require(loaded.0.count == 1 && loaded.0[0].recipe == recipe,"Saved recipe did not round trip")
         var legacy = try JSONSerialization.jsonObject(with: JSONEncoder().encode(edited)) as! [String: Any]
         var oldRecipe = legacy["recipe"] as! [String: Any]
-        for key in ["whites","blacks","straighten","cropX","cropY","rgbCurves","selectiveColors","colorWheels","channelMixer"] { oldRecipe.removeValue(forKey: key) }
+        for key in ["whites","blacks","straighten","cropX","cropY","rgbCurves","selectiveColors","colorWheels","channelMixer","lut","lutAmount"] { oldRecipe.removeValue(forKey: key) }
         legacy["recipe"] = oldRecipe
         let migrated = try JSONDecoder().decode(Project.self,from: JSONSerialization.data(withJSONObject: legacy))
         try require(migrated.recipe == recipe,"Version 0.1 project migration failed")
@@ -132,6 +141,9 @@ import ImageIO
             try require(reopened.width == reopened.height,"Export lost crop")
         }
         try require(try Data(contentsOf:sourceURL) == before,"Original was modified")
+        recipe.lut = try LUTVerification.example(); recipe.lutAmount = 0.4
+        edited.recipe = recipe; try await vault.save(edited)
+        let lutReloaded = try await vault.load(); try require(lutReloaded.0.first?.recipe == recipe,"Project LUT persistence failed")
         let looks = [SavedLook(name:"QA",recipe:recipe)]; try await vault.saveLooks(looks)
         let saved = try await vault.load(); try require(saved.1.count == 1 && saved.1[0].recipe == recipe,"Preset persistence failed")
         try await vault.remove(project); let empty = try await vault.load(); try require(empty.0.isEmpty,"Project removal failed")
@@ -146,6 +158,7 @@ import ImageIO
                 let preview = try ImageEngine.open(fixtureURL,maxDimension: 1600)
                 try require(max(preview.image.extent.width,preview.image.extent.height) <= 1600,"Large preview exceeded size bound")
                 var largeRecipe = Recipe(); largeRecipe.rgbCurves.master.middle = 0.54; largeRecipe.selectiveColors.orange.saturation = -0.2; largeRecipe.colorWheels.shadows.hue = 220; largeRecipe.colorWheels.shadows.strength = 0.1; largeRecipe.channelMixer.redGreen = 0.02
+                largeRecipe.lut = try LUTVerification.example(dimension:65)
                 let exported = try ImageEngine.export(source: fixtureURL,recipe: largeRecipe,format: .jpeg)
                 defer { try? FileManager.default.removeItem(at: exported.url) }
                 try require(exported.width == dimensions.0 && exported.height == dimensions.1,"Large export lost dimensions")
@@ -160,7 +173,7 @@ import ImageIO
                 guard context.createCGImage(image,from: image.extent) != nil else { throw StudioError.render }
             }
         }
-        return ["gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
+        return ["lutTools":lutReport,"gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
     }
 }
 #endif

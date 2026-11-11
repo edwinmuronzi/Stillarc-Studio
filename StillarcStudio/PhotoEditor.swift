@@ -51,6 +51,7 @@ import UniformTypeIdentifiers
             await session.open(library: library)
             #if DEBUG
             let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("--show-lut-example") { session.change { $0.lut = try? LUTVerification.example(dimension:33) }; tool = .film }
             if arguments.contains("--wheels") { colorPanel = .wheels }
             if arguments.contains("--mixer") { colorPanel = .mixer }
             if arguments.contains("--show-grading-example") {
@@ -193,6 +194,16 @@ import UniformTypeIdentifiers
                     }
                     Text(session.recipe.look.subtitle).font(.caption).foregroundStyle(StudioStyle.secondary)
                     if session.recipe.look != .original { adjustment("Look strength",key: \.lookAmount,range: 0...1,defaultValue: 1) }
+                    if let lut = session.recipe.lut {
+                        HStack {
+                            Label(lut.name.isEmpty ? "Imported LUT" : lut.name,systemImage:"cube.transparent").font(.caption.weight(.medium)).lineLimit(2)
+                            Spacer()
+                            Button("Remove") { session.change { $0.lut = nil; $0.lutAmount = 1 } }.font(.caption).padding(.vertical,8)
+                        }
+                        adjustment("LUT strength",key: \.lutAmount,range:0...1,defaultValue:1)
+                        Text("A LUT remaps colors for a consistent finish. Strength blends it with your edit; zero turns it off.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                    }
+                    Button { presets = true } label: { Label("Import LUT or save a look",systemImage:"cube.transparent").font(.caption).padding(.vertical,8) }
                     adjustment("Grain",key: \.grain,range: 0...1)
                     adjustment("Bloom",key: \.bloom,range: 0...1)
                     adjustment("Fade",key: \.fade,range: 0...1)
@@ -396,6 +407,7 @@ import UniformTypeIdentifiers
         PreviewMetrics.shared.times = []; PreviewMetrics.shared.failures = 0
         let start = ProcessInfo.processInfo.thermalState.rawValue
         let began = CACurrentMediaTime()
+        session.recipe.lut = try? await Task.detached(priority:.userInitiated) { try LUTVerification.example(dimension:65) }.value
         session.recipe.look = .daylight; session.recipe.grain = 0.15; session.recipe.bloom = 0.1
         session.recipe.straighten = 3; session.recipe.crop = .portrait
         let steps = ProcessInfo.processInfo.arguments.contains("--sustained-preview") ? 7200 : 180
@@ -403,6 +415,7 @@ import UniformTypeIdentifiers
         for index in 0..<steps {
             if Task.isCancelled || UIApplication.shared.applicationState != .active { interrupted = true; break }
             if index % 120 == 0 { writeProgress(["stage":"running","step":index,"rendered":PreviewMetrics.shared.times.count,"active":UIApplication.shared.applicationState == .active]) }
+            session.recipe.lutAmount = 0.5 + sin(Double(index)*0.1)*0.5
             session.recipe.exposure = sin(Double(index) * 0.13)
             session.recipe.warmth = cos(Double(index) * 0.11) * 0.4
             session.recipe.rgbCurves.red.middle = 0.5 + sin(Double(index)*0.07)*0.06
