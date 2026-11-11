@@ -1,0 +1,16 @@
+// !$*UTF8*$!
+{ archiveVersion = 1; classes = {}; objectVersion = 56; objects = {
+000000000000000000000001 = {isa = PBXProject; attributes = {LastUpgradeCheck = 1600;}; buildConfigurationList = 000000000000000000000002; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = 000000000000000000000003; productRefGroup = 000000000000000000000004; projectDirPath = ""; projectRoot = ""; targets = (000000000000000000000005);};
+000000000000000000000002 = {isa = XCConfigurationList; buildConfigurations = (000000000000000000000006); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug;};
+000000000000000000000003 = {isa = PBXGroup; children = (000000000000000000000007,000000000000000000000004); sourceTree = "<group>";};
+000000000000000000000004 = {isa = PBXGroup; children = (000000000000000000000008); name = Products; sourceTree = "<group>";};
+000000000000000000000005 = {isa = PBXNativeTarget; buildConfigurationList = 000000000000000000000009; buildPhases = (000000000000000000000010,000000000000000000000011); buildRules = (); dependencies = (); name = GestureTests; productName = GestureTests; productReference = 000000000000000000000008; productType = "com.apple.product-type.bundle.ui-testing";};
+000000000000000000000006 = {isa = XCBuildConfiguration; buildSettings = {SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 17.0;}; name = Debug;};
+000000000000000000000007 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GestureTests.swift; sourceTree = "<group>";};
+000000000000000000000008 = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = GestureTests.xctest; sourceTree = BUILT_PRODUCTS_DIR;};
+000000000000000000000009 = {isa = XCConfigurationList; buildConfigurations = (000000000000000000000012); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug;};
+000000000000000000000010 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (000000000000000000000013); runOnlyForDeploymentPostprocessing = 0;};
+000000000000000000000011 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
+000000000000000000000012 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGNING_ALLOWED = NO; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.stillarc.GestureQA; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Debug;};
+000000000000000000000013 = {isa = PBXBuildFile; fileRef = 000000000000000000000007;};
+}; rootObject = 000000000000000000000001; }

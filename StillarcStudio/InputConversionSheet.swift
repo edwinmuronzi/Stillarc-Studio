@@ -21,7 +21,7 @@ struct InputConversionSheet:View {
                 if session.recipe.input.profile != .standard {
                     Section {
                         HStack { Text("Source exposure");Spacer();Text(session.recipe.input.exposure,format:.number.precision(.fractionLength(2))).monospacedDigit();Text("EV") }
-                        Slider(value:$session.recipe.input.exposure,in:-4...4,onEditingChanged:{ $0 ? session.begin() : session.end() })
+                        Slider(value:$session.recipe.input.exposure,in:-4...4,onEditingChanged:{ $0 ? session.begin() : session.end() }).sliderReset { session.change { $0.input.exposure = 0 } }
                         Toggle("Soft highlight roll-off",isOn:Binding(get:{ session.recipe.input.softHighlights },set:{ value in session.change { $0.input.softHighlights = value } }))
                         if session.project.isVideo && session.recipe.video.hdr { Text("HDR output preserves highlight headroom; the SDR soft roll-off is bypassed.").font(.caption).foregroundStyle(.secondary) }
                     } footer: { Text("Source exposure changes brightness before converting bright Log highlights to SDR. Soft roll-off gently fits highlights and saturated colors into the display range; it is Studio’s rendering, not Apple’s official Rec.709 LUT.") }

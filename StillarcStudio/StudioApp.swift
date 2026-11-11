@@ -2,12 +2,23 @@ import SwiftUI
 import PhotosUI
 
 @main struct StillarcStudioApp: App {
+    #if DEBUG
+    init() {
+        let flags = ProcessInfo.processInfo.arguments.filter { $0.hasPrefix("--verify-") || $0 == "--sustained-preview" }
+        if !flags.isEmpty {
+            let record:[String:Any] = ["version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","flags":flags,"started":Date().timeIntervalSince1970]
+            let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("diagnostic-launch.json")
+            if let data = try? JSONSerialization.data(withJSONObject:record) { try? data.write(to:url,options:.atomic) }
+        }
+    }
+    #endif
     @State private var library = StudioLibrary()
     var body: some Scene {
         WindowGroup {
             Group {
                 #if DEBUG
-                if ProcessInfo.processInfo.arguments.contains("--verify-video-preview") { VideoPreviewVerification() }
+                if ProcessInfo.processInfo.arguments.contains("--verify-slider-gestures") { SliderGestureVerificationView() }
+                else if ProcessInfo.processInfo.arguments.contains("--verify-video-preview") { VideoPreviewVerification() }
                 else { StudioHome(library:library) }
                 #else
                 StudioHome(library:library)
@@ -185,13 +196,13 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Color & luminance masks · 0.13.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Mask combinations & quick reset · 0.14.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
                     Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export JPEG/PNG photographs or trimmed HEVC video with audio in SDR or 10-bit HLG HDR.")
                     Text("Use Scopes to inspect brightness and color. Free crop, flips and perspective help refine your composition; every change stays reversible.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Drag the split divider to compare original and edit. Save complete versions under Looks to try different grades and return to a favorite.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Copy selected adjustments under Looks, then paste them onto another photo or clip. Its framing, camera input and trim stay intact; undo reverses the paste.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Use Masks to brighten a face or darken part of a sky. Linear and radial shapes have soft edges, inversion and strength; the red guide is only a preview. Masks stay with this frame and do not track moving subjects.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
-                    Text("Use Color masks to change similar colors or Luminance masks to adjust dark, middle or bright areas. Soft transitions blend the selection; the guide shows what is selected. Paint a brush mask to adjust a specific area. Eraser removes it, View restores playback controls, and undo removes a whole stroke. Brush size and softness apply to new strokes; full-resolution exports keep the detailed mask.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
+                    Text("Double-tap any slider to reset its default. Combine a mask with the previous selection using Intersect, Add or Subtract. Use Color masks to change similar colors or Luminance masks to adjust dark, middle or bright areas. Soft transitions blend the selection; the guide shows what is selected. Paint a brush mask to adjust a specific area. Eraser removes it, View restores playback controls, and undo removes a whole stroke. Brush size and softness apply to new strokes; full-resolution exports keep the detailed mask.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Label("Originals stay untouched",systemImage: "lock.shield")
                     Label("No account or upload required",systemImage: "wifi.slash")
                     Label("Preview draws only when needed",systemImage: "leaf")

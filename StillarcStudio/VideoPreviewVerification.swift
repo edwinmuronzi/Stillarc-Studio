@@ -34,9 +34,9 @@ struct VideoPreviewVerification:View {
                 recipe.input.profile = .appleLog2;recipe.lut = try await Task.detached { try LUTVerification.example(dimension:65) }.value
                 var local = LocalMask(kind:.brush);local.exposure = 0.3
                 var drawing = BrushDrawing();_ = drawing.begin(point:BrushPoint(x:0.2,y:0.4),radius:0.04,feather:0.6,erase:false);local.brush = drawing
-                var sky = LocalMask(kind:.color);sky.warmth = 0.1;sky.saturation = -0.1
-                var accent = LocalMask(kind:.luminance);accent.centerX = 0.7;accent.contrast = 0.1
-                var foreground = LocalMask(kind:.linear);foreground.inverted = true;foreground.exposure = -0.2
+                var sky = LocalMask(kind:.color);sky.combination = .intersect;sky.warmth = 0.1;sky.saturation = -0.1
+                var accent = LocalMask(kind:.luminance);accent.combination = .add;accent.centerX = 0.7;accent.contrast = 0.1
+                var foreground = LocalMask(kind:.linear);foreground.combination = .subtract;foreground.inverted = true;foreground.exposure = -0.2
                 recipe.masks = [local,sky,accent,foreground]
                 recipe.grain = 0.1;recipe.bloom = 0.08;recipe.look = .daylight
                 player.toggle();try await Task.sleep(for:.seconds(1))
@@ -74,7 +74,7 @@ struct VideoPreviewVerification:View {
                 let count = PreviewMetrics.shared.times.count
                 try await Task.sleep(for:.seconds(3))
                 let times = PreviewMetrics.shared.times.sorted(),idleFrames = times.count-count,decoded = player.frameNumber-startFrames
-                let result:[String:Any] = ["passed":!interrupted && decoded>0 && count>0 && idleFrames == 0 && scopeSampler.completed == scopeCount && scopeSampler.completed>0 && PreviewMetrics.shared.failures == 0,"version":"0.13.0","colorAndLuminanceMasks":true,"liveBrushPainting":true,"brushRaster":BrushMaskRasterizer.statistics(),"activeMaskLayers":4,"maskGuideVisible":true,"splitComparison":true,"scopesEnabled":true,"scopeJobs":scopeSampler.completed,"scopeJobsAfterHide":scopeSampler.completed-scopeCount,"scopeAnalysisP95Milliseconds":scopeSampler.analysisTimes.sorted().dropFirst(Int(Double(scopeSampler.analysisTimes.count)*0.95)).first ?? 0,"hdrPreview":true,"trimmedPlayback":true,"requestedUpdates":steps,"rendered":count,"decodedFrames":decoded,"elapsedSeconds":CACurrentMediaTime()-began,"p95Milliseconds":times.isEmpty ? 9999 : times[min(times.count-1,Int(Double(times.count)*0.95))],"gpuFailures":PreviewMetrics.shared.failures,"idleFrames":idleFrames,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
+                let result:[String:Any] = ["passed":!interrupted && decoded>0 && count>0 && idleFrames == 0 && scopeSampler.completed == scopeCount && scopeSampler.completed>0 && PreviewMetrics.shared.failures == 0,"version":"0.14.0","maskCombinations":true,"colorAndLuminanceMasks":true,"liveBrushPainting":true,"brushRaster":BrushMaskRasterizer.statistics(),"activeMaskLayers":4,"maskGuideVisible":true,"splitComparison":true,"scopesEnabled":true,"scopeJobs":scopeSampler.completed,"scopeJobsAfterHide":scopeSampler.completed-scopeCount,"scopeAnalysisP95Milliseconds":scopeSampler.analysisTimes.sorted().dropFirst(Int(Double(scopeSampler.analysisTimes.count)*0.95)).first ?? 0,"hdrPreview":true,"trimmedPlayback":true,"requestedUpdates":steps,"rendered":count,"decodedFrames":decoded,"elapsedSeconds":CACurrentMediaTime()-began,"p95Milliseconds":times.isEmpty ? 9999 : times[min(times.count-1,Int(Double(times.count)*0.95))],"gpuFailures":PreviewMetrics.shared.failures,"idleFrames":idleFrames,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
                 try JSONSerialization.data(withJSONObject:result,options:.prettyPrinted).write(to:reportURL,options:.atomic)
                 status = "Video preview check complete";progress = 1
             } catch {

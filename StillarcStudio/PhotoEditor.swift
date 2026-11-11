@@ -191,7 +191,7 @@ import UniformTypeIdentifiers
         let players = VideoPlayback.creationCount
         tool = .masks;splitComparison = false;session.recipe.masks = []
         var delays = [Double]()
-        for i in 0..<4 { let layer = LocalMask(kind:[LocalMaskKind.color,.luminance,.radial,.linear][i]);session.change { $0.masks.append(layer) };selectedMaskID = layer.id;try? await Task.sleep(for:.milliseconds(100)) }
+        for i in 0..<4 { var layer = LocalMask(kind:[LocalMaskKind.color,.luminance,.radial,.linear][i]);layer.combination = i == 0 ? nil : [.intersect,.add,.subtract][i-1];session.change { $0.masks.append(layer) };selectedMaskID = layer.id;try? await Task.sleep(for:.milliseconds(100)) }
         for step in 0..<180 {
             let began = CACurrentMediaTime()
             if session.recipe.masks.count == 4 { session.recipe.masks[0].selection?.hue = Double(step*2);session.recipe.masks[0].exposure = 0.5;session.recipe.masks[1].selection?.upper = 0.6+sin(Double(step)*0.04)*0.3;session.recipe.masks[1].inverted = step%30<15;selectedMaskID = session.recipe.masks[step%2].id }
@@ -437,6 +437,12 @@ import UniformTypeIdentifiers
                 ScrollView(.horizontal) {
                     HStack { ForEach(Array(session.recipe.masks.enumerated()),id:\.element.id) { index,mask in Button("\(index+1) · \(mask.kind.rawValue)") { selectedMaskID = mask.id }.buttonStyle(.bordered).tint(mask.id == layer.id ? StudioStyle.blue : .gray) } }
                 }
+                if let index = session.recipe.masks.firstIndex(where:{ $0.id == layer.id }),index>0 {
+                    Picker("Combine with previous mask",selection:Binding(get:{ layer.combination ?? .independent },set:{ mode in updateMask { $0.combination = mode == .independent ? nil : mode } })) {
+                        ForEach(MaskCombination.allCases) { Text($0.rawValue).tag($0) }
+                    }.pickerStyle(.menu)
+                    Text("Uses mask \(index)’s selection. Intersect keeps the overlap; Add includes either area; Subtract removes the previous area. Its adjustment strength and On/off state do not change this selection. Delete a preceding mask and the link follows the new previous mask.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                }
                 if layer.kind == .brush { Picker("Brush tool",selection:$brushMode) { ForEach(BrushInteractionMode.allCases) { mode in Text(mode.rawValue).tag(mode) } }.pickerStyle(.segmented) }
                 HStack {
                     Button { showMask.toggle() } label: { Label("Guide",systemImage:"eye").font(.caption) }.tint(showMask ? StudioStyle.blue : .gray).accessibilityValue(showMask ? "On" : "Off")
@@ -505,6 +511,7 @@ import UniformTypeIdentifiers
                 if key == \MaskSelection.upper { selection.lower = min(selection.lower,value) }
                 session.recipe.masks[index].selection = selection
             }),in:range,onEditingChanged:{ editing in if editing { session.begin() } else { session.end() } }).tint(StudioStyle.blue)
+                .sliderReset { updateMask { SliderDefaults.resetSelection(&$0,key:key) } }
         }
     }
     private func maskSlider(_ name:String,key:WritableKeyPath<LocalMask,Double>,range:ClosedRange<Double>,displayScale:Double = 1) -> some View {
@@ -513,6 +520,7 @@ import UniformTypeIdentifiers
             Slider(value:Binding(get:{ min(range.upperBound,max(range.lowerBound,selectedMask?[keyPath:key] ?? range.lowerBound)) },set:{ value in
                 guard let layer = selectedMask,let index = session.recipe.masks.firstIndex(where:{ $0.id == layer.id }) else { return };session.recipe.masks[index][keyPath:key] = value
             }),in:range,onEditingChanged:{ $0 ? session.begin() : session.end() })
+                .sliderReset { updateMask { SliderDefaults.reset(&$0,key:key) } }
         }
     }
     private var colorControls: some View {
@@ -653,7 +661,8 @@ import UniformTypeIdentifiers
             }
             Slider(value: Binding(get: { session.recipe[keyPath: key] },set: { session.recipe[keyPath: key] = $0 }),in: range,onEditingChanged: { editing in if editing { session.begin() } else { session.end() } })
                 .accessibilityLabel(name)
-        }.contentShape(Rectangle()).onTapGesture(count: 2) { session.change { $0[keyPath: key] = defaultValue } }
+                .sliderReset { session.change { $0[keyPath:key] = defaultValue } }
+        }
     }
     private func moveCrop(_ value: DragGesture.Value, previewSize: CGSize) {
         guard let source = session.source else { return }

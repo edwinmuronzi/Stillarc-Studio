@@ -1,0 +1,40 @@
+{
+  "clips" : [
+    {
+      "frames" : 18,
+      "height" : 360,
+      "projectRoundTrip" : true,
+      "cancellation" : true,
+      "width" : 640,
+      "metadata" : true,
+      "audioTracks" : 2,
+      "color" : true,
+      "profile" : "standard",
+      "originalPreserved" : true
+    }
+  ],
+  "version" : "0.14.0",
+  "passed" : true,
+  "photoInput" : {
+    "presetInputIsolation" : true,
+    "passed" : true,
+    "bothGamuts" : true,
+    "exposureAlpha" : true,
+    "curveVectors" : 16,
+    "persistence" : true,
+    "highlightShoulder" : true,
+    "standardBypass" : true
+  },
+  "encodedCombinedBrushRangeMask" : true,
+  "trimHDR" : {
+    "audioTracks" : 2,
+    "headroomVectors" : 5,
+    "trimFrames" : 33,
+    "trimSeconds" : 1.1000000000000001,
+    "zeroBasedTiming" : true,
+    "passed" : true,
+    "presetIsolation" : true,
+    "persistence" : true
+  },
+  "encodedColorLuminanceMasks" : true
+}

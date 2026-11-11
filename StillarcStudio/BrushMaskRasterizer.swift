@@ -106,7 +106,8 @@ enum BrushMaskRasterizer {
     @TaskLocal static var preparedExport:PreparedExport?
     static func prepareExport(layers:[LocalMask],extent:CGRect) throws -> PreparedExport {
         var images = [ExportKey:CGImage]()
-        for layer in layers.prefix(4) where layer.kind == .brush && layer.hasEffect {
+        for index in MaskEngine.requiredIndices(layers).sorted() where layers[index].kind == .brush {
+            let layer = layers[index]
             guard let drawing = layer.brush,!drawing.strokes.isEmpty else { continue }
             try Task.checkCancellation()
             let key = ExportKey(id:drawing.id,revision:drawing.revision)

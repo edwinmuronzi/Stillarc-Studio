@@ -158,7 +158,7 @@ private struct VideoPreviewContent:View {
             HStack(spacing:12) {
                 Button { playback.toggle() } label: { Image(systemName:playback.playing ? "pause.fill" : "play.fill").frame(width:36,height:36) }.disabled(!playback.ready).accessibilityLabel(playback.playing ? "Pause video" : "Play video")
                 if showTrimButton { Button(action:onTrim) { Image(systemName:"scissors").frame(width:32,height:36) }.accessibilityLabel("Trim video") }
-                Slider(value:Binding(get:{ playback.time },set:{ playback.seek($0) }),in:playback.selection,onEditingChanged:{ $0 ? playback.beginScrub() : playback.endScrub() }).accessibilityLabel("Video position")
+                Slider(value:Binding(get:{ playback.time },set:{ playback.seek($0) }),in:playback.selection,onEditingChanged:{ $0 ? playback.beginScrub() : playback.endScrub() }).accessibilityLabel("Video position").sliderReset { playback.beginScrub();playback.seek(playback.selection.lowerBound);playback.endScrub() }
                 Text("\(Int(playback.time))/\(Int(playback.descriptor.duration))s").font(.caption2.monospacedDigit()).fixedSize()
             }.padding(.horizontal,10).background(.ultraThinMaterial,in:Capsule()).padding(.horizontal,16).padding(.bottom,showTrimButton ? 62 : 12)
             }
@@ -240,10 +240,10 @@ struct VideoMetalView:UIViewRepresentable {
             scopes?.offer(image,hdr:recipe.video.hdr)
             if !original {
                 var reference:CIImage? = nil
-                if maskPreview?.isRange == true {
+                if maskPreview != nil && recipe.masks.contains(where:{ $0.isRange }) {
                     reference = HDRPipeline.maskReference(source,recipe:recipe,hdr:recipe.video.hdr)
                 }
-                image = MaskEngine.overlay(image,layer:maskPreview,reference:reference)
+                image = MaskEngine.overlay(image,layer:maskPreview,reference:reference,layers:recipe.masks)
             }
             let scale = min(size.width/image.extent.width,size.height/image.extent.height)
             let placed = image.transformed(by:.init(scaleX:scale,y:scale)).transformed(by:.init(translationX:(size.width-image.extent.width*scale)/2,y:(size.height-image.extent.height*scale)/2))

@@ -38,7 +38,9 @@ Implemented in 0.12: editable soft brush/eraser strokes, Paint/Eraser/View modes
 
 Implemented in 0.13: GPU color and luminance masks with soft transitions, hue swatches, brightness shortcuts, preview guides, source-specific persistence and per-frame video selection.
 
-Next: mask combinations and tracking. Then on-device subject/sky selection, healing and carefully bounded advanced noise reduction. Multiple versions, favorites/ratings, project recovery, batch copy/paste, batch export and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
+Implemented in 0.14: previous-mask intersection/addition/subtraction with soft GPU coverage, source-specific persistence and full-resolution export; undoable double-tap reset across slider controls with per-control defaults.
+
+Next: object tracking. Then on-device subject/sky selection, healing and carefully bounded advanced noise reduction. Multiple versions, favorites/ratings, project recovery, batch copy/paste, batch export and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
 
 ## 5 — Video grading
 

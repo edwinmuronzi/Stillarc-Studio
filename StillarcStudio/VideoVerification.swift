@@ -99,7 +99,8 @@ enum VideoVerification {
                 let alternateMean = mean(alternatePoster.image)
                 try require((0..<3).allSatisfy { abs(alternateMean[$0]-expected[$0])<0.025 },"8-bit alternate export color mismatch")
                 var masked = recipe;var layer = LocalMask(kind:.brush);layer.exposure = 1
-                var ink = BrushDrawing();let stroke = ink.begin(point:BrushPoint(x:0.25,y:0.2),radius:0.08,feather:0.5,erase:false)!;ink.append(BrushPoint(x:0.75,y:0.2),stroke:stroke);_ = ink.begin(point:BrushPoint(x:0.5,y:0.2),radius:0.025,feather:0.2,erase:true);layer.brush = ink;masked.masks = [layer]
+                var ink = BrushDrawing();let stroke = ink.begin(point:BrushPoint(x:0.25,y:0.2),radius:0.08,feather:0.5,erase:false)!;ink.append(BrushPoint(x:0.75,y:0.2),stroke:stroke);_ = ink.begin(point:BrushPoint(x:0.5,y:0.2),radius:0.025,feather:0.2,erase:true);layer.brush = ink;layer.exposure = 0;layer.enabled = false
+                var combined = LocalMask(kind:.luminance);combined.exposure = 1;combined.selection = MaskSelection(lower:0,upper:1);combined.combination = .intersect;masked.masks = [layer,combined]
                 let maskResult = try await VideoEngine.export(source:url,descriptor:descriptor,recipe:masked,tenBit:false,progress:{ _ in })
                 defer { try? FileManager.default.removeItem(at:maskResult.url) }
                 let maskDescriptor = try await VideoEngine.describe(maskResult.url),maskPoster = try await VideoEngine.poster(maskResult.url,descriptor:maskDescriptor,maxDimension:450)
@@ -139,7 +140,7 @@ enum VideoVerification {
         try require(largeResult.width == 2160 && largeResult.height == 2160,"4K source crop geometry changed")
         try require(try await frameTimes(largeResult.url).count == 3,"4K export dropped frames")
         #endif
-        return ["passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","clips":checks,"photoInput":try LogVerification.run(),"encodedColorLuminanceMasks":true,"trimHDR":try await HDRTrimVerification.run()]
+        return ["passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","clips":checks,"photoInput":try LogVerification.run(),"encodedCombinedBrushRangeMask":true,"encodedColorLuminanceMasks":true,"trimHDR":try await HDRTrimVerification.run()]
     }
     @MainActor static func writeReport() async {
         let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("video-verification.json")

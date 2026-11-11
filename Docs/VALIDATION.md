@@ -200,3 +200,7 @@ The script builds Debug, installs, and runs processing/export/persistence and pr
 ## Color and luminance masks — 0.13.0
 
 [Versioned test evidence](Verification/0.13.0/README.md) covers simulator and physical iPhone 17 Pro pixel references, persistence, rendered-view updates and encoded exports. New checks verify hue wraparound/neutral protection, soft brightness ranges, a stable pre-local reference, preview-only guides, and HDR normalization/headroom. The existing `--verify-studio --verify-video-suite --verify-mask-ui` flags run these checks; `--verify-video-preview --sustained-preview` exercises changing color/luminance masks alongside brush painting, HDR playback, a LUT, scopes and split comparison.
+
+## Mask combinations and slider reset — 0.14.0
+
+[Versioned evidence](Verification/0.14.0/README.md) includes combined-mask pixel references, dependent brush preparation, source preservation, photo/video export matching and reset defaults/undo. `--verify-studio --verify-video-suite --verify-mask-ui` runs the regression checks; `--verify-video-preview --sustained-preview` exercises all three combination operations during HDR playback. The simulator-only [real-gesture harness](../Tests/SliderGestureQA/README.md) checks native double taps, normal dragging and the actual editor’s reset/Undo behavior.

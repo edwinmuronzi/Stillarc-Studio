@@ -2,13 +2,18 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.13 color and luminance masks milestone**, not a finished PeekLUT/Lightroom replacement. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.14 mask combinations and slider reset milestone**, not a finished PeekLUT/Lightroom replacement. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"></p>
 
 [LUTs, wheels, channel mixer, curves and color-mix screenshots](Docs/Screenshots)
 
 ## What works in this milestone
+
+- **Double-tap any slider track to reset its default**, including global grading, color wheels/mixer, masks, Log source exposure and trim endpoints. Reset is undoable for edit controls; playback position returns to the kept clip’s beginning. Normal dragging remains immediate. With VoiceOver, use the named **Reset to default** action. Brightness endpoint resets move the opposite endpoint only when needed to keep a valid range.
+- **Combine with previous mask:** on the second or later mask, choose **Intersect** to keep the overlap, **Add** to include either area, or **Subtract** to remove the previous area from this one. **Separate** keeps the mask independent. For example: paint the region with a Brush mask, add a Color mask, choose Intersect, then change its saturation to affect only matching colors inside the painted region.
+- Combinations use the preceding mask’s effective selection, including its inversion and earlier combinations, before adjustment strength. The preceding mask’s On/off state and local adjustments do not change that selection. The current mask’s inversion applies to its own shape before combining; current Strength blends the final combination once. Add takes the maximum soft coverage, Intersect multiplies coverage, and Subtract multiplies by the inverse previous coverage. The first mask works independently. Deleting a preceding mask links to the new previous mask; undo restores the previous list. The four-layer limit is shared by all mask types.
+- Combined selections save with projects and complete versions and appear in the preview Guide, with full-resolution photo/video exports. They stay out of reusable presets/copied grades. Gradient/brush selections remain spatially fixed; color/brightness portions evaluate each video frame. There is no object tracking or mask animation.
 
 - **Masks → + Color:** choose a swatch or hue, then widen Color range to include similar colors. Minimum saturation protects gray areas. Adjust local exposure, warmth, saturation or contrast below; Soft transition blends the selection edge.
 - **Masks → + Luminance:** choose Shadows, Midtones or Highlights, or set the darkest/brightest selected levels. This lets you brighten a dark area without changing everything else. The levels are a perceptual brightness scale (square root of linear Rec.709 luminance), not a calibrated exposure meter. HDR selection uses the existing normalized creative image before headroom restoration.
@@ -81,6 +86,8 @@ HDR grading keeps per-pixel highlight headroom outside the display-referred crea
 The editor header owns its window-safe insets, including after foregrounding, rotation and export-sheet presentation, so Back/Undo/Export stay below the status bar and away from the camera cutout.
 
 ## Designed for responsiveness
+
+Combined masks use bounded, acyclic GPU composition of at most four layers. Export prepares required brush selections once per clip even when a brush layer’s own adjustments are off.
 
 Color/luminance selections use a compiled per-pixel GPU kernel shared by preview and full-resolution export, with no CPU image readback or per-frame bitmap construction. Kernels warm on the decode worker. Disabled/neutral layers bypass processing. Range guides use the same pre-local selection reference, including HDR normalization.
 

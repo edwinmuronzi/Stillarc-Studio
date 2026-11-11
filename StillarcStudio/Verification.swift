@@ -51,6 +51,19 @@ import ImageIO
             brushSession.change { $0.masks[0].brush = BrushDrawing() }
             await brushSession.restoreVersion(brushVersion,library:versionLibrary)
             try require(brushSession.recipe == afterStroke,"Saved version lost brush vectors")
+            let resetSession = EditSession(versionProject)
+            var resetMask = LocalMask(kind:.brush);resetMask.width = 0.2;resetMask.exposure = 1
+            resetSession.recipe.masks = [resetMask];resetSession.recipe.exposure = 1;resetSession.recipe.lutAmount = 0.2
+            resetSession.change { SliderDefaults.reset(&$0.masks[0],key:\.width) }
+            try require(resetSession.recipe.masks[0].width == 0.06 && resetSession.recipe.masks[0].exposure == 1,"Reset changed other mask controls")
+            resetSession.undo();try require(resetSession.recipe.masks[0].width == 0.2,"Slider reset undo failed")
+            resetSession.redo();try require(resetSession.recipe.masks[0].width == 0.06,"Slider reset redo failed")
+            resetSession.change { $0.exposure = 0;$0.lutAmount = 1 }
+            try require(resetSession.recipe.exposure == 0 && resetSession.recipe.lutAmount == 1,"Global reset defaults")
+            resetSession.change { $0.masks.append(LocalMask(kind:.luminance));$0.masks[1].combination = .intersect }
+            resetSession.undo();try require(resetSession.recipe.masks.count == 1,"Combine action undo")
+            resetSession.redo();try require(resetSession.recipe.masks.last?.combination == .intersect,"Combine action redo")
+            report["sliderResetAndCombinationUndoRedo"] = true
             report["brushStrokeUndoRedoAndVersion"] = true
             let fixture = Project(id: UUID(),name: "History",sourceName: "test.jpg",created: Date(),modified: Date(),recipe: Recipe(),width: 1,height: 1,isRAW: false)
             let session = EditSession(fixture)
@@ -216,7 +229,7 @@ import ImageIO
                 guard context.createCGImage(image,from: image.extent) != nil else { throw StudioError.render }
             }
         }
-        return ["rangeMasks":try RangeMaskVerification.run(),"brush":try await BrushVerification.run(),"masks":try MaskVerification.run(),"adjustmentTransfer":try await AdjustmentTransferVerification.run(),"versionsComparison":try await VersionComparisonVerification.run(),"scopesGeometry":try ScopeGeometryVerification.run(),"logInput":logReport,"lutTools":lutReport,"gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
+        return ["maskCombinations":try MaskCombinationVerification.run(),"rangeMasks":try RangeMaskVerification.run(),"brush":try await BrushVerification.run(),"masks":try MaskVerification.run(),"adjustmentTransfer":try await AdjustmentTransferVerification.run(),"versionsComparison":try await VersionComparisonVerification.run(),"scopesGeometry":try ScopeGeometryVerification.run(),"logInput":logReport,"lutTools":lutReport,"gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
     }
 }
 #endif

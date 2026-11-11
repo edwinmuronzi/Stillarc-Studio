@@ -1,11 +1,16 @@
 import Foundation
 
 enum LocalMaskKind:String,Codable,CaseIterable,Identifiable,Sendable { case linear = "Linear",radial = "Radial",brush = "Brush",color = "Color",luminance = "Luminance";var id:String { rawValue } }
+enum MaskCombination:String,Codable,CaseIterable,Identifiable,Sendable {
+    case independent = "Separate",intersect = "Intersect",add = "Add",subtract = "Subtract"
+    var id:String { rawValue }
+}
 struct LocalMask:Identifiable,Codable,Equatable,Sendable {
     var id = UUID()
     var kind:LocalMaskKind
     var brush:BrushDrawing? = nil
     var selection:MaskSelection? = nil
+    var combination:MaskCombination? = nil
     var isRange:Bool { kind == .color || kind == .luminance }
     var enabled = true
     var inverted = false
