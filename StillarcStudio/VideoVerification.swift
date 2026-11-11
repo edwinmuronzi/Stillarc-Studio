@@ -98,7 +98,8 @@ enum VideoVerification {
                 let alternatePoster = try await VideoEngine.poster(alternate.url,descriptor:alternateDescriptor,maxDimension:450)
                 let alternateMean = mean(alternatePoster.image)
                 try require((0..<3).allSatisfy { abs(alternateMean[$0]-expected[$0])<0.025 },"8-bit alternate export color mismatch")
-                var masked = recipe;var layer = LocalMask(kind:.radial);layer.exposure = 1;layer.width = 0.2;layer.height = 0.2;masked.masks = [layer]
+                var masked = recipe;var layer = LocalMask(kind:.brush);layer.exposure = 1
+                var ink = BrushDrawing();let stroke = ink.begin(point:BrushPoint(x:0.25,y:0.2),radius:0.08,feather:0.5,erase:false)!;ink.append(BrushPoint(x:0.75,y:0.2),stroke:stroke);_ = ink.begin(point:BrushPoint(x:0.5,y:0.2),radius:0.025,feather:0.2,erase:true);layer.brush = ink;masked.masks = [layer]
                 let maskResult = try await VideoEngine.export(source:url,descriptor:descriptor,recipe:masked,tenBit:false,progress:{ _ in })
                 defer { try? FileManager.default.removeItem(at:maskResult.url) }
                 let maskDescriptor = try await VideoEngine.describe(maskResult.url),maskPoster = try await VideoEngine.poster(maskResult.url,descriptor:maskDescriptor,maxDimension:450)
@@ -107,8 +108,8 @@ enum VideoVerification {
                     let average = image.applyingFilter("CIAreaAverage",parameters:["inputExtent":CIVector(cgRect:rect)])
                     var p = [Float](repeating:0,count:4);context.render(average,toBitmap:&p,rowBytes:16,bounds:CGRect(x:0,y:0,width:1,height:1),format:.RGBAf,colorSpace:ImageEngine.working);return p
                 }
-                let base = patch(prepared.image,0.5,0.5),center = patch(maskPoster.image,0.5,0.5),outside = patch(maskPoster.image,0.1,0.1)
-                try require((0..<3).allSatisfy { abs(center[$0]-base[$0]*2)<0.015 && abs(outside[$0]-base[$0])<0.015 },"Video mask changed outside pixels or exported the guide")
+                let base = patch(prepared.image,0.5,0.5),center = patch(maskPoster.image,0.35,0.8),outside = patch(maskPoster.image,0.5,0.3),erased = patch(maskPoster.image,0.5,0.8)
+                try require((0..<3).allSatisfy { abs(center[$0]-base[$0]*2)<0.015 && abs(outside[$0]-base[$0])<0.015 && abs(erased[$0]-base[$0])<0.015 },"Video mask changed outside pixels or exported the guide")
 
             }
             checks.append(["profile":profile.rawValue,"frames":originalTimes.count,"audioTracks":originalAudio.count,"width":result.width,"height":result.height,"metadata":true,"color":true,"originalPreserved":true,"projectRoundTrip":true,"cancellation":true])

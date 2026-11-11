@@ -132,32 +132,36 @@ struct VideoPreview:View {
     var scopes:ScopeSampler? = nil
     var split:Double? = nil
     var maskPreview:LocalMask? = nil
+    var hideTransport = false
     var rangePreview:ColorRange?
     @State private var playback:VideoPlayback?
     var body:some View {
         Group {
-            if let playback { VideoPreviewContent(playback:playback,poster:poster,recipe:recipe,original:original,active:active,onTrim:onTrim,showTrimButton:showTrimButton,scopes:scopes,split:split,maskPreview:maskPreview,rangePreview:rangePreview) }
+            if let playback { VideoPreviewContent(playback:playback,poster:poster,recipe:recipe,original:original,active:active,onTrim:onTrim,showTrimButton:showTrimButton,scopes:scopes,split:split,maskPreview:maskPreview,hideTransport:hideTransport,rangePreview:rangePreview) }
             else { LivePreview(source:poster.image,recipe:recipe,signalSource:poster.signalImage,original:original,active:active,hdr:recipe.video.hdr,split:split,maskPreview:maskPreview) }
         }
         .task { if playback == nil { let controller = VideoPlayback(url:url,descriptor:descriptor);controller.setEdit(recipe.video);controller.setActive(active);playback = controller } }
         .onChange(of:active) { _,value in playback?.setActive(value) }
+        .onChange(of:hideTransport) { _,value in if value { playback?.pause() } }
         .onChange(of:recipe.video) { _,value in playback?.setEdit(value) }
         .onDisappear { playback?.clear();playback = nil }
     }
 }
 private struct VideoPreviewContent:View {
     @Bindable var playback:VideoPlayback
-    let poster:PreparedPhoto;let recipe:Recipe;let original:Bool;let active:Bool;let onTrim:() -> Void;let showTrimButton:Bool;let scopes:ScopeSampler?;let split:Double?;let maskPreview:LocalMask?;let rangePreview:ColorRange?
+    let poster:PreparedPhoto;let recipe:Recipe;let original:Bool;let active:Bool;let onTrim:() -> Void;let showTrimButton:Bool;let scopes:ScopeSampler?;let split:Double?;let maskPreview:LocalMask?;let hideTransport:Bool;let rangePreview:ColorRange?
     var body:some View {
         ZStack(alignment:.bottom) {
             VideoMetalView(playback:playback,recipe:recipe,original:original,rangePreview:rangePreview,active:active,scopes:scopes,split:split,maskPreview:maskPreview)
             if playback.frame == nil { LivePreview(source:poster.image,recipe:recipe,signalSource:poster.signalImage,original:original,active:active,hdr:recipe.video.hdr,split:split,maskPreview:maskPreview) }
+            if !hideTransport {
             HStack(spacing:12) {
                 Button { playback.toggle() } label: { Image(systemName:playback.playing ? "pause.fill" : "play.fill").frame(width:36,height:36) }.disabled(!playback.ready).accessibilityLabel(playback.playing ? "Pause video" : "Play video")
                 if showTrimButton { Button(action:onTrim) { Image(systemName:"scissors").frame(width:32,height:36) }.accessibilityLabel("Trim video") }
                 Slider(value:Binding(get:{ playback.time },set:{ playback.seek($0) }),in:playback.selection,onEditingChanged:{ $0 ? playback.beginScrub() : playback.endScrub() }).accessibilityLabel("Video position")
                 Text("\(Int(playback.time))/\(Int(playback.descriptor.duration))s").font(.caption2.monospacedDigit()).fixedSize()
             }.padding(.horizontal,10).background(.ultraThinMaterial,in:Capsule()).padding(.horizontal,16).padding(.bottom,showTrimButton ? 62 : 12)
+            }
             if let error = playback.error { Text(error).font(.caption).padding().background(.black.opacity(0.8)).frame(maxHeight:.infinity,alignment:.center) }
         }
     }
@@ -181,6 +185,7 @@ struct VideoMetalView:UIViewRepresentable {
         view.contentScaleFactor = min(view.traitCollection.displayScale,2)
         (view.layer as? CAMetalLayer)?.colorspace = ImageEngine.working
         (view.layer as? CAMetalLayer)?.wantsExtendedDynamicRangeContent = true
+        context.coordinator.watchBrush(view)
         view.delegate = context.coordinator;return view
     }
     func updateUIView(_ view:MTKView,context:Context) {
@@ -201,7 +206,16 @@ struct VideoMetalView:UIViewRepresentable {
         private var split:Double?
         private var maskPreview:LocalMask?
         private var range:ColorRange?
-        func clear() { buffer = nil;context?.clearCaches() }
+        private var brushObserver:NSObjectProtocol?
+        func watchBrush(_ view:MTKView) {
+            brushObserver = NotificationCenter.default.addObserver(forName:.studioBrushReady,object:nil,queue:.main) { [weak self,weak view] note in
+                guard let id = note.object as? UUID else { return }
+                Task { @MainActor [weak self,weak view] in
+                    guard let self,let view,self.active,self.recipe.masks.contains(where:{ $0.brush?.id == id }) else { return };self.dirty = true;if !self.drawing { view.setNeedsDisplay() }
+                }
+            }
+        }
+        func clear() { if let brushObserver { NotificationCenter.default.removeObserver(brushObserver) };brushObserver = nil;buffer = nil;context?.clearCaches() }
         func update(buffer:CVPixelBuffer?,descriptor:VideoDescriptor,recipe:Recipe,original:Bool,range:ColorRange?,active:Bool,scopes:ScopeSampler?,split:Double?,maskPreview:LocalMask?,view:MTKView) {
             guard self.buffer !== buffer || self.recipe != recipe || self.original != original || self.range != range || self.active != active || self.scopes !== scopes || self.split != split || self.maskPreview != maskPreview else { return }
             self.buffer = buffer;self.descriptor = descriptor;self.recipe = recipe;self.original = original;self.range = range;self.active = active;self.scopes = scopes;self.split = split;self.maskPreview = maskPreview;dirty = true
@@ -217,7 +231,7 @@ struct VideoMetalView:UIViewRepresentable {
             var comparison = Recipe();comparison.copyFraming(from:recipe)
             let selected = original ? comparison : recipe
             let source = selected.input.profile == .standard ? pair.managed : pair.signal
-            var image = HDRPipeline.grade(source,recipe:selected,hdr:recipe.video.hdr,rangePreview:original ? nil : range)
+            var image = HDRPipeline.grade(source,recipe:selected,hdr:recipe.video.hdr,rangePreview:original ? nil : range,preview:true)
             if !original,let split {
                 let before = HDRPipeline.grade(pair.managed,recipe:comparison,hdr:recipe.video.hdr)
                 image = ComparisonRender.combine(original:before,edited:image,fraction:split)

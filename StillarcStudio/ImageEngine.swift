@@ -79,7 +79,7 @@ enum ImageEngine {
         image = image.transformed(by: .init(translationX: -image.extent.minX, y: -image.extent.minY))
         return PreparedPhoto(image: image, width: nativeWidth, height: nativeHeight, isRAW: raw,signalImage:signal.map { $0.transformed(by:.init(translationX:-$0.extent.minX,y:-$0.extent.minY)) })
     }
-    static func apply(_ source: CIImage, recipe r: Recipe, rangePreview: ColorRange? = nil) -> CIImage {
+    static func apply(_ source: CIImage, recipe r: Recipe, rangePreview: ColorRange? = nil,preview:Bool = false) -> CIImage {
         var image = LogConversion.apply(source,input:r.input)
         func filter(_ name: String, _ values: [String: Any]) { image = image.applyingFilter(name, parameters: values) }
         if r.exposure != 0 { filter("CIExposureAdjust", [kCIInputEVKey: r.exposure]) }
@@ -131,13 +131,15 @@ enum ImageEngine {
             image = texture.applyingFilter("CISoftLightBlendMode", parameters: [kCIInputBackgroundImageKey: image])
         }
         if r.vignette > 0 { filter("CIVignette", [kCIInputIntensityKey: r.vignette * 1.6, kCIInputRadiusKey: max(image.extent.width,image.extent.height) * 0.6]) }
-        return MaskEngine.apply(PhotoFraming.apply(image,recipe:r),layers:r.masks)
+        return MaskEngine.apply(PhotoFraming.apply(image,recipe:r),layers:r.masks,preview:preview)
     }
 
     static func export(source: URL, recipe: Recipe, format: ExportFormat) throws -> ExportResult {
         try autoreleasepool {
             let original = try open(source)
-            let image = apply(original.source(for:recipe), recipe: recipe)
+            let framed = PhotoFraming.window(in:PhotoFraming.orientedSize(original.image.extent.size,recipe:recipe),recipe:recipe)
+            let brushes = try BrushMaskRasterizer.prepareExport(layers:recipe.masks,extent:framed)
+            let image = BrushMaskRasterizer.$preparedExport.withValue(brushes) { apply(original.source(for:recipe),recipe:recipe) }
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("Stillarc-\(UUID().uuidString.prefix(8)).\(format.ext)")
             let context = context()
             if format == .jpeg {

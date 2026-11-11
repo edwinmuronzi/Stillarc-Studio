@@ -1,0 +1,14 @@
+{
+  "raster" : {
+    "jobs" : 179,
+    "queued" : 0,
+    "p95Milliseconds" : 4.6567916651838459,
+    "reusedRasterJobs" : 177
+  },
+  "updates" : 180,
+  "idleRasterJobs" : 0,
+  "maxMainActorDelaySeconds" : 0.090798833334702067,
+  "passed" : true,
+  "playersCreated" : 0,
+  "rasterJobs" : 178
+}

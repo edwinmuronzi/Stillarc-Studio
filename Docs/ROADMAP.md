@@ -34,7 +34,9 @@ Implemented in 0.10: persistent internal adjustment copy/paste with ten selectab
 
 Implemented in 0.11: up to four linear/radial local adjustments with exposure, warmth, saturation, contrast, feather, inversion, strength and preview-only overlays. Source-specific masks survive project/complete-version saves and remain excluded from reusable presets/clipboard grades. They are anchored to the current frame, without tracking.
 
-Next: brush and color/luminance masks, mask combinations and tracking. Then on-device subject/sky selection, healing and carefully bounded advanced noise reduction. Multiple versions, favorites/ratings, project recovery, batch copy/paste, batch export and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
+Implemented in 0.12: editable soft brush/eraser strokes, Paint/Eraser/View modes, whole-stroke undo/redo and exact full-resolution 16-bit export masks. Preview masks rasterize incrementally off the UI actor; video export reuses static brush maps.
+
+Next: color/luminance masks, mask combinations and tracking. Then on-device subject/sky selection, healing and carefully bounded advanced noise reduction. Multiple versions, favorites/ratings, project recovery, batch copy/paste, batch export and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
 
 ## 5 — Video grading
 

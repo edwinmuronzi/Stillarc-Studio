@@ -35,6 +35,23 @@ import ImageIO
             versionSession.redo();try require(versionSession.recipe.exposure == 0.6,"Paste redo failed")
             await versionLibrary.clearCopiedAdjustments();try require(versionLibrary.adjustmentClipboard == nil,"Clear action failed")
             report["transferActionsUndoRedo"] = true
+            let brushSession = EditSession(versionProject)
+            var brushLayer = LocalMask(kind:.brush);brushLayer.exposure = 0.5
+            brushSession.change { $0.masks = [brushLayer] }
+            let beforeStroke = brushSession.recipe
+            brushSession.begin()
+            let strokeID = brushSession.recipe.masks[0].brush!.begin(point:BrushPoint(x:0.2,y:0.3),radius:0.06,feather:0.6,erase:false)!
+            brushSession.recipe.masks[0].brush!.append(BrushPoint(x:0.7,y:0.4),stroke:strokeID)
+            brushSession.end()
+            let afterStroke = brushSession.recipe
+            brushSession.undo();try require(brushSession.recipe == beforeStroke,"Whole-stroke undo failed")
+            brushSession.redo();try require(brushSession.recipe == afterStroke,"Whole-stroke redo failed")
+            await brushSession.saveVersion(name:"Brush",library:versionLibrary)
+            let brushVersion = brushSession.project.versions!.last!
+            brushSession.change { $0.masks[0].brush = BrushDrawing() }
+            await brushSession.restoreVersion(brushVersion,library:versionLibrary)
+            try require(brushSession.recipe == afterStroke,"Saved version lost brush vectors")
+            report["brushStrokeUndoRedoAndVersion"] = true
             let fixture = Project(id: UUID(),name: "History",sourceName: "test.jpg",created: Date(),modified: Date(),recipe: Recipe(),width: 1,height: 1,isRAW: false)
             let session = EditSession(fixture)
             session.begin(); session.recipe.exposure = 0.5; session.recipe.exposure = 1; session.end()
@@ -199,7 +216,7 @@ import ImageIO
                 guard context.createCGImage(image,from: image.extent) != nil else { throw StudioError.render }
             }
         }
-        return ["masks":try MaskVerification.run(),"adjustmentTransfer":try await AdjustmentTransferVerification.run(),"versionsComparison":try await VersionComparisonVerification.run(),"scopesGeometry":try ScopeGeometryVerification.run(),"logInput":logReport,"lutTools":lutReport,"gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
+        return ["brush":try await BrushVerification.run(),"masks":try MaskVerification.run(),"adjustmentTransfer":try await AdjustmentTransferVerification.run(),"versionsComparison":try await VersionComparisonVerification.run(),"scopesGeometry":try ScopeGeometryVerification.run(),"logInput":logReport,"lutTools":lutReport,"gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
     }
 }
 #endif

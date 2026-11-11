@@ -12,6 +12,7 @@ import UniformTypeIdentifiers
     @State private var scopeSampler = ScopeSampler()
     @State private var selectedMaskID:UUID?
     @State private var showMask = true
+    @State private var brushMode = BrushInteractionMode.paint
     @State private var tool: Tool = .light
     @State private var colorPanel: ColorPanel = .global
     @State private var wheelZone: WheelZone = .shadows
@@ -67,6 +68,7 @@ import UniformTypeIdentifiers
             await session.open(library: library)
             #if DEBUG
             let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("--brush-demo") { var layer = LocalMask(kind:.brush);var drawing = BrushDrawing();let id = drawing.begin(point:BrushPoint(x:0.3,y:0.3),radius:0.08,feather:0.6,erase:false)!;drawing.append(BrushPoint(x:0.7,y:0.6),stroke:id);layer.brush = drawing;layer.exposure = 0.5;session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks }
             if arguments.contains("--mask-demo") { var layer = LocalMask(kind:.radial);layer.exposure = 0.5;session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks }
             if arguments.contains("--split") { splitComparison = true }
             if arguments.contains("--scopes") { scopesVisible = true;scopeSampler.setEnabled(true) }
@@ -117,6 +119,9 @@ import UniformTypeIdentifiers
             #endif
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("--verify-mask-ui") { await verifyMaskUI() }
+            #endif
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--verify-brush-ui") { await verifyBrushUI() }
             #endif
             await runPreviewCheckIfRequested()
             #if DEBUG
@@ -201,6 +206,35 @@ import UniformTypeIdentifiers
         if let data = try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted) { try? data.write(to:url,options:.atomic) }
     }
     #endif
+    #if DEBUG
+    private func verifyBrushUI() async {
+        let original = session.recipe,undo = session.undoStack,redo = session.redoStack,previousTool = tool,previousID = selectedMaskID,previousMode = brushMode
+        let idle = UIApplication.shared.isIdleTimerDisabled;UIApplication.shared.isIdleTimerDisabled = true;diagnosticsRunning = true
+        defer { session.recipe = original;session.undoStack = undo;session.redoStack = redo;tool = previousTool;selectedMaskID = previousID;brushMode = previousMode;diagnosticsRunning = false;UIApplication.shared.isIdleTimerDisabled = idle }
+        try? await Task.sleep(for:.seconds(1))
+        var layer = LocalMask(kind:.brush);layer.exposure = 0.5
+        session.recipe.masks = [layer];selectedMaskID = layer.id;tool = .masks;brushMode = .paint;showMask = true;splitComparison = false
+        let players = VideoPlayback.creationCount,jobsBefore = BrushMaskRasterizer.statistics()["jobs"] ?? 0
+        var delays = [Double]()
+        let stroke = session.recipe.masks[0].brush!.begin(point:BrushPoint(x:0.2,y:0.3),radius:0.05,feather:0.6,erase:false)!
+        for step in 0..<180 {
+            let began = CACurrentMediaTime()
+            session.recipe.masks[0].brush!.append(BrushPoint(x:0.5+sin(Double(step)*0.08)*0.3,y:0.5+cos(Double(step)*0.06)*0.2),stroke:stroke)
+            if step%60 == 0 { brushMode = step%120 == 0 ? .view : .paint }
+            try? await Task.sleep(for:.milliseconds(16));delays.append(CACurrentMediaTime()-began)
+        }
+        brushMode = .erase
+        let erase = session.recipe.masks[0].brush!.begin(point:BrushPoint(x:0.5,y:0.5),radius:0.04,feather:0.6,erase:true)!
+        session.recipe.masks[0].brush!.append(BrushPoint(x:0.6,y:0.5),stroke:erase)
+        try? await Task.sleep(for:.milliseconds(500))
+        let count = BrushMaskRasterizer.statistics()["jobs"] ?? 0
+        try? await Task.sleep(for:.seconds(3))
+        let idleJobs = (BrushMaskRasterizer.statistics()["jobs"] ?? 0)-count
+        let result:[String:Any] = ["passed":count>jobsBefore && idleJobs == 0 && (delays.max() ?? 99)<1 && VideoPlayback.creationCount-players<=1,"updates":180,"rasterJobs":count-jobsBefore,"idleRasterJobs":idleJobs,"playersCreated":VideoPlayback.creationCount-players,"maxMainActorDelaySeconds":delays.max() ?? 0,"raster":BrushMaskRasterizer.statistics()]
+        let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("brush-ui-verification.json")
+        if let data = try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted) { try? data.write(to:url,options:.atomic) }
+    }
+    #endif
     private var header: some View {
         HStack(spacing: 8) {
             Button { Task { await session.persist(library); dismiss() } } label: { Image(systemName: "chevron.left").frame(width: 44,height: 44) }.accessibilityLabel("Back to workspace")
@@ -221,7 +255,7 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:comparing,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:comparing,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
                         } else {
                             LivePreview(source:source.image,recipe:session.recipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
                         }
@@ -239,7 +273,8 @@ import UniformTypeIdentifiers
                 } else if session.busy { ProgressView("Preparing your media…").font(.caption) }
                 else { ContentUnavailableView("Could not open media",systemImage: "photo.badge.exclamationmark",description: Text(session.error ?? "Return to the workspace and try another file.")) }
                 if tool == .masks,!comparing,let layer = selectedMask,let source = session.source {
-                    MaskPositionHandle(session:session,id:layer.id,sourceSize:source.image.extent.size)
+                    if layer.kind == .brush { if isPaintingBrush { BrushMaskCanvas(session:session,id:layer.id,sourceSize:source.image.extent.size,erase:brushMode == .erase) } }
+                    else { MaskPositionHandle(session:session,id:layer.id,sourceSize:source.image.extent.size) }
                 }
                 if splitComparison,!comparing,let source = session.source {
                     SplitComparisonDivider(sourceSize:source.image.extent.size,recipe:session.recipe,fraction:$splitPosition)
@@ -271,7 +306,7 @@ import UniformTypeIdentifiers
                             .onLongPressGesture(minimumDuration: .infinity,pressing: { comparing = $0 },perform: {})
                             .accessibilityAddTraits(.isButton).accessibilityAction { comparing.toggle() }
                     }
-                }.padding(15)
+                }.padding(15).opacity(isPaintingBrush ? 0 : 1).allowsHitTesting(!isPaintingBrush)
             }.coordinateSpace(name:"comparisonPreview").frame(width: geometry.size.width,height: geometry.size.height).clipped()
         }
     }
@@ -386,6 +421,7 @@ import UniformTypeIdentifiers
             }.padding(20).padding(.bottom,12)
         }.scrollIndicators(.hidden)
     }
+    private var isPaintingBrush:Bool { tool == .masks && selectedMask?.kind == .brush && brushMode != .view }
     private var selectedMask:LocalMask? { session.recipe.masks.first(where:{ $0.id == selectedMaskID }) ?? session.recipe.masks.first }
     private var maskPreview:LocalMask? { tool == .masks && showMask ? selectedMask : nil }
     private func updateMask(_ change:(inout LocalMask)->Void) {
@@ -395,12 +431,13 @@ import UniformTypeIdentifiers
     private var maskControls:some View {
         VStack(alignment:.leading,spacing:12) {
             HStack {
-                ForEach(LocalMaskKind.allCases) { kind in Button("+ \(kind.rawValue)") { guard session.recipe.masks.count<4 else { return };var layer = LocalMask(kind:kind);layer = layer.validated();session.change { $0.masks.append(layer) };selectedMaskID = layer.id }.disabled(session.recipe.masks.count>=4) }
+                ForEach(LocalMaskKind.allCases) { kind in Button("+ \(kind.rawValue)") { guard session.recipe.masks.count<4 else { return };var layer = LocalMask(kind:kind);layer = layer.validated();session.change { $0.masks.append(layer) };selectedMaskID = layer.id;if kind == .brush { brushMode = .paint;showMask = true } }.disabled(session.recipe.masks.count>=4) }
             }.buttonStyle(.bordered).font(.caption)
             if let layer = selectedMask {
                 ScrollView(.horizontal) {
                     HStack { ForEach(Array(session.recipe.masks.enumerated()),id:\.element.id) { index,mask in Button("\(index+1) · \(mask.kind.rawValue)") { selectedMaskID = mask.id }.buttonStyle(.bordered).tint(mask.id == layer.id ? StudioStyle.blue : .gray) } }
                 }
+                if layer.kind == .brush { Picker("Brush tool",selection:$brushMode) { ForEach(BrushInteractionMode.allCases) { mode in Text(mode.rawValue).tag(mode) } }.pickerStyle(.segmented) }
                 HStack {
                     Button { showMask.toggle() } label: { Label("Guide",systemImage:"eye").font(.caption) }.tint(showMask ? StudioStyle.blue : .gray).accessibilityValue(showMask ? "On" : "Off")
                     Button { updateMask { $0.enabled.toggle() } } label: { Label("On",systemImage:"power").font(.caption) }.tint(layer.enabled ? StudioStyle.blue : .gray).accessibilityValue(layer.enabled ? "On" : "Off")
@@ -411,6 +448,14 @@ import UniformTypeIdentifiers
                 maskSlider("Saturation",key:\.saturation,range:-1...1)
                 maskSlider("Contrast",key:\.contrast,range:-1...1)
                 maskSlider("Strength",key:\.amount,range:0...1)
+                if layer.kind == .brush {
+                    DisclosureGroup("Brush size & soft edge") {
+                        maskSlider("Brush radius (%)",key:\.width,range:0.005...0.3,displayScale:100)
+                        maskSlider("Soft edge (%)",key:\.feather,range:0.02...1,displayScale:100)
+                        Text("Size and softness apply to new strokes. \(layer.brush?.strokes.count ?? 0)/64 strokes; up to 2,048 points per stroke. Lift and start another stroke if it stops extending.").font(.caption2).foregroundStyle(StudioStyle.secondary)
+                        Button("Clear painted area",role:.destructive) { updateMask { $0.brush = BrushDrawing() } }
+                    }.font(.caption)
+                } else {
                 DisclosureGroup("Shape, position & feather") {
                 maskSlider("Horizontal position",key:\.centerX,range:0...1)
                 maskSlider("Vertical position",key:\.centerY,range:0...1)
@@ -419,14 +464,15 @@ import UniformTypeIdentifiers
                 maskSlider("Rotation",key:\.angle,range:-180...180)
                 maskSlider("Feather",key:\.feather,range:0.02...1)
                 }.font(.caption)
+                }
                 Button("Delete selected mask",role:.destructive) { let id = layer.id;session.change { $0.masks.removeAll { $0.id == id } };selectedMaskID = nil }
             }
-            Text("Up to four masks. Drag the center in the fitted preview, or use position sliders. Feather softens the edge; invert adjusts the other side. Masks are anchored to the current crop, stay with this source, and are excluded from reusable looks and copy/paste. Video masks stay fixed, without tracking or keyframes. The red guide is never exported.").font(.caption).foregroundStyle(StudioStyle.secondary)
+            Text("Up to four masks. Drag the center in the fitted preview, or use position sliders. Feather softens the edge; invert adjusts the other side. For brush masks, paint directly on the image; View restores preview controls and video scrubbing. Painting pauses video. Size/softness apply to new strokes; undo removes a whole stroke. Masks are anchored to the current crop, stay with this source, and are excluded from reusable looks and copy/paste. Video masks stay fixed, without tracking or keyframes. The red guide is never exported.").font(.caption).foregroundStyle(StudioStyle.secondary)
         }
     }
-    private func maskSlider(_ name:String,key:WritableKeyPath<LocalMask,Double>,range:ClosedRange<Double>) -> some View {
+    private func maskSlider(_ name:String,key:WritableKeyPath<LocalMask,Double>,range:ClosedRange<Double>,displayScale:Double = 1) -> some View {
         VStack(spacing:8) {
-            HStack { Text(name);Spacer();Text(selectedMask?[keyPath:key] ?? range.lowerBound,format:.number.precision(.fractionLength(2))).monospacedDigit() }.font(.caption)
+            HStack { Text(name);Spacer();Text((selectedMask?[keyPath:key] ?? range.lowerBound)*displayScale,format:.number.precision(.fractionLength(2))).monospacedDigit() }.font(.caption)
             Slider(value:Binding(get:{ min(range.upperBound,max(range.lowerBound,selectedMask?[keyPath:key] ?? range.lowerBound)) },set:{ value in
                 guard let layer = selectedMask,let index = session.recipe.masks.firstIndex(where:{ $0.id == layer.id }) else { return };session.recipe.masks[index][keyPath:key] = value
             }),in:range,onEditingChanged:{ $0 ? session.begin() : session.end() })

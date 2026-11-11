@@ -104,6 +104,7 @@ enum VideoEngine {
             guard reader.canAdd(output),writer.canAdd(input) else { throw StudioError.unsupportedVideoAudio }
             reader.add(output);writer.add(input); audio.append((output,input))
         }
+        let brushes = try BrushMaskRasterizer.prepareExport(layers:recipe.masks,extent:framed)
         guard writer.startWriting(),reader.startReading() else { throw StudioError.render }
         writer.startSession(atSourceTime:trimmed ? trimStart : .zero)
         let context = ImageEngine.context(), outputSpace = hdr ? HDRPipeline.hlg : ImageEngine.output
@@ -130,7 +131,7 @@ enum VideoEngine {
                         CVBufferSetAttachment(destination,kCVImageBufferTransferFunctionKey,hdr ? kCVImageBufferTransferFunction_ITU_R_2100_HLG : kCVImageBufferTransferFunction_sRGB,.shouldPropagate)
                         CVBufferSetAttachment(destination,kCVImageBufferYCbCrMatrixKey,hdr ? kCVImageBufferYCbCrMatrix_ITU_R_2020 : kCVImageBufferYCbCrMatrix_ITU_R_709_2,.shouldPropagate)
                         let pair = images(sourceBuffer,descriptor:descriptor)
-                        let image = HDRPipeline.grade(recipe.input.profile == .standard ? pair.managed : pair.signal,recipe:recipe,hdr:hdr)
+                        let image = BrushMaskRasterizer.$preparedExport.withValue(brushes) { HDRPipeline.grade(recipe.input.profile == .standard ? pair.managed : pair.signal,recipe:recipe,hdr:hdr) }
                         let normalized = image.transformed(by:.init(translationX:-image.extent.minX,y:-image.extent.minY))
                         context.render(normalized,to:destination,bounds:CGRect(x:0,y:0,width:width,height:height),colorSpace:outputSpace)
                         let time = CMSampleBufferGetPresentationTimeStamp(sample)
