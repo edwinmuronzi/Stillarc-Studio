@@ -1,0 +1,63 @@
+{
+  "correctness": {
+    "deletion": true,
+    "exportFormats": [
+      "JPEG",
+      "PNG"
+    ],
+    "largeImageFixtures": [
+      {
+        "height": 3000,
+        "previewAndExportSeconds": 0.0607219934463501,
+        "width": 4000
+      },
+      {
+        "height": 4000,
+        "previewAndExportSeconds": 0.08911299705505371,
+        "width": 6000
+      },
+      {
+        "height": 6000,
+        "previewAndExportSeconds": 0.2262279987335205,
+        "width": 8000
+      }
+    ],
+    "looks": 5,
+    "originalPreserved": true,
+    "passed": true,
+    "presetPersistence": true,
+    "recipePersistence": true,
+    "stressRenders": 120,
+    "stressSeconds": 0.2921609878540039,
+    "testedControls": [
+      "Exposure",
+      "Contrast",
+      "Highlights",
+      "Shadows",
+      "Warmth",
+      "Tint",
+      "Saturation",
+      "Vibrance",
+      "Fade",
+      "Grain",
+      "Bloom",
+      "Vignette",
+      "Sharpen",
+      "Noise",
+      "Dark curve",
+      "Middle curve",
+      "Bright curve"
+    ],
+    "thermalState": 0,
+    "undoRedo": true
+  },
+  "preview": {
+    "p95Milliseconds": 11.691083433106542,
+    "rendered": 179,
+    "thermalEnd": 0,
+    "requestedUpdates": 180,
+    "extraIdleFrames": 0,
+    "thermalStart": 0,
+    "gpuFailures": 0
+  }
+}
