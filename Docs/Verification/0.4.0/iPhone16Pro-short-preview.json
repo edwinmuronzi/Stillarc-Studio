@@ -1,0 +1,14 @@
+{
+  "version" : "0.4.0",
+  "requestedUpdates" : 180,
+  "thermalStart" : 0,
+  "interrupted" : false,
+  "elapsedSeconds" : 7.4632473333340386,
+  "cancelled" : false,
+  "p95Milliseconds" : 11.498416666654521,
+  "kernelBackend" : "Metal stitchable",
+  "extraIdleFrames" : 0,
+  "gpuFailures" : 0,
+  "rendered" : 165,
+  "thermalEnd" : 0
+}

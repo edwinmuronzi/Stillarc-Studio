@@ -1,0 +1,115 @@
+{
+  "correctness": {
+    "colorTools": {
+      "alphaPreserved": true,
+      "channelIsolation": 3,
+      "compilationNote": "Dynamic libraries are not supported by this GPU",
+      "exportColorMatch": true,
+      "hueDirections": true,
+      "hueWrap": true,
+      "kernelBackend": "Core Image portable",
+      "neutralGray": true,
+      "oldRecipeMigration": true,
+      "passed": true,
+      "presetColorRoundTrip": true,
+      "rangePreviewNotExported": true,
+      "recipeRoundTrip": true,
+      "resetIsolation": true,
+      "selectiveComponents": 24,
+      "splineSamples": 2002
+    },
+    "colorUndoRedo": true,
+    "cropRepositioning": true,
+    "deletion": true,
+    "exportFormats": [
+      "JPEG",
+      "PNG"
+    ],
+    "geometryEdgeFixtures": 400,
+    "gradingTools": {
+      "alphaPreserved": true,
+      "balanceBlend": true,
+      "brightnessPreserved": true,
+      "exportMatch": true,
+      "exposureOnlyMatchesReference": true,
+      "legacyMigration": true,
+      "mixerParameters": 12,
+      "monochrome": true,
+      "negativeMixing": true,
+      "passed": true,
+      "rangeInspectionExcludesGrading": true,
+      "recipePresetRoundTrip": true,
+      "resetIsolation": true,
+      "swap": true,
+      "tonalIsolation": true,
+      "wheelZones": 4
+    },
+    "gradingUndoRedo": true,
+    "largeImageFixtures": [
+      {
+        "height": 3000,
+        "previewAndExportSeconds": 0.15493404865264893,
+        "width": 4000
+      },
+      {
+        "height": 4000,
+        "previewAndExportSeconds": 0.13879704475402832,
+        "width": 6000
+      },
+      {
+        "height": 6000,
+        "previewAndExportSeconds": 0.27078092098236084,
+        "width": 8000
+      }
+    ],
+    "legacyProjectMigration": true,
+    "looks": 5,
+    "numericValidation": true,
+    "originalPreserved": true,
+    "passed": true,
+    "presetFraming": true,
+    "presetPersistence": true,
+    "recipePersistence": true,
+    "sectionIndicators": true,
+    "sectionResetUndo": true,
+    "stressRenders": 120,
+    "stressSeconds": 0.1252080202102661,
+    "testedControls": [
+      "Exposure",
+      "Contrast",
+      "Highlights",
+      "Shadows",
+      "Whites",
+      "Blacks",
+      "Warmth",
+      "Tint",
+      "Saturation",
+      "Vibrance",
+      "Fade",
+      "Grain",
+      "Bloom",
+      "Vignette",
+      "Sharpen",
+      "Noise",
+      "Dark curve",
+      "Middle curve",
+      "Bright curve"
+    ],
+    "thermalState": 0,
+    "undoRedo": true
+  },
+  "preview": {
+    "thermalStart": 0,
+    "gpuFailures": 0,
+    "cancelled": false,
+    "interrupted": false,
+    "version": "0.4.0",
+    "rendered": 180,
+    "extraIdleFrames": 0,
+    "thermalEnd": 0,
+    "requestedUpdates": 180,
+    "elapsedSeconds": 7.643640875117853,
+    "kernelBackend": "Core Image portable",
+    "p95Milliseconds": 11.564583284780383
+  }
+}

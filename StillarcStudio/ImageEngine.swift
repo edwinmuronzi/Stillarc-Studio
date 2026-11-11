@@ -87,7 +87,7 @@ enum ImageEngine {
             filter("CIToneCurve", ["inputPoint0": CIVector(x: 0, y: r.fade * 0.15 + r.blacks * 0.08), "inputPoint1": CIVector(x: 0.25, y: 0.25 + r.curveShadows * 0.15 + r.blacks * 0.04), "inputPoint2": CIVector(x: 0.5, y: 0.5 + r.curveMidtones * 0.2), "inputPoint3": CIVector(x: 0.75, y: 0.75 + r.curveHighlights * 0.15 + r.whites * 0.04), "inputPoint4": CIVector(x: 1, y: 1 + r.whites * 0.16)])
         }
         image = ColorPipeline.applyCurves(image,curves:r.rgbCurves)
-        image = ColorPipeline.applySelective(image,adjustments:r.selectiveColors,previewRange:rangePreview)
+        image = ColorPipeline.applySelective(image,adjustments:r.selectiveColors,wheels:r.colorWheels,mixer:r.channelMixer,previewRange:rangePreview)
         if rangePreview != nil { return PhotoFraming.apply(image,recipe:r) }
         if r.look != .original && r.lookAmount > 0 {
             let base = image

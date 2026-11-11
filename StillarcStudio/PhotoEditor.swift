@@ -9,6 +9,8 @@ import UniformTypeIdentifiers
     @Bindable var library: StudioLibrary
     @State private var tool: Tool = .light
     @State private var colorPanel: ColorPanel = .global
+    @State private var wheelZone: WheelZone = .shadows
+    @State private var mixerChannel: MixerChannel = .red
     @State private var selectedRange: ColorRange = .orange
     @State private var showRange = false
     @State private var curveChannel: CurveChannel = .master
@@ -39,7 +41,7 @@ import UniformTypeIdentifiers
                     VStack(spacing: 0) {
                         preview
                         tools
-                        controls.frame(height: min((tool == .curves || (tool == .color && colorPanel == .selective)) ? 360 : 280,geometry.size.height * ((tool == .curves || (tool == .color && colorPanel == .selective)) ? 0.54 : 0.43))).background(StudioStyle.panel)
+                        controls.frame(height: min((tool == .curves || (tool == .color && colorPanel != .global)) ? 360 : 280,geometry.size.height * ((tool == .curves || (tool == .color && colorPanel != .global)) ? 0.54 : 0.43))).background(StudioStyle.panel)
                     }
                 }
             }
@@ -49,6 +51,11 @@ import UniformTypeIdentifiers
             await session.open(library: library)
             #if DEBUG
             let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("--wheels") { colorPanel = .wheels }
+            if arguments.contains("--mixer") { colorPanel = .mixer }
+            if arguments.contains("--show-grading-example") {
+                session.change { $0 = Recipe(); $0.colorWheels.shadows.hue = 220; $0.colorWheels.shadows.strength = 0.22; $0.colorWheels.highlights.hue = 40; $0.colorWheels.highlights.strength = 0.15; $0.channelMixer.redGreen = 0.03 }
+            }
             if arguments.contains("--color-mix") { colorPanel = .selective }
             if arguments.contains("--range-preview") { showRange = true }
             if arguments.contains("--show-color-example") {
@@ -149,9 +156,15 @@ import UniformTypeIdentifiers
     }
     private var controls: some View {
         ScrollView {
-            VStack(alignment: .leading,spacing: 22) {
+            VStack(alignment: .leading,spacing: tool == .color && (colorPanel == .wheels || colorPanel == .mixer) ? 12 : 22) {
                 HStack(alignment: .top) {
-                    Text(tool == .curves ? "RGB curves" : tool.help).font(.system(size: 11)).foregroundStyle(StudioStyle.secondary).lineSpacing(3).fixedSize(horizontal: false,vertical: true)
+                    if tool == .color && colorPanel == .wheels {
+                        wheelZoneMenu
+                    } else if tool == .color && colorPanel == .mixer {
+                        mixerChannelMenu
+                    } else {
+                        Text(tool == .curves ? "RGB curves" : tool.help).font(.system(size: 11)).foregroundStyle(StudioStyle.secondary).lineSpacing(3).fixedSize(horizontal: false,vertical: true)
+                    }
                     Spacer(minLength: 10)
                     Menu {
                         Button("Reset \(tool.rawValue.lowercased())",systemImage: "arrow.counterclockwise") { session.change { $0.reset(tool) }; if tool == .crop { zoom = 1; offset = .zero } }.disabled(!session.recipe.hasAdjustments(in: tool))
@@ -212,7 +225,7 @@ import UniformTypeIdentifiers
         }.scrollIndicators(.hidden)
     }
     private var colorControls: some View {
-        VStack(alignment:.leading,spacing:18) {
+        VStack(alignment:.leading,spacing: colorPanel == .wheels || colorPanel == .mixer ? 12 : 18) {
             Picker("Color tools",selection:$colorPanel) {
                 ForEach(ColorPanel.allCases,id: \.self) { Text($0.rawValue).tag($0) }
             }.pickerStyle(.segmented)
@@ -221,6 +234,10 @@ import UniformTypeIdentifiers
                 adjustment("Tint",key: \.tint)
                 adjustment("Saturation",key: \.saturation)
                 adjustment("Vibrance",key: \.vibrance)
+            } else if colorPanel == .wheels {
+                wheelControls
+            } else if colorPanel == .mixer {
+                mixerControls
             } else {
                 ColorRangePicker(selected:$selectedRange,adjustments:session.recipe.selectiveColors)
                 HStack {
@@ -233,9 +250,69 @@ import UniformTypeIdentifiers
                 adjustment("Hue",key:selectedRange.recipeKey(\.hue),range:-30...30,unit:"°")
                 adjustment("Saturation",key:selectedRange.recipeKey(\.saturation))
                 adjustment("Brightness",key:selectedRange.recipeKey(\.brightness))
-                Text(showRange ? "Selected colors stay visible; other colors dim. This view is before film effects and is never exported." : "Hue shifts this color, saturation changes its richness, and brightness makes it lighter or darker. Similar colors throughout the photo change together.")
+                Text(showRange ? "Selected colors stay visible; other colors dim. This inspection view skips wheels, mixer and film effects. It is never exported." : "Hue shifts this color, saturation changes its richness, and brightness makes it lighter or darker. Similar colors throughout the photo change together.")
                     .font(.caption).foregroundStyle(StudioStyle.secondary).lineSpacing(3)
             }
+        }
+    }
+    private var wheelZoneMenu: some View {
+        Menu {
+            ForEach(WheelZone.allCases) { zone in
+                Button(zone.rawValue + (session.recipe.colorWheels[keyPath:zone.key].isNeutral ? "" : " •")) { wheelZone = zone }
+            }
+            Divider()
+            Button("Reset this wheel") { session.change { $0.colorWheels[keyPath:wheelZone.key] = WheelGrade() } }.disabled(session.recipe.colorWheels[keyPath:wheelZone.key] == WheelGrade())
+            Button("Reset all wheels") { session.change { $0.colorWheels = ColorWheels() } }.disabled(session.recipe.colorWheels == ColorWheels())
+        } label: { HStack(spacing:6) { Text(wheelZone.rawValue); Image(systemName:"chevron.down").font(.system(size:10)) }.font(.subheadline.weight(.medium)).frame(minHeight:34) }.accessibilityLabel("Choose wheel tone range")
+    }
+    private var mixerChannelMenu: some View {
+        Menu {
+            ForEach(MixerChannel.allCases) { channel in
+                Button(channel.rawValue + " output" + (session.recipe.channelMixer.isNeutral(channel:channel) ? "" : " •")) { mixerChannel = channel }
+            }
+            Divider()
+            Button("Reset this output") { session.change { $0.channelMixer.reset(mixerChannel) } }.disabled(session.recipe.channelMixer.isNeutral(channel:mixerChannel))
+            Button("Reset mixer") { session.change { $0.channelMixer = ChannelMixer() } }.disabled(session.recipe.channelMixer.isNeutral)
+        } label: { HStack(spacing:6) { Text(mixerChannel.rawValue + " output"); Image(systemName:"chevron.down").font(.system(size:10)) }.font(.subheadline.weight(.medium)).frame(minHeight:34) }.accessibilityLabel("Choose mixer output channel")
+    }
+    private var wheelControls: some View {
+        VStack(alignment:.leading,spacing:14) {
+            GeometryReader { geometry in
+                let side = min(150,max(110,geometry.size.width*0.43))
+                HStack(spacing:12) {
+                    GradingWheel(session:session,zone:wheelZone).frame(width:side,height:side)
+                    VStack(spacing:8) {
+                        adjustment("Hue",key:wheelZone.recipeKey(\.hue),range:0...360,unit:"°")
+                        adjustment("Strength",key:wheelZone.recipeKey(\.strength),range:0...1)
+                        adjustment("Brightness",key:wheelZone.recipeKey(\.exposure),range:-1...1,unit:"EV")
+                    }.frame(maxWidth:.infinity)
+                }.frame(height:190)
+            }.frame(height:190)
+            Text(wheelZone.help).font(.caption).foregroundStyle(StudioStyle.secondary).lineSpacing(2)
+            DisclosureGroup("Tone blending") {
+                VStack(alignment:.leading,spacing:16) {
+                    adjustment("Balance",key: \.colorWheels.balance)
+                    adjustment("Blend",key: \.colorWheels.blend,range:0...1,defaultValue:0.5)
+                    Toggle("Keep brightness",isOn:Binding(get:{ session.recipe.colorWheels.preserveBrightness },set:{ value in session.change { $0.colorWheels.preserveBrightness = value } })).font(.subheadline)
+                    Text("Balance shifts the dark/bright split. Blend softens transitions between the three tonal wheels; Global applies everywhere. Keep brightness limits brightness changes from the tint; the brightness slider still works.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                }.padding(.top,12)
+            }.font(.caption)
+        }
+    }
+    private var mixerControls: some View {
+        VStack(alignment:.leading,spacing:16) {
+            ForEach(MixerChannel.allCases) { input in
+                adjustment(input.rawValue + " input",key:mixerChannel.recipeKey(input),range:-2...2,defaultValue:input == mixerChannel ? 1 : 0)
+            }
+            Toggle("Monochrome",isOn:Binding(get:{ session.recipe.channelMixer.monochrome },set:{ value in session.change { $0.channelMixer.monochrome = value } })).font(.subheadline)
+            Text("Build the \(mixerChannel.rawValue.lowercased()) output from the photo's red, green and blue inputs. 100 keeps an input at full strength; 0 removes it. Monochrome makes the mixed result black and white.").font(.caption).foregroundStyle(StudioStyle.secondary).lineSpacing(2)
+            DisclosureGroup("Offset and quick actions") {
+                VStack(alignment:.leading,spacing:14) {
+                    adjustment("Offset",key:mixerChannel.recipeOffsetKey,range:-0.5...0.5)
+                    Text("Offset adds a fixed amount to this output channel.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                    Button("Swap red and blue") { session.change { $0.channelMixer.swapRedAndBlue() } }.font(.subheadline)
+                }.padding(.top,12)
+            }.font(.caption)
         }
     }
     private var curveControls: some View {
@@ -331,13 +408,19 @@ import UniformTypeIdentifiers
             session.recipe.rgbCurves.red.middle = 0.5 + sin(Double(index)*0.07)*0.06
             session.recipe.selectiveColors.blue.saturation = sin(Double(index)*0.09)*0.35
             session.recipe.selectiveColors.orange.hue = cos(Double(index)*0.08)*8
+            session.recipe.colorWheels.shadows.hue = 220 + sin(Double(index)*0.04)*20
+            session.recipe.colorWheels.shadows.strength = 0.12
+            session.recipe.colorWheels.midtones.hue = 30; session.recipe.colorWheels.midtones.strength = 0.06
+            session.recipe.colorWheels.highlights.hue = 40; session.recipe.colorWheels.highlights.strength = 0.08
+            session.recipe.colorWheels.global.exposure = sin(Double(index)*0.05)*0.08
+            session.recipe.channelMixer.redGreen = sin(Double(index)*0.06)*0.05
             try? await Task.sleep(for: .milliseconds(16))
         }
         try? await Task.sleep(for: .seconds(1))
         let count = PreviewMetrics.shared.times.count
         try? await Task.sleep(for: .seconds(3))
         let times = PreviewMetrics.shared.times.sorted()
-        let report: [String: Any] = ["interrupted":interrupted,"version":"0.3.0","elapsedSeconds":CACurrentMediaTime()-began,"cancelled":Task.isCancelled,"requestedUpdates": steps,"rendered": count,"kernelBackend":ColorPipeline.backend,"p95Milliseconds": times.isEmpty ? 0 : times[Int(Double(times.count-1)*0.95)],"extraIdleFrames": times.count-count,"gpuFailures": PreviewMetrics.shared.failures,"thermalStart": start,"thermalEnd": ProcessInfo.processInfo.thermalState.rawValue]
+        let report: [String: Any] = ["interrupted":interrupted,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","elapsedSeconds":CACurrentMediaTime()-began,"cancelled":Task.isCancelled,"requestedUpdates": steps,"rendered": count,"kernelBackend":ColorPipeline.backend,"p95Milliseconds": times.isEmpty ? 0 : times[Int(Double(times.count-1)*0.95)],"extraIdleFrames": times.count-count,"gpuFailures": PreviewMetrics.shared.failures,"thermalStart": start,"thermalEnd": ProcessInfo.processInfo.thermalState.rawValue]
         if let data = try? JSONSerialization.data(withJSONObject: report,options: .prettyPrinted) {
             try? data.write(to: documents.appendingPathComponent("preview-verification.json"),options: .atomic)
             writeProgress(["stage":"finished","rendered":count])

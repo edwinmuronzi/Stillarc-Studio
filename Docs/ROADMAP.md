@@ -8,11 +8,13 @@ Local project copies and original preservation; Photos/Files import; Apple-suppo
 
 ## 2 — Precise photo development
 
+Implemented in 0.4: Shadows/Midtones/Highlights/Global wheels, balance/blend and tint-brightness protection, plus a 3×3 linear-light channel mixer with offsets, monochrome and red/blue swapping. Per-wheel/output reset, presets, edit dots and undo/redo use the existing reversible model.
+
 Implemented in 0.3: five-point Master/R/G/B curves, exact point values, eight-range HSL-style color controls, per-range reset and a preview-only color-range inspector. Old recipes remain neutral in the new stages.
 
 Implemented in 0.2: active-adjustment indicators, section resets, exact numeric entry, repositioned aspect-ratio crops, straightening and Whites/Blacks. Existing 0.1 recipes migrate with neutral defaults.
 
-Next: freeform crop bounds, perspective and lens corrections; texture/clarity/dehaze with predictable processing order. Levels, freely placed extra curve points, color wheels and channel mixer. RGB histogram, waveform and vectorscope that update at a bounded rate only while visible. Numeric inputs, accessible adjustable controls and iPad keyboard shortcuts. Validate RAW camera fixtures, wide-gamut/HDR interpretation and export matching before adding HDR output.
+Next: freeform crop bounds, perspective and lens corrections; texture/clarity/dehaze with predictable processing order. Levels and freely placed extra curve points. RGB histogram, waveform and vectorscope that update at a bounded rate only while visible. Numeric inputs, accessible adjustable controls and iPad keyboard shortcuts. Validate RAW camera fixtures, wide-gamut/HDR interpretation and export matching before adding HDR output.
 
 ## 3 — Reusable grades and film
 

@@ -24,6 +24,11 @@ import ImageIO
             colorSession.begin(); colorSession.recipe.rgbCurves.red.middle = 0.6; colorSession.recipe.selectiveColors.orange.hue = 12; colorSession.end()
             colorSession.undo(); try require(colorSession.recipe.rgbCurves.isNeutral && colorSession.recipe.selectiveColors.isNeutral,"Color gesture undo failed")
             colorSession.redo(); try require(colorSession.recipe.rgbCurves.red.middle == 0.6 && colorSession.recipe.selectiveColors.orange.hue == 12,"Color gesture redo failed")
+            let gradingSession = EditSession(fixture)
+            gradingSession.begin(); gradingSession.recipe.colorWheels.shadows.hue = 220; gradingSession.recipe.colorWheels.shadows.strength = 0.25; gradingSession.recipe.channelMixer.redGreen = 0.1; gradingSession.end()
+            gradingSession.undo(); try require(gradingSession.recipe.colorWheels.isNeutral && gradingSession.recipe.channelMixer.isNeutral,"Wheel/mixer gesture undo failed")
+            gradingSession.redo(); try require(gradingSession.recipe.colorWheels.shadows.strength == 0.25 && gradingSession.recipe.channelMixer.redGreen == 0.1,"Wheel/mixer gesture redo failed")
+            report["gradingUndoRedo"] = true
             report["colorUndoRedo"] = true
             report["undoRedo"] = true
             report["sectionResetUndo"] = true
@@ -38,6 +43,7 @@ import ImageIO
     }
     private nonisolated static func verify() async throws -> [String: Any] {
         let colorReport = try ColorVerification.run()
+        let gradingReport = try GradingVerification.run()
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("StudioQA-\(UUID())",isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let vault = ProjectVault(root: root)
@@ -52,7 +58,7 @@ import ImageIO
         try require(loaded.0.count == 1 && loaded.0[0].recipe == recipe,"Saved recipe did not round trip")
         var legacy = try JSONSerialization.jsonObject(with: JSONEncoder().encode(edited)) as! [String: Any]
         var oldRecipe = legacy["recipe"] as! [String: Any]
-        for key in ["whites","blacks","straighten","cropX","cropY","rgbCurves","selectiveColors"] { oldRecipe.removeValue(forKey: key) }
+        for key in ["whites","blacks","straighten","cropX","cropY","rgbCurves","selectiveColors","colorWheels","channelMixer"] { oldRecipe.removeValue(forKey: key) }
         legacy["recipe"] = oldRecipe
         let migrated = try JSONDecoder().decode(Project.self,from: JSONSerialization.data(withJSONObject: legacy))
         try require(migrated.recipe == recipe,"Version 0.1 project migration failed")
@@ -139,7 +145,7 @@ import ImageIO
                 let began = Date()
                 let preview = try ImageEngine.open(fixtureURL,maxDimension: 1600)
                 try require(max(preview.image.extent.width,preview.image.extent.height) <= 1600,"Large preview exceeded size bound")
-                var largeRecipe = Recipe(); largeRecipe.rgbCurves.master.middle = 0.54; largeRecipe.selectiveColors.orange.saturation = -0.2
+                var largeRecipe = Recipe(); largeRecipe.rgbCurves.master.middle = 0.54; largeRecipe.selectiveColors.orange.saturation = -0.2; largeRecipe.colorWheels.shadows.hue = 220; largeRecipe.colorWheels.shadows.strength = 0.1; largeRecipe.channelMixer.redGreen = 0.02
                 let exported = try ImageEngine.export(source: fixtureURL,recipe: largeRecipe,format: .jpeg)
                 defer { try? FileManager.default.removeItem(at: exported.url) }
                 try require(exported.width == dimensions.0 && exported.height == dimensions.1,"Large export lost dimensions")
@@ -154,7 +160,7 @@ import ImageIO
                 guard context.createCGImage(image,from: image.extent) != nil else { throw StudioError.render }
             }
         }
-        return ["colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
+        return ["gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
     }
 }
 #endif

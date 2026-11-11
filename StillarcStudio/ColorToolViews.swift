@@ -6,7 +6,7 @@ extension CurveChannel {
 extension ColorRange {
     var color: Color { Color(hue:degrees/360,saturation:0.82,brightness:0.95) }
 }
-enum ColorPanel: String, CaseIterable { case global = "All colors", selective = "Color mix" }
+enum ColorPanel: String, CaseIterable { case global = "All colors", selective = "Color mix", wheels = "Wheels", mixer = "Mixer" }
 @MainActor struct ColorRangePicker: View {
     @Binding var selected: ColorRange
     let adjustments: SelectiveColors

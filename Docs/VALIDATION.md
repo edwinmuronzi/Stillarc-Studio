@@ -1,5 +1,18 @@
 # Validation
 
+## 0.4.0, build 4 — color wheels and channel mixer
+
+Passed on the black iPhone 16 Pro using Metal stitchable functions and on the simulator using the portable Core Image path:
+
+- Four tonal wheels, tonal isolation, Balance/Blend, brightness preservation and neutral black/white protection; exposure-only grading matched the reference exposure filter, including a saturated input above reference white.
+- All 12 matrix/offset parameters matched stock CIColorMatrix behavior; negative coefficients, red/blue swap, monochrome and alpha preservation passed.
+- Exact fractional hue persistence, recipe/preset round trips, older-recipe migration, section indicators, reset isolation and grading undo/redo passed.
+- Range inspection excluded grading; JPEG/PNG sampled export colors matched the normal render. Existing controls and 12/24/48MP synthetic export fixtures also passed with wheels and mixer active. Those fixtures are gradients, not representative RAW benchmarks.
+
+The sustained optimized iPhone 16 Pro diagnostic requested **7,200 changes** and completed **6,504 coalesced renders** over **133.25 seconds**, with wheels, mixer, RGB curves, selective color, film effects and framing active. Render-completion p95 was **11.71 ms**, with **zero GPU failures** and **zero idle redraws**. Thermal state was **nominal at start and end**. The final source also passed a short device run (165 renders; p95 11.50 ms). These are render-completion measurements, not touch-to-display latency, presented fps, battery energy or physical temperature. Longer sessions, real RAW inputs and older physical devices remain unverified.
+
+The normal Release archive passed strict signature verification and was installed and launched on the black iPhone 16 Pro. Compact iPhone, portrait iPhone and iPad layouts were visually inspected; these are not automated touch-interaction tests. [Raw reports](Verification/0.4.0) and [screenshots](Screenshots) are retained.
+
 ## 0.3.0, build 3 — RGB curves and selective color
 
 Passed on the black iPhone 16 Pro using the Metal stitchable kernel and on the simulator using the portable Core Image fallback:
