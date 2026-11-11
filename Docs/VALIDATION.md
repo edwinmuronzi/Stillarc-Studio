@@ -1,5 +1,19 @@
 # Validation
 
+## 0.11.0, build 12 — Linear/radial local masks
+
+Native iPhone 16 Pro and simulator references passed for radial center/outside weights, continuous feathering, complementary inversion, linear gradient direction, region-only exposure and linear strength blending. Neutral/disabled layers bypass processing. Masks round-trip with recipes, default neutrally for older projects, remain excluded from reusable presets/clipboard copies, and survive destination pastes. Decode/render counts are bounded to four layers. Invalid numeric shape values are clamped before rendering.
+
+Masked PNG export retained the local adjustment and neutral channel balance, without the red guide, and preserved source bytes. Encoded video checks applied one-stop exposure inside a radial region while leaving outside pixels unchanged. Existing photo geometry/color/LUT/migration and native trim/HDR/audio checks remained green. Complete-version persistence now includes masks in its snapshot fixture.
+
+The actual mask panel exercised four-layer creation, 180 position/exposure/inversion/guide updates, deletion and undo on device and simulator. It preserved the initial recipe/history afterward and created no second player loop. The native maximum main-actor wake-up interval was **76.10 ms** (including a requested 16 ms sleep), not measured touch-to-display latency.
+
+The optimized 16 Pro sustained test combined **1080p/30 fps Log 2 playback**, HDR preview, trim, a 65-point LUT, scopes, moving split comparison, **four active mask layers** and a visible mask guide, with 7,200 grading/position changes. Across **128.27 seconds**, it completed **7,424 renders**, decoded **3,647 frames**, and ran **603 scope jobs**. GPU submission-to-completion p95 was **14.09 ms**, with **0 GPU failures**, **0 extra settled idle frames** and **0 scope jobs after hiding**. Scope worker-to-main-return p95 was **18.31 ms**, including scheduling. Thermal state was **nominal → nominal**. This is not touch-to-display latency, measured presentation FPS, a temperature/energy benchmark or a complex real-camera/long 4K test; the generated fixture has constant colors.
+
+Masks are applied after global grading and framing. They follow normalized positions in the current cropped frame; they do not track subjects, animate with keyframes or provide brush/AI selection yet. Source-specific masks remain with complete versions but are excluded from reusable grades. Filter warm-up runs on the decode worker; guides/scopes stay out of export recipes.
+
+[Native mask/PNG references](Verification/0.11.0/iPhone16Pro-photo.json) · [Native masked video](Verification/0.11.0/iPhone16Pro-video.json) · [Native mask UI](Verification/0.11.0/iPhone16Pro-mask-ui.json) · [Four-layer sustained test](Verification/0.11.0/iPhone16Pro-four-masks-preview.json) · [Simulator photo](Verification/0.11.0/Simulator-photo.json) · [Simulator video](Verification/0.11.0/Simulator-video.json) · [Simulator mask UI](Verification/0.11.0/Simulator-mask-ui.json)
+
 ## 0.10.0, build 11 — Selective adjustment copy/paste
 
 Native iPhone 16 Pro and simulator checks passed for all ten selectable sections, full-grade paste, unselected-section retention, empty-paste no-op and neutral LUT clearing. Destination crop/geometry/rotation/straighten/position, input conversion/exposure, trim and HDR choice stayed intact. Partial copy excluded unselected LUT/source data; the complete copied LUT snapshot reopened intact, stayed unchanged after editing the source, was excluded from project indexing and cleared correctly. Isolated application-action tests exercised Copy, Paste, Undo, Redo and Clear through the same methods used by the UI.

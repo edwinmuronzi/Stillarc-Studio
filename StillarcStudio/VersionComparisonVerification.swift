@@ -16,7 +16,7 @@ enum VersionComparisonVerification {
         try require(ComparisonRender.combine(original:before,edited:after,fraction:nil) === after,"Disabled split did not bypass rendering")
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("StudioVersionsQA-\(UUID())"),vault = ProjectVault(root:root)
         defer { try? FileManager.default.removeItem(at:root) }
-        var recipe = Recipe();recipe.exposure = 0.6;recipe.lut = try LUTVerification.example();recipe.geometry.flipHorizontal = true;recipe.input.profile = .appleLog2;recipe.video.start = 0.2;recipe.video.end = 1
+        var recipe = Recipe();recipe.exposure = 0.6;recipe.lut = try LUTVerification.example();recipe.geometry.flipHorizontal = true;recipe.input.profile = .appleLog2;recipe.video.start = 0.2;recipe.video.end = 1;recipe.masks = [LocalMask(kind:.radial)]
         var project = Project(id:UUID(),name:"Version QA",sourceName:"original.dat",created:Date(),modified:Date(),recipe:recipe,width:8,height:2,isRAW:false)
         let source = await vault.source(project);try FileManager.default.createDirectory(at:source.deletingLastPathComponent(),withIntermediateDirectories:true);let original = Data("unchanged-source".utf8);try original.write(to:source)
         let first = EditVersion(name:"First")

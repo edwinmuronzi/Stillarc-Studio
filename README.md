@@ -2,7 +2,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.10 selective copy/paste milestone**, not a finished PeekLUT/Lightroom replacement. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.11 linear/radial masks milestone**, not a finished PeekLUT/Lightroom replacement. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"></p>
 
@@ -10,8 +10,11 @@ This is the **0.10 selective copy/paste milestone**, not a finished PeekLUT/Ligh
 
 ## What works in this milestone
 
+- Open **Masks**, add **Linear** for a gradual adjustment across the frame or **Radial** for an oval area. Drag the center in the fitted preview; expand **Shape, position & feather** to resize, rotate or soften the edge. Adjust local exposure, warmth, saturation and contrast, blend with Strength, invert the area, or switch the adjustment off. Keep up to four layers; overlapping layers apply in order.
+- The **Guide** eye button shows the selected area in red; the red guide never appears in exports and scopes read the actual grade. Masks work with photos and video, save with the project and complete versions, and support undo/redo. They are anchored to the current cropped frame—not tracked subjects—so reframing changes their relationship to the scene. Creative presets and copied grades exclude spatial masks; applying either preserves destination masks. Video masks are static across the clip, without keyframes. Brush, subject/sky AI selection and motion tracking are not available yet.
+
 - Open **Looks → Copy adjustments** and choose sections to copy. On another photo or clip, open **Looks → Paste adjustments**, choose which copied sections to apply, and paste. Options include Light, White balance, Color & color mix, Curves, Color wheels, Channel mixer, Built-in look, LUT, Film texture and Detail. Selected sections replace existing values, including neutral/Off settings; unselected adjustments stay unchanged.
-- Paste preserves each destination’s crop, flips, perspective, input profile/exposure, video trim, HDR choice and saved versions. It is one undoable change and works between photos and video clips. The LUT travels with the internal clipboard; no media is duplicated or placed on the system clipboard. Copied settings survive app restarts until replaced or cleared from the Paste panel.
+- Paste preserves each destination’s crop, flips, perspective, input profile/exposure, video trim, HDR choice, masks and saved versions. It is one undoable change and works between photos and video clips. The LUT travels with the internal clipboard; no media is duplicated or placed on the system clipboard. Copied settings survive app restarts until replaced or cleared from the Paste panel.
 
 - Tap the **split comparison icon** beside Hold to compare, then drag the round divider. Original is on the left, your edit on the right, with matching framing. Comparison returns to a fitted view; turn it off to zoom normally. Photo and video share one decoded source/frame. The divider is a preview tool and never appears in exports. Scopes follow the displayed comparison.
 - Open **Looks → Saved versions**, enter a name and save the complete current edit. Keep up to 20 named versions per photo/clip, including input conversion, framing, trim, HDR choice and LUT. Restore returns to the preview; Undo recovers the edit you had before restoring. Delete removes that saved snapshot, not the source. Versions stay with this project; Looks presets are for reusing grades on other media. No media files are duplicated.
@@ -70,6 +73,8 @@ The editor header owns its window-safe insets, including after foregrounding, ro
 
 ## Designed for responsiveness
 
+Linear/radial masks use native Core Image gradients and GPU blending, capped at four layers. Neutral/disabled/zero-strength layers bypass their processing. Filter warm-up runs on the decode worker before editing. Masks share the existing bounded preview, one GPU submission in flight and full-source export path; the guide is a separate preview-only composition in that same submission. Masks are applied after global grading and framing. HDR uses the existing normalized creative pipeline and restores headroom afterward.
+
 Copy builds a small immutable instruction snapshot; LUT data shares immutable storage in memory. Clipboard encoding/decoding and atomic file writes run on the storage actor, once per explicit copy, rather than on slider changes. The clipboard file is excluded from media-project indexing. Paste changes the existing recipe in one transaction; it does not reopen the original, create a new player or process/export media. Preview playback and scope sampling pause while either copy/paste panel is open.
 
 Split comparison composites two graphs from the same source/frame into one Metal command; it does not create a second player. With comparison off, the extra graph is skipped. Saved versions are immutable recipe files created only on explicit Save. Ordinary autosave updates a small version index instead of re-encoding every saved LUT/recipe. Restoring decodes the chosen snapshot on the storage actor. Versions are local app data; deleting the project or uninstalling Studio removes them.
@@ -106,4 +111,4 @@ Debug verification instructions are in [Docs/VALIDATION.md](Docs/VALIDATION.md).
 
 ## Important boundaries
 
-Masks, healing, HDR photo export, batch work, metadata controls, multi-clip video timelines and Camera/Studio preset exchange are **planned**, not available in this build. Studio presets are not yet compatible with Camera presets. A LUT can encode compatible color transformations, but cannot encode grain, bloom, sharpening, masks or geometry.
+Brush/AI masks, motion tracking, healing, HDR photo export, batch work, metadata controls, multi-clip video timelines and Camera/Studio preset exchange are **planned**, not available in this build. Studio presets are not yet compatible with Camera presets. A LUT can encode compatible color transformations, but cannot encode grain, bloom, sharpening, masks or geometry.

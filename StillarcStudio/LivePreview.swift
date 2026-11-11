@@ -12,6 +12,7 @@ struct LivePreview: UIViewRepresentable {
     var hdr = false
     var scopes:ScopeSampler? = nil
     var split:Double? = nil
+    var maskPreview:LocalMask? = nil
     func makeCoordinator() -> Renderer { Renderer() }
     func makeUIView(context: Context) -> MTKView {
         let view = MTKView(frame: .zero, device: context.coordinator.device)
@@ -28,7 +29,7 @@ struct LivePreview: UIViewRepresentable {
         view.colorPixelFormat = hdr ? .rgba16Float : .bgra8Unorm
         (view.layer as? CAMetalLayer)?.colorspace = hdr ? ImageEngine.working : ImageEngine.output
         (view.layer as? CAMetalLayer)?.wantsExtendedDynamicRangeContent = hdr
-        context.coordinator.update(source, signalSource:signalSource,recipe: recipe, original: original, rangePreview: rangePreview, active: active, hdr:hdr, scopes:scopes, split:split, view: view)
+        context.coordinator.update(source, signalSource:signalSource,recipe: recipe, original: original, rangePreview: rangePreview, active: active, hdr:hdr, scopes:scopes, split:split, maskPreview:maskPreview, view: view)
     }
     static func dismantleUIView(_ view: MTKView, coordinator: Renderer) { view.delegate = nil; coordinator.clear() }
     @MainActor final class Renderer: NSObject, MTKViewDelegate {
@@ -42,14 +43,15 @@ struct LivePreview: UIViewRepresentable {
         private var hdr = false
         private var scopes:ScopeSampler?
         private var split:Double?
+        private var maskPreview:LocalMask?
         private var rangePreview: ColorRange?
         private var active = true
         private var dirty = true
         private var drawing = false
         func clear() { source = nil; context?.clearCaches() }
-        func update(_ source:CIImage,signalSource:CIImage?,recipe: Recipe, original: Bool, rangePreview: ColorRange?, active: Bool, hdr:Bool, scopes:ScopeSampler?, split:Double?, view: MTKView) {
-            let changed = self.source !== source || self.signalSource !== signalSource || self.recipe != recipe || self.original != original || self.rangePreview != rangePreview || self.active != active || self.hdr != hdr || self.scopes !== scopes || self.split != split
-            self.source = source; self.signalSource = signalSource; self.recipe = recipe; self.original = original; self.rangePreview = rangePreview; self.active = active;self.hdr = hdr;self.scopes = scopes;self.split = split
+        func update(_ source:CIImage,signalSource:CIImage?,recipe: Recipe, original: Bool, rangePreview: ColorRange?, active: Bool, hdr:Bool, scopes:ScopeSampler?, split:Double?, maskPreview:LocalMask?, view: MTKView) {
+            let changed = self.source !== source || self.signalSource !== signalSource || self.recipe != recipe || self.original != original || self.rangePreview != rangePreview || self.active != active || self.hdr != hdr || self.scopes !== scopes || self.split != split || self.maskPreview != maskPreview
+            self.source = source; self.signalSource = signalSource; self.recipe = recipe; self.original = original; self.rangePreview = rangePreview; self.active = active;self.hdr = hdr;self.scopes = scopes;self.split = split;self.maskPreview = maskPreview
             guard changed else { return }; dirty = true
             if active && !drawing { view.setNeedsDisplay() }
         }
@@ -66,6 +68,7 @@ struct LivePreview: UIViewRepresentable {
                 image = ComparisonRender.combine(original:before,edited:image,fraction:split)
             }
             scopes?.offer(image,hdr:hdr)
+            if !original { image = MaskEngine.overlay(image,layer:maskPreview) }
             let scale = min(size.width / image.extent.width, size.height / image.extent.height)
             let placed = image.transformed(by: .init(scaleX: scale,y: scale)).transformed(by: .init(translationX: (size.width-image.extent.width*scale)/2, y: (size.height-image.extent.height*scale)/2))
             let background = CIImage(color: CIColor(red: 0.025, green: 0.03, blue: 0.04)).cropped(to: CGRect(origin: .zero,size: size))

@@ -10,6 +10,8 @@ import UniformTypeIdentifiers
     @State private var scopesVisible = false
     @State private var scopeMode = ScopeMode.histogram
     @State private var scopeSampler = ScopeSampler()
+    @State private var selectedMaskID:UUID?
+    @State private var showMask = true
     @State private var tool: Tool = .light
     @State private var colorPanel: ColorPanel = .global
     @State private var wheelZone: WheelZone = .shadows
@@ -65,6 +67,7 @@ import UniformTypeIdentifiers
             await session.open(library: library)
             #if DEBUG
             let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("--mask-demo") { var layer = LocalMask(kind:.radial);layer.exposure = 0.5;session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks }
             if arguments.contains("--split") { splitComparison = true }
             if arguments.contains("--scopes") { scopesVisible = true;scopeSampler.setEnabled(true) }
             if arguments.contains("--verify-trim-ui") { await verifyTrimUI() }
@@ -111,6 +114,9 @@ import UniformTypeIdentifiers
                 let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("transfer-ui-verification.json")
                 if let data = try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted) { try? data.write(to:url,options:.atomic) }
             }
+            #endif
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--verify-mask-ui") { await verifyMaskUI() }
             #endif
             await runPreviewCheckIfRequested()
             #if DEBUG
@@ -171,6 +177,30 @@ import UniformTypeIdentifiers
         report(["passed":presentations == 5 && players <= 6 && (delays.max() ?? 99)<1,"version":"0.7.1","playersCreated":players,"sheetsPresented":presentations,"stage":"complete","cycles":5,"heartbeatSamples":delays.count,"maxMainActorDelaySeconds":delays.max() ?? 0,"p95MainActorDelaySeconds":delays.sorted()[Int(Double(delays.count-1)*0.95)]])
     }
     #endif
+    #if DEBUG
+    private func verifyMaskUI() async {
+        let original = session.recipe,undo = session.undoStack,redo = session.redoStack,previousTool = tool,previousID = selectedMaskID
+        let oldIdle = UIApplication.shared.isIdleTimerDisabled;UIApplication.shared.isIdleTimerDisabled = true;diagnosticsRunning = true
+        defer { session.recipe = original;session.undoStack = undo;session.redoStack = redo;tool = previousTool;selectedMaskID = previousID;diagnosticsRunning = false;UIApplication.shared.isIdleTimerDisabled = oldIdle }
+        try? await Task.sleep(for:.seconds(1))
+        let players = VideoPlayback.creationCount
+        tool = .masks;splitComparison = false;session.recipe.masks = []
+        var delays = [Double]()
+        for i in 0..<4 { let layer = LocalMask(kind:i%2 == 0 ? .radial : .linear);session.change { $0.masks.append(layer) };selectedMaskID = layer.id;try? await Task.sleep(for:.milliseconds(100)) }
+        for step in 0..<180 {
+            let began = CACurrentMediaTime()
+            if session.recipe.masks.count == 4 { session.recipe.masks[0].centerX = 0.5+sin(Double(step)*0.1)*0.2;session.recipe.masks[0].exposure = 0.5;session.recipe.masks[1].inverted = step%30<15 }
+            showMask = step%60<40
+            try? await Task.sleep(for:.milliseconds(16));delays.append(CACurrentMediaTime()-began)
+        }
+        let count = session.recipe.masks.count
+        session.change { $0.masks.removeAll() };session.undo()
+        let undoOK = session.recipe.masks.count == count && count == 4
+        let result:[String:Any] = ["passed":undoOK && (delays.max() ?? 99)<1 && VideoPlayback.creationCount-players<=1,"layers":count,"updates":180,"undoDeletion":undoOK,"playersCreated":VideoPlayback.creationCount-players,"maxMainActorDelaySeconds":delays.max() ?? 0]
+        let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("mask-ui-verification.json")
+        if let data = try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted) { try? data.write(to:url,options:.atomic) }
+    }
+    #endif
     private var header: some View {
         HStack(spacing: 8) {
             Button { Task { await session.persist(library); dismiss() } } label: { Image(systemName: "chevron.left").frame(width: 44,height: 44) }.accessibilityLabel("Back to workspace")
@@ -191,23 +221,26 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:comparing,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:comparing,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
                         } else {
-                            LivePreview(source:source.image,recipe:session.recipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil)
+                            LivePreview(source:source.image,recipe:session.recipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
                         }
                     }
                         .scaleEffect(zoom * pinch).offset(x: offset.width+drag.width,y: offset.height+drag.height)
-                        .gesture(MagnifyGesture().updating($pinch) { value,state,_ in if !splitComparison { state = value.magnification } }.onEnded { value in guard !splitComparison else { return };zoom = min(4,max(1,zoom * value.magnification)); if zoom == 1 { offset = .zero } })
+                        .gesture(MagnifyGesture().updating($pinch) { value,state,_ in if !splitComparison && tool != .masks { state = value.magnification } }.onEnded { value in guard !splitComparison && tool != .masks else { return };zoom = min(4,max(1,zoom * value.magnification)); if zoom == 1 { offset = .zero } })
                         .simultaneousGesture(DragGesture(minimumDistance: 4).updating($drag) { value,state,_ in if zoom > 1 { state = value.translation } }.onChanged { value in
                             if !splitComparison && tool == .crop && zoom == 1 && pinch == 1 && session.recipe.crop != .original { moveCrop(value,previewSize: geometry.size) }
                         }.onEnded { value in
                             if cropDragStart != nil { cropDragStart = nil; session.end() }
                             else if zoom > 1 { offset.width += value.translation.width; offset.height += value.translation.height }
                         })
-                        .onTapGesture(count: 2) { guard !splitComparison else { return };withAnimation(.easeOut(duration: 0.2)) { zoom = zoom > 1 ? 1 : 2; offset = .zero } }
+                        .onTapGesture(count: 2) { guard !splitComparison && tool != .masks else { return };withAnimation(.easeOut(duration: 0.2)) { zoom = zoom > 1 ? 1 : 2; offset = .zero } }
                         .accessibilityLabel(comparing ? "Original photograph" : "Edited photograph")
                 } else if session.busy { ProgressView("Preparing your media…").font(.caption) }
                 else { ContentUnavailableView("Could not open media",systemImage: "photo.badge.exclamationmark",description: Text(session.error ?? "Return to the workspace and try another file.")) }
+                if tool == .masks,!comparing,let layer = selectedMask,let source = session.source {
+                    MaskPositionHandle(session:session,id:layer.id,sourceSize:source.image.extent.size)
+                }
                 if splitComparison,!comparing,let source = session.source {
                     SplitComparisonDivider(sourceSize:source.image.extent.size,recipe:session.recipe,fraction:$splitPosition)
                 }
@@ -233,7 +266,7 @@ import UniformTypeIdentifiers
                             Button("Paste adjustments",systemImage:"doc.on.clipboard") { transferSheet = .paste }.disabled(library.adjustmentClipboard == nil)
                         } label: { Label("Looks",systemImage: "square.stack").font(.caption.weight(.medium)).padding(.horizontal,13).padding(.vertical,10).background(.ultraThinMaterial,in: Capsule()) }.disabled(session.source == nil)
                         Spacer()
-                        Button { splitComparison.toggle();zoom = 1;offset = .zero } label: { Image(systemName:"rectangle.lefthalf.inset.filled").frame(width:36,height:36).background(splitComparison ? StudioStyle.blue : Color.black.opacity(0.6),in:Circle()).foregroundStyle(.white) }.accessibilityLabel("Split before and after").accessibilityValue(splitComparison ? "On" : "Off")
+                        Button { if tool == .masks { tool = .light };splitComparison.toggle();zoom = 1;offset = .zero } label: { Image(systemName:"rectangle.lefthalf.inset.filled").frame(width:36,height:36).background(splitComparison ? StudioStyle.blue : Color.black.opacity(0.6),in:Circle()).foregroundStyle(.white) }.accessibilityLabel("Split before and after").accessibilityValue(splitComparison ? "On" : "Off")
                         Text("Hold to compare").font(.caption).padding(.horizontal,13).padding(.vertical,10).background(.ultraThinMaterial,in: Capsule())
                             .onLongPressGesture(minimumDuration: .infinity,pressing: { comparing = $0 },perform: {})
                             .accessibilityAddTraits(.isButton).accessibilityAction { comparing.toggle() }
@@ -249,7 +282,7 @@ import UniformTypeIdentifiers
     private var tools: some View {
         HStack(spacing: 0) {
             ForEach(Tool.allCases) { item in
-                Button { tool = item; if item == .crop { zoom = 1; offset = .zero } } label: {
+                Button { tool = item; if item == .crop || item == .masks { zoom = 1;offset = .zero };if item == .masks { splitComparison = false } } label: {
                     VStack(spacing: 5) {
                         Image(systemName: item.symbol).font(.system(size: 18))
                         Text(item.rawValue).font(.system(size: 10,weight: .medium))
@@ -263,7 +296,7 @@ import UniformTypeIdentifiers
     }
     private var controls: some View {
         ScrollView {
-            VStack(alignment: .leading,spacing: tool == .color && (colorPanel == .wheels || colorPanel == .mixer) ? 12 : 22) {
+            VStack(alignment: .leading,spacing: tool == .masks || (tool == .color && (colorPanel == .wheels || colorPanel == .mixer)) ? 12 : 22) {
                 HStack(alignment: .top) {
                     if tool == .color && colorPanel == .wheels {
                         wheelZoneMenu
@@ -275,7 +308,7 @@ import UniformTypeIdentifiers
                     Spacer(minLength: 10)
                     Menu {
                         Button("Reset \(tool.rawValue.lowercased())",systemImage: "arrow.counterclockwise") { session.change { $0.reset(tool) }; if tool == .crop { zoom = 1; offset = .zero } }.disabled(!session.recipe.hasAdjustments(in: tool))
-                        Button("Reset entire photo",systemImage: "trash",role: .destructive) { reset = true }
+                        Button("Reset entire edit",systemImage: "trash",role: .destructive) { reset = true }
                     } label: { Image(systemName: "arrow.counterclockwise").frame(width: 34,height: 34) }.accessibilityLabel("Reset options")
                 }
                 switch tool {
@@ -316,6 +349,8 @@ import UniformTypeIdentifiers
                     adjustment("Vignette",key: \.vignette,range: 0...1)
                 case .curves:
                     curveControls
+                case .masks:
+                    maskControls
                 case .detail:
                     adjustment("Sharpen",key: \.sharpen,range: 0...1)
                     adjustment("Noise reduction",key: \.noise,range: 0...1)
@@ -350,6 +385,52 @@ import UniformTypeIdentifiers
                 }
             }.padding(20).padding(.bottom,12)
         }.scrollIndicators(.hidden)
+    }
+    private var selectedMask:LocalMask? { session.recipe.masks.first(where:{ $0.id == selectedMaskID }) ?? session.recipe.masks.first }
+    private var maskPreview:LocalMask? { tool == .masks && showMask ? selectedMask : nil }
+    private func updateMask(_ change:(inout LocalMask)->Void) {
+        guard let layer = selectedMask,let index = session.recipe.masks.firstIndex(where:{ $0.id == layer.id }) else { return }
+        session.change { change(&$0.masks[index]) }
+    }
+    private var maskControls:some View {
+        VStack(alignment:.leading,spacing:12) {
+            HStack {
+                ForEach(LocalMaskKind.allCases) { kind in Button("+ \(kind.rawValue)") { guard session.recipe.masks.count<4 else { return };var layer = LocalMask(kind:kind);layer = layer.validated();session.change { $0.masks.append(layer) };selectedMaskID = layer.id }.disabled(session.recipe.masks.count>=4) }
+            }.buttonStyle(.bordered).font(.caption)
+            if let layer = selectedMask {
+                ScrollView(.horizontal) {
+                    HStack { ForEach(Array(session.recipe.masks.enumerated()),id:\.element.id) { index,mask in Button("\(index+1) · \(mask.kind.rawValue)") { selectedMaskID = mask.id }.buttonStyle(.bordered).tint(mask.id == layer.id ? StudioStyle.blue : .gray) } }
+                }
+                HStack {
+                    Button { showMask.toggle() } label: { Label("Guide",systemImage:"eye").font(.caption) }.tint(showMask ? StudioStyle.blue : .gray).accessibilityValue(showMask ? "On" : "Off")
+                    Button { updateMask { $0.enabled.toggle() } } label: { Label("On",systemImage:"power").font(.caption) }.tint(layer.enabled ? StudioStyle.blue : .gray).accessibilityValue(layer.enabled ? "On" : "Off")
+                    Button { updateMask { $0.inverted.toggle() } } label: { Label("Invert",systemImage:"circle.lefthalf.filled").font(.caption) }.tint(layer.inverted ? StudioStyle.blue : .gray).accessibilityValue(layer.inverted ? "On" : "Off")
+                }.buttonStyle(.bordered)
+                maskSlider("Exposure",key:\.exposure,range:-3...3)
+                maskSlider("Warmth",key:\.warmth,range:-1...1)
+                maskSlider("Saturation",key:\.saturation,range:-1...1)
+                maskSlider("Contrast",key:\.contrast,range:-1...1)
+                maskSlider("Strength",key:\.amount,range:0...1)
+                DisclosureGroup("Shape, position & feather") {
+                maskSlider("Horizontal position",key:\.centerX,range:0...1)
+                maskSlider("Vertical position",key:\.centerY,range:0...1)
+                maskSlider(layer.kind == .radial ? "Horizontal radius" : "Gradient width",key:\.width,range:0.03...1)
+                if layer.kind == .radial { maskSlider("Vertical radius",key:\.height,range:0.03...1) }
+                maskSlider("Rotation",key:\.angle,range:-180...180)
+                maskSlider("Feather",key:\.feather,range:0.02...1)
+                }.font(.caption)
+                Button("Delete selected mask",role:.destructive) { let id = layer.id;session.change { $0.masks.removeAll { $0.id == id } };selectedMaskID = nil }
+            }
+            Text("Up to four masks. Drag the center in the fitted preview, or use position sliders. Feather softens the edge; invert adjusts the other side. Masks are anchored to the current crop, stay with this source, and are excluded from reusable looks and copy/paste. Video masks stay fixed, without tracking or keyframes. The red guide is never exported.").font(.caption).foregroundStyle(StudioStyle.secondary)
+        }
+    }
+    private func maskSlider(_ name:String,key:WritableKeyPath<LocalMask,Double>,range:ClosedRange<Double>) -> some View {
+        VStack(spacing:8) {
+            HStack { Text(name);Spacer();Text(selectedMask?[keyPath:key] ?? range.lowerBound,format:.number.precision(.fractionLength(2))).monospacedDigit() }.font(.caption)
+            Slider(value:Binding(get:{ min(range.upperBound,max(range.lowerBound,selectedMask?[keyPath:key] ?? range.lowerBound)) },set:{ value in
+                guard let layer = selectedMask,let index = session.recipe.masks.firstIndex(where:{ $0.id == layer.id }) else { return };session.recipe.masks[index][keyPath:key] = value
+            }),in:range,onEditingChanged:{ $0 ? session.begin() : session.end() })
+        }
     }
     private var colorControls: some View {
         VStack(alignment:.leading,spacing: colorPanel == .wheels || colorPanel == .mixer ? 12 : 18) {

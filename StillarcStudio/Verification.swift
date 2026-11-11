@@ -121,7 +121,7 @@ import ImageIO
         }
         try require(Tool.allCases.allSatisfy { !Recipe().hasAdjustments(in: $0) },"Neutral recipe showed used dots")
         for tool in Tool.allCases {
-            var marked = Recipe(); marked[keyPath: tool.valueKeys[0]] = 0.3
+            var marked = Recipe();if tool == .masks { marked.masks = [LocalMask(kind:.radial)] } else { marked[keyPath:tool.valueKeys[0]] = 0.3 }
             try require(marked.hasAdjustments(in: tool),"Missing dot for \(tool.rawValue)")
             try require(Tool.allCases.filter { $0 != tool }.allSatisfy { !marked.hasAdjustments(in: $0) },"Dot appeared in unrelated section")
             marked.reset(tool); try require(!marked.hasAdjustments(in: tool),"Reset failed to clear dot")
@@ -199,7 +199,7 @@ import ImageIO
                 guard context.createCGImage(image,from: image.extent) != nil else { throw StudioError.render }
             }
         }
-        return ["adjustmentTransfer":try await AdjustmentTransferVerification.run(),"versionsComparison":try await VersionComparisonVerification.run(),"scopesGeometry":try ScopeGeometryVerification.run(),"logInput":logReport,"lutTools":lutReport,"gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
+        return ["masks":try MaskVerification.run(),"adjustmentTransfer":try await AdjustmentTransferVerification.run(),"versionsComparison":try await VersionComparisonVerification.run(),"scopesGeometry":try ScopeGeometryVerification.run(),"logInput":logReport,"lutTools":lutReport,"gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
     }
 }
 #endif

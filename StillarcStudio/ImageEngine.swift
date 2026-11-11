@@ -39,6 +39,7 @@ enum ImageEngine {
     static func open(_ url: URL, maxDimension: Double? = nil) throws -> PreparedPhoto {
         try ColorPipeline.prepare()
         try LogConversion.prepare()
+        MaskEngine.prepare()
         let source = CGImageSourceCreateWithURL(url as CFURL, nil)
         let type = source.flatMap { CGImageSourceGetType($0) }.flatMap { UTType($0 as String) }
         let raw = type?.conforms(to: .rawImage) == true || ["dng","nef","arw","cr2","cr3","raf","orf","rw2"].contains(url.pathExtension.lowercased())
@@ -130,7 +131,7 @@ enum ImageEngine {
             image = texture.applyingFilter("CISoftLightBlendMode", parameters: [kCIInputBackgroundImageKey: image])
         }
         if r.vignette > 0 { filter("CIVignette", [kCIInputIntensityKey: r.vignette * 1.6, kCIInputRadiusKey: max(image.extent.width,image.extent.height) * 0.6]) }
-        return PhotoFraming.apply(image, recipe: r)
+        return MaskEngine.apply(PhotoFraming.apply(image,recipe:r),layers:r.masks)
     }
 
     static func export(source: URL, recipe: Recipe, format: ExportFormat) throws -> ExportResult {

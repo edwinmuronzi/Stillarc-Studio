@@ -98,6 +98,18 @@ enum VideoVerification {
                 let alternatePoster = try await VideoEngine.poster(alternate.url,descriptor:alternateDescriptor,maxDimension:450)
                 let alternateMean = mean(alternatePoster.image)
                 try require((0..<3).allSatisfy { abs(alternateMean[$0]-expected[$0])<0.025 },"8-bit alternate export color mismatch")
+                var masked = recipe;var layer = LocalMask(kind:.radial);layer.exposure = 1;layer.width = 0.2;layer.height = 0.2;masked.masks = [layer]
+                let maskResult = try await VideoEngine.export(source:url,descriptor:descriptor,recipe:masked,tenBit:false,progress:{ _ in })
+                defer { try? FileManager.default.removeItem(at:maskResult.url) }
+                let maskDescriptor = try await VideoEngine.describe(maskResult.url),maskPoster = try await VideoEngine.poster(maskResult.url,descriptor:maskDescriptor,maxDimension:450)
+                func patch(_ image:CIImage,_ fx:Double,_ fy:Double) -> [Float] {
+                    let rect = CGRect(x:image.extent.minX+image.extent.width*fx,y:image.extent.minY+image.extent.height*fy,width:2,height:2)
+                    let average = image.applyingFilter("CIAreaAverage",parameters:["inputExtent":CIVector(cgRect:rect)])
+                    var p = [Float](repeating:0,count:4);context.render(average,toBitmap:&p,rowBytes:16,bounds:CGRect(x:0,y:0,width:1,height:1),format:.RGBAf,colorSpace:ImageEngine.working);return p
+                }
+                let base = patch(prepared.image,0.5,0.5),center = patch(maskPoster.image,0.5,0.5),outside = patch(maskPoster.image,0.1,0.1)
+                try require((0..<3).allSatisfy { abs(center[$0]-base[$0]*2)<0.015 && abs(outside[$0]-base[$0])<0.015 },"Video mask changed outside pixels or exported the guide")
+
             }
             checks.append(["profile":profile.rawValue,"frames":originalTimes.count,"audioTracks":originalAudio.count,"width":result.width,"height":result.height,"metadata":true,"color":true,"originalPreserved":true,"projectRoundTrip":true,"cancellation":true])
         }
@@ -111,7 +123,7 @@ enum VideoVerification {
         try require(largeResult.width == 2160 && largeResult.height == 2160,"4K source crop geometry changed")
         try require(try await frameTimes(largeResult.url).count == 3,"4K export dropped frames")
         #endif
-        return ["passed":true,"version":"0.7.0","clips":checks,"photoInput":try LogVerification.run(),"trimHDR":try await HDRTrimVerification.run()]
+        return ["passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","clips":checks,"photoInput":try LogVerification.run(),"trimHDR":try await HDRTrimVerification.run()]
     }
     @MainActor static func writeReport() async {
         let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("video-verification.json")

@@ -1,0 +1,62 @@
+{
+  "passed" : true,
+  "version" : "0.11.0",
+  "photoInput" : {
+    "passed" : true,
+    "presetInputIsolation" : true,
+    "highlightShoulder" : true,
+    "standardBypass" : true,
+    "exposureAlpha" : true,
+    "bothGamuts" : true,
+    "persistence" : true,
+    "curveVectors" : 16
+  },
+  "clips" : [
+    {
+      "frames" : 18,
+      "metadata" : true,
+      "profile" : "standard",
+      "audioTracks" : 2,
+      "originalPreserved" : true,
+      "cancellation" : true,
+      "color" : true,
+      "projectRoundTrip" : true,
+      "width" : 640,
+      "height" : 360
+    },
+    {
+      "width" : 360,
+      "height" : 640,
+      "profile" : "appleLog",
+      "metadata" : true,
+      "color" : true,
+      "frames" : 18,
+      "projectRoundTrip" : true,
+      "cancellation" : true,
+      "originalPreserved" : true,
+      "audioTracks" : 1
+    },
+    {
+      "metadata" : true,
+      "profile" : "appleLog2",
+      "frames" : 18,
+      "width" : 640,
+      "height" : 360,
+      "cancellation" : true,
+      "audioTracks" : 1,
+      "originalPreserved" : true,
+      "color" : true,
+      "projectRoundTrip" : true
+    }
+  ],
+  "trimHDR" : {
+    "passed" : true,
+    "headroomVectors" : 5,
+    "audioTracks" : 2,
+    "trimFrames" : 33,
+    "persistence" : true,
+    "presetIsolation" : true,
+    "trimSeconds" : 1.1000000000000001,
+    "zeroBasedTiming" : true
+  }
+}

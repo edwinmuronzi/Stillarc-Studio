@@ -2,6 +2,7 @@ import Foundation
 
 // Portable, versioned instructions. Source pixels are never changed.
 struct Recipe: Codable, Equatable, Sendable {
+    var masks = [LocalMask]()
     var geometry = GeometrySettings()
     var video = VideoEdit()
     var input = InputConversion()
@@ -38,10 +39,11 @@ struct Recipe: Codable, Equatable, Sendable {
     var look = FilmLook.original
     var lookAmount = 1.0
     init() {}
-    private enum CodingKeys: String, CodingKey { case geometry, video, input, lut, lutAmount, colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
+    private enum CodingKeys: String, CodingKey { case masks, geometry, video, input, lut, lutAmount, colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
     init(from decoder: Decoder) throws {
         self.init()
         let values = try decoder.container(keyedBy: CodingKeys.self)
+        masks = Array((try values.decodeIfPresent([LocalMask].self,forKey:.masks) ?? []).prefix(4)).map { $0.validated() }
         geometry = (try values.decodeIfPresent(GeometrySettings.self,forKey:.geometry) ?? GeometrySettings()).validated()
         video = try values.decodeIfPresent(VideoEdit.self,forKey:.video) ?? VideoEdit()
         input = try values.decodeIfPresent(InputConversion.self,forKey:.input) ?? InputConversion()
@@ -101,10 +103,10 @@ enum FilmLook: String, CaseIterable, Codable, Sendable {
     }
 }
 enum Tool: String, CaseIterable, Identifiable {
-    case light = "Light", color = "Color", film = "Film", curves = "Curves", detail = "Detail", crop = "Crop"
+    case light = "Light", color = "Color", film = "Film", curves = "Curves", detail = "Detail", crop = "Crop", masks = "Masks"
     var id: String { rawValue }
     var symbol: String {
-        switch self { case .light: "sun.max"; case .color: "circle.lefthalf.filled"; case .film: "camera.filters"; case .curves: "point.topleft.down.to.point.bottomright.curvepath"; case .detail: "triangle"; case .crop: "crop.rotate" }
+        switch self { case .light: "sun.max"; case .color: "circle.lefthalf.filled"; case .film: "camera.filters"; case .curves: "point.topleft.down.to.point.bottomright.curvepath"; case .detail: "triangle"; case .crop: "crop.rotate";case .masks:"circle.dashed.inset.filled" }
     }
     var help: String {
         switch self {
@@ -113,6 +115,7 @@ enum Tool: String, CaseIterable, Identifiable {
         case .film: "Build a look with texture, soft light and a film-inspired finish."
         case .curves: "Shape brightness or individual red, green and blue tones."
         case .detail: "Bring out edges or soften visible digital noise."
+        case .masks:"Adjust a chosen area with a soft linear or radial mask."
         case .crop: "Drag the photo to reframe it. Straighten a horizon without leaving black corners."
         }
     }
@@ -173,12 +176,14 @@ extension Tool {
         case .film: [\.grain, \.bloom, \.fade, \.vignette]
         case .curves: [\.curveShadows, \.curveMidtones, \.curveHighlights]
         case .detail: [\.sharpen, \.noise]
+        case .masks: []
         case .crop: [\.straighten]
         }
     }
 }
 extension Recipe {
     func hasAdjustments(in tool: Tool) -> Bool {
+        if tool == .masks { return !masks.isEmpty }
         if tool.valueKeys.contains(where: { abs(self[keyPath: $0]) > 0.000001 }) { return true }
         if tool == .curves && !rgbCurves.isNeutral { return true }
         if tool == .color && (!selectiveColors.isNeutral || !colorWheels.isNeutral || !channelMixer.isNeutral) { return true }
@@ -187,6 +192,7 @@ extension Recipe {
         return false
     }
     mutating func reset(_ tool: Tool) {
+        if tool == .masks { masks = [];return }
         let neutral = Recipe()
         for key in tool.valueKeys { self[keyPath: key] = neutral[keyPath: key] }
         if tool == .curves { rgbCurves = RGBCurves() }
@@ -197,5 +203,5 @@ extension Recipe {
     mutating func copyFraming(from source: Recipe) {
         geometry = source.geometry;crop = source.crop; rotation = source.rotation; straighten = source.straighten; cropX = source.cropX; cropY = source.cropY
     }
-    var colorPreset: Recipe { var copy = self; copy.reset(.crop); copy.input = InputConversion(); copy.video = VideoEdit(); return copy }
+    var colorPreset: Recipe { var copy = self; copy.reset(.crop); copy.input = InputConversion(); copy.video = VideoEdit();copy.masks = []; return copy }
 }

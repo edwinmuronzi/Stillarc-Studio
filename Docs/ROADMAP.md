@@ -32,7 +32,9 @@ Implemented in 0.9: fitted draggable split before/after and up to 20 complete so
 
 Implemented in 0.10: persistent internal adjustment copy/paste with ten selectable sections, included LUT data, single-step undo/redo and destination-specific input/framing/trim/HDR preservation.
 
-Next: brush/linear/radial and color/luminance masks with invert, feather, add/subtract and overlays. Then on-device subject/sky selection, healing and carefully bounded advanced noise reduction. Multiple versions, favorites/ratings, project recovery, batch copy/paste, batch export and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
+Implemented in 0.11: up to four linear/radial local adjustments with exposure, warmth, saturation, contrast, feather, inversion, strength and preview-only overlays. Source-specific masks survive project/complete-version saves and remain excluded from reusable presets/clipboard grades. They are anchored to the current frame, without tracking.
+
+Next: brush and color/luminance masks, mask combinations and tracking. Then on-device subject/sky selection, healing and carefully bounded advanced noise reduction. Multiple versions, favorites/ratings, project recovery, batch copy/paste, batch export and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
 
 ## 5 — Video grading
 

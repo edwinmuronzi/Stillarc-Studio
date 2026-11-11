@@ -1,0 +1,23 @@
+{
+  "trimmedPlayback" : true,
+  "maskGuideVisible" : true,
+  "requestedUpdates" : 7200,
+  "scopeJobs" : 603,
+  "passed" : true,
+  "activeMaskLayers" : 4,
+  "scopesEnabled" : true,
+  "rendered" : 7424,
+  "decodedFrames" : 3647,
+  "version" : "0.11.0",
+  "elapsedSeconds" : 128.2663032499986,
+  "scopeAnalysisP95Milliseconds" : 18.309999999473803,
+  "p95Milliseconds" : 14.089291667914949,
+  "gpuFailures" : 0,
+  "idleFrames" : 0,
+  "splitComparison" : true,
+  "thermalStart" : 0,
+  "interrupted" : false,
+  "scopeJobsAfterHide" : 0,
+  "thermalEnd" : 0,
+  "hdrPreview" : true
+}
