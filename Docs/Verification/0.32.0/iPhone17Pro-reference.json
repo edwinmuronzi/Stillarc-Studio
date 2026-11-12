@@ -1,0 +1,28 @@
+{
+  "presetSchema4" : true,
+  "video" : {
+    "duration" : 0.29999999999999999,
+    "previewExportMeanError" : 0.00038825720548629761,
+    "passed" : true,
+    "audioTracks" : 1
+  },
+  "sourcePreserved" : true,
+  "strengthAndBounds" : true,
+  "privateReferencePersistenceAndSnapshot" : true,
+  "skinGuideProjection" : true,
+  "PNGMatch" : true,
+  "version" : "0.32.0",
+  "transferResetIsolation" : true,
+  "emptyBin" : {
+    "confirmedSnapshotOnly" : true,
+    "passed" : true,
+    "restoredProjectSafe" : true,
+    "externalOriginalSafe" : true,
+    "liveProjectSafe" : true,
+    "emptyState" : true
+  },
+  "thermal" : 0,
+  "passed" : true,
+  "linearLightAndColor" : true,
+  "emptyReferenceGuard" : true
+}

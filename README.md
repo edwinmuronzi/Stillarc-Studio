@@ -4,7 +4,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.31 background replacement and photo-development milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.32 reference comparison and shot-matching milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -309,3 +309,15 @@ All new photo settings, replacement assets and repairs remain source-specific, r
 
 
 Studio 0.31.2 uses the approved flat arc-S before/after identity in both Home Screen icon appearances and the in-app workspace/About mark. [Identity masters and regeneration instructions](Design/Icons/README.md).
+
+
+## 0.32 — Reference & Match, skin-hue guide and Empty Bin
+
+- **Looks → Reference & Match:** import a reference from Photos/Files, or use **From projects** to save an edited snapshot of another project (the current pool is offered first). The reference and current edit stay visible together, stacked on portrait screens or side by side in wide layouts. References are bounded to 1536 pixels, stored privately with the project, and never become part of the exported picture. Snapshot references stay unchanged if their source project is edited later.
+- **Suggest a match:** request a gentle starting point for overall Light, Color balance and optional Richness. The analysis uses bounded image statistics once per tap. It cannot identify matching objects, reproduce a look exactly or correct different lighting automatically. A 0–100% Match strength blends the correction; double-tap restores 100%; Reset match removes it. Usual Undo/Redo and complete project versions retain it. Clearing a reference keeps its correction.
+- The new correction runs as ordinary pointwise GPU color processing and applies to full-resolution photo/video output. The reference image itself remains source-specific. **Color** copy/paste/pool sync includes the match correction, and color-only LUT export includes its compatible color changes. Matched presets use schema 4 so older releases reject unsupported presets rather than silently omit the correction.
+- Video comparison uses the **first kept frame**, including its saved mask positions and film-grain time. Review playback after matching. HDR comparison is an SDR proof; output HDR/SDR choice stays unchanged. Replacement backgrounds keep their own adjustments.
+- **Scopes → Vectorscope → Skin hue guide:** an optional dashed direction in the SDR scope helps inspect warm skin hues. It is not a required skin color, face detector or automatic skin edit. Lighting, makeup, complexion and creative intent matter. Use SDR proof to view this guide for HDR photos; it is hidden for the linear HDR scope. The guide is never exported.
+- **Recently Deleted → Empty Bin**, or hold the Home **Recently Deleted** button and choose **Empty Bin…**. Confirming permanently removes the listed Studio copies and saved edits. The action reconciles interrupted restores and uses the confirmed snapshot of entries, preserving active/restored projects and items deleted afterward. Original Photos/Files media is untouched. Failures leave remaining entries available to retry.
+
+Studio’s approved light and dark icon masters were also copied to the Desktop as **Stillarc Studio - Light.png** and **Stillarc Studio - Dark.png**. This checkpoint does not add the separate timeline app, advanced denoise or face/skin segmentation.

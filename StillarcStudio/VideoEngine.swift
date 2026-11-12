@@ -52,7 +52,7 @@ enum VideoEngine {
         let managed = descriptor.detectedLog == nil ? CIImage(cvPixelBuffer:buffer) : raw.applyingFilter("CISRGBToneCurveToLinear")
         return (orient(managed),orient(raw))
     }
-    static func poster(_ url:URL,descriptor:VideoDescriptor,maxDimension:Double = 1600) async throws -> PreparedPhoto {
+    static func poster(_ url:URL,descriptor:VideoDescriptor,maxDimension:Double = 1600,time:Double = 0) async throws -> PreparedPhoto {
         try LensRendering.prepare();try FilmRendering.prepare()
         try LevelsRendering.prepare();try DehazeRendering.prepare();try DetailRendering.prepare();try ColorPipeline.prepare();try LogConversion.prepare();try HDRPipeline.prepare();try MaskEngine.prepare()
         let asset = AVURLAsset(url:url)
@@ -60,6 +60,8 @@ enum VideoEngine {
         let reader = try AVAssetReader(asset:asset)
         let output = AVAssetReaderTrackOutput(track:track,outputSettings:pixelAttributes)
         guard reader.canAdd(output) else { throw StudioError.unreadable }; reader.add(output)
+        let start=time.isFinite ? min(max(0,time),max(0,descriptor.duration-1/max(1,descriptor.frameRate))):0
+        if start>0 {reader.timeRange=CMTimeRange(start:CMTime(seconds:start,preferredTimescale:60000),duration:CMTime(seconds:descriptor.duration-start,preferredTimescale:60000))}
         guard reader.startReading(), let sample = output.copyNextSampleBuffer(), let buffer = CMSampleBufferGetImageBuffer(sample) else { throw StudioError.unreadable }
         defer { reader.cancelReading() }
         let pair = images(buffer,descriptor:descriptor,maxDimension:maxDimension), context = ImageEngine.context()

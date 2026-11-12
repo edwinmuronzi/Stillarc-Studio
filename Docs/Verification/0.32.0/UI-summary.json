@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "distinctTests": 8,
+  "initialPassed": 7,
+  "correctedAndRetested": [
+    "testEmptyBinMenuAndConfirmationCancel"
+  ],
+  "note": "An overlapping confirmation presenter was replaced with an alert. The single failing case then passed. No user projects were permanently deleted by UI tests; destructive behavior uses isolated fixtures."
+}

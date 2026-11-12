@@ -46,3 +46,6 @@ The editing pool comes first, then paired subject/background controls. This dire
 
 
 0.31 completes the scoped static-photo work in batches 2–3: replacement solid/image/original-blur backgrounds; duplicate/invert and richer local light/color/detail controls; supported native RAW decode/WB/recovery/lens/noise settings; manual chromatic/defringe; spot heal/clone; on-demand full-resolution detail tile; HDR still preview, SDR proof and 10-bit HLG HEIF delivery. Editing-pool delivery supports all or selected items. Camera-profile support is decoder-reported, not a claim of multi-camera calibration. Face/skin selections, advanced denoise and temporally stable video removal remain conditional future work. No timeline or beta/store work is included.
+
+
+0.32 begins batch 4 with persistent private reference-image comparison, edited project snapshots, a bounded request-only statistical shot-match suggestion, reversible strength and portable matching corrections, plus an SDR vectorscope skin-hue guide. It is not semantic/object-aware matching or a universal skin-color target. Clearer color-warp controls, additional validated camera transforms, grade/mask keyframes and output/interchange work remain future checkpoints. Empty Bin is also added with snapshot confirmation and restore-aware deletion.

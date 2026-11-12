@@ -1,0 +1,28 @@
+{
+  "poolAllAndSelected" : true,
+  "presetIsolation" : true,
+  "missingAssetGuard" : true,
+  "version" : "0.32.0",
+  "heif" : {
+    "headroom" : 3.0244159698486328,
+    "height" : 48,
+    "passed" : true,
+    "properties" : "[\"ColorModel\": RGB, \"PrimaryImage\": 1, \"{TIFF}\": {\n    Orientation = 1;\n    TileLength = 48;\n    TileWidth = 64;\n}, \"Orientation\": 1, \"PixelWidth\": 64, \"{Exif}\": {\n    PixelXDimension = 64;\n    PixelYDimension = 48;\n}, \"PixelHeight\": 48, \"ProfileName\": Rec. ITU-R BT.2100 HLG, \"Headroom\": 4.926108, \"Depth\": 10]",
+    "width" : 64
+  },
+  "thermal" : 0,
+  "richerLocalControls" : true,
+  "hdrProofAndBackground" : true,
+  "passed" : true,
+  "solidReplacement" : true,
+  "raw" : {
+    "previewExportMeanError" : 0.0017940137573854524,
+    "height" : 4032,
+    "passed" : true,
+    "width" : 3024,
+    "highlightRecoverySupported" : true,
+    "lensSupported" : false
+  },
+  "imageReplacementPersistenceAndExport" : true,
+  "healClone" : true
+}

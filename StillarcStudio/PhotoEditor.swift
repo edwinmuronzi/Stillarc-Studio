@@ -35,6 +35,7 @@ import UniformTypeIdentifiers
     @State private var splitPosition = 0.5
     @State private var versionsSheet = false
     @State private var transferSheet:AdjustmentTransferMode?
+    @State private var referenceSheet=false
     @State private var photoDevelopment=false
     @State private var backgroundSheet=false
     @State private var retouchSheet=false
@@ -95,6 +96,9 @@ import UniformTypeIdentifiers
                 var layer = LocalMask(kind:.radial);layer.centerX = 0.3;layer.width = 0.14;layer.height = 0.14;layer.exposure = 0.5
                 session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks
                 try? await Task.sleep(for:.seconds(1));trackingMask = layer
+            }
+            if arguments.contains("--reference-demo"),let url=Bundle.main.url(forResource:"Sample",withExtension:"jpg") {
+                if let ref=try? await library.vault.importReference(url,project:session.project) {session.change {$0=Recipe();$0.reference=ref;$0.exposure = -0.6}}
             }
             if arguments.contains("--neutral-demo") { session.change { $0 = Recipe() } }
             if arguments.contains("--brush-demo") { var layer = LocalMask(kind:.brush);var drawing = BrushDrawing();let id = drawing.begin(point:BrushPoint(x:0.3,y:0.3),radius:0.08,feather:0.6,erase:false)!;drawing.append(BrushPoint(x:0.7,y:0.6),stroke:id);layer.brush = drawing;layer.exposure = 0.5;session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks }
@@ -173,6 +177,7 @@ import UniformTypeIdentifiers
         }
         .task(id:developmentTaskKey) {await refreshPhotoSource()}
         .task(id:session.backgroundKey) {await session.warmBackground()}
+        .sheet(isPresented:$referenceSheet) {ReferenceMatchSheet(session:session,library:library,pool:pool)}
         .sheet(isPresented:$photoDevelopment) {PhotoDevelopmentSheet(session:session,sdrProof:$sdrProof)}
         .sheet(isPresented:$backgroundSheet) {BackgroundSheet(session:session,library:library)}
         .sheet(isPresented:$retouchSheet) {RetouchSheet(session:session)}
@@ -440,9 +445,9 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !referenceSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
                         } else {
-                            LivePreview(source:PhotoRendering.rawPreview(source,recipe:session.recipe),recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !export && !presets && !versionsSheet && !retouchSheet && !detailSheet && !backgroundSheet && !photoDevelopment && transferSheet == nil && trackingMask == nil && automaticTarget == nil,hdr:session.recipe.photoHDR == true && !sdrProof,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
+                            LivePreview(source:PhotoRendering.rawPreview(source,recipe:session.recipe),recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !referenceSheet && !export && !presets && !versionsSheet && !retouchSheet && !detailSheet && !backgroundSheet && !photoDevelopment && transferSheet == nil && trackingMask == nil && automaticTarget == nil,hdr:session.recipe.photoHDR == true && !sdrProof,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
                         }
                     }
                         .padding(tool == .crop ? (cropDisplayFinal ? 8 : 22) : 0)
@@ -484,6 +489,7 @@ import UniformTypeIdentifiers
                     Spacer()
                     HStack {
                         Menu {
+                            Button("Reference & Match",systemImage:"rectangle.split.2x1") {referenceSheet=true}
                             Button("Looks & presets",systemImage:"square.stack") { presets = true }
                             Button("Saved versions",systemImage:"clock.arrow.circlepath") { versionsSheet = true }
                             Divider()
@@ -500,7 +506,7 @@ import UniformTypeIdentifiers
             }.coordinateSpace(name:"comparisonPreview").frame(width: geometry.size.width,height: geometry.size.height).clipped()
         }
     }
-    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil && !inputSheet }
+    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !referenceSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil && !inputSheet }
     @ViewBuilder private var scopePanel:some View {
         if scopesVisible && tool != .crop { ScopePanel(sampler:scopeSampler,mode:$scopeMode) }
     }
@@ -816,6 +822,7 @@ import UniformTypeIdentifiers
                 ForEach(ColorPanel.allCases,id: \.self) { Text($0.rawValue).tag($0) }
             }.pickerStyle(.segmented)
             if colorPanel == .global {
+                if session.recipe.matchGrade?.isNeutral == false {Button("Reference match active · adjust"){referenceSheet=true}.font(.caption)}
                 adjustment("Warmth",key: \.warmth)
                 adjustment("Tint",key: \.tint)
                 adjustment("Saturation",key: \.saturation)
@@ -991,6 +998,8 @@ import UniformTypeIdentifiers
         session.recipe.straighten = 3; session.recipe.crop = .portrait
         if releaseCheck { session.recipe.halation = 0.15;session.recipe.grainModel = 2;session.recipe.grainSize = 0.4;session.recipe.geometry.lensDistortion = 0.08 }
         let backgroundCheck=ProcessInfo.processInfo.arguments.contains("--background-performance-check")
+        let matchCheck=ProcessInfo.processInfo.arguments.contains("--reference-performance-check")
+        if matchCheck {session.recipe.matchGrade=MatchGrade(exposure:0.3,red:1.1,green:0.98,blue:0.9,saturation:1.05)}
         let cutoutCheck=backgroundCheck || ProcessInfo.processInfo.arguments.contains("--cutout-performance-check")
         let inferenceStart=AutomaticSelectionEngine.analysisCount
         if cutoutCheck,let url=session.sourceURL {
@@ -1005,7 +1014,7 @@ import UniformTypeIdentifiers
                 try? await Task.sleep(for:.milliseconds(300));PreviewMetrics.shared.times=[];PreviewMetrics.shared.failures=0
             } catch {writeProgress(["stage":"cutout setup failed","error":error.localizedDescription]);return}
         }
-        let steps = cutoutCheck ? 1800 : (releaseCheck ? 2700 : (ProcessInfo.processInfo.arguments.contains("--sustained-preview") ? 7200 : 180))
+        let steps = (cutoutCheck || matchCheck) ? 1800 : (releaseCheck ? 2700 : (ProcessInfo.processInfo.arguments.contains("--sustained-preview") ? 7200 : 180))
         var interrupted = false
         for index in 0..<steps {
             if Task.isCancelled || UIApplication.shared.applicationState != .active { interrupted = true; break }
@@ -1014,6 +1023,7 @@ import UniformTypeIdentifiers
                 thermalSamples.append(["seconds":CACurrentMediaTime()-began,"state":thermal,"rendered":PreviewMetrics.shared.times.count])
             }
             if index % 120 == 0 { writeProgress(["stage":"running","step":index,"rendered":PreviewMetrics.shared.times.count,"active":UIApplication.shared.applicationState == .active]) }
+            if matchCheck {session.recipe.matchGrade?.amount=0.5+sin(Double(index)*0.09)*0.5}
             session.recipe.lutAmount = 0.5 + sin(Double(index)*0.1)*0.5
             session.recipe.levelGamma = 1+sin(Double(index)*0.03)*0.15
             session.recipe.dehaze = sin(Double(index)*0.05)*0.4
@@ -1034,13 +1044,13 @@ import UniformTypeIdentifiers
         try? await Task.sleep(for: .seconds(1))
         let count = PreviewMetrics.shared.times.count
         writeProgress(["stage":"idle check","rendered":count])
-        for _ in 0..<(cutoutCheck ? 15 : (releaseCheck ? 30 : 3)) {
+        for _ in 0..<((cutoutCheck || matchCheck) ? 15 : (releaseCheck ? 30 : 3)) {
             if Task.isCancelled || UIApplication.shared.applicationState != .active { interrupted = true;break }
             peakThermal = max(peakThermal,ProcessInfo.processInfo.thermalState.rawValue)
             try? await Task.sleep(for:.seconds(1))
         }
         let times = PreviewMetrics.shared.times.sorted()
-        let report: [String: Any] = ["backgroundCheck":backgroundCheck,"cutoutCheck":cutoutCheck,"inferenceCalls":AutomaticSelectionEngine.analysisCount-inferenceStart,"cutoutActive":session.recipe.hasCutout,"releaseCheck":releaseCheck,"thermalPeak":peakThermal,"thermalSamples":thermalSamples,"idleCheckSeconds":cutoutCheck ? 15:(releaseCheck ? 30 : 3),"interrupted":interrupted,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","elapsedSeconds":CACurrentMediaTime()-began,"cancelled":Task.isCancelled,"requestedUpdates": steps,"rendered": count,"kernelBackend":ColorPipeline.backend,"p95Milliseconds": times.isEmpty ? 0 : times[Int(Double(times.count-1)*0.95)],"extraIdleFrames": times.count-count,"gpuFailures": PreviewMetrics.shared.failures,"thermalStart": start,"thermalEnd": ProcessInfo.processInfo.thermalState.rawValue]
+        let report: [String: Any] = ["matchCheck":matchCheck,"backgroundCheck":backgroundCheck,"cutoutCheck":cutoutCheck,"inferenceCalls":AutomaticSelectionEngine.analysisCount-inferenceStart,"cutoutActive":session.recipe.hasCutout,"releaseCheck":releaseCheck,"thermalPeak":peakThermal,"thermalSamples":thermalSamples,"idleCheckSeconds":(cutoutCheck || matchCheck) ? 15:(releaseCheck ? 30 : 3),"interrupted":interrupted,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","elapsedSeconds":CACurrentMediaTime()-began,"cancelled":Task.isCancelled,"requestedUpdates": steps,"rendered": count,"kernelBackend":ColorPipeline.backend,"p95Milliseconds": times.isEmpty ? 0 : times[Int(Double(times.count-1)*0.95)],"extraIdleFrames": times.count-count,"gpuFailures": PreviewMetrics.shared.failures,"thermalStart": start,"thermalEnd": ProcessInfo.processInfo.thermalState.rawValue]
         if let data = try? JSONSerialization.data(withJSONObject: report,options: .prettyPrinted) {
             try? data.write(to: documents.appendingPathComponent("preview-verification.json"),options: .atomic)
             writeProgress(["stage":"finished","rendered":count])

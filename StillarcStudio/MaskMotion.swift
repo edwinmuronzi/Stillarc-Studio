@@ -10,7 +10,7 @@ struct MaskMotion:Codable,Equatable,Sendable {
     var start:Double
     var end:Double
     var points:[MaskMotionPoint]
-    struct Frame:Sendable { var time:Double;var framing:String }
+    struct Frame:Sendable,Equatable { var time:Double;var framing:String }
     @TaskLocal static var frame:Frame?
     static func signature(_ r:Recipe) -> String {
         let g = r.geometry

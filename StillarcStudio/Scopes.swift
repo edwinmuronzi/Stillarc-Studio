@@ -80,9 +80,18 @@ enum ScopeAnalysis {
         return result
     }
 }
+enum SkinHueGuide {
+    // A conventional warm-hue direction in the same Rec.709 Y/Cb/Cr projection as the SDR scope.
+    static let direction:CGVector = {
+        let r=0.76,g=0.52,b=0.38,y=0.2126*r+0.7152*g+0.0722*b
+        let x=(b-y)/1.8556,dy = -(r-y)/1.5748,length=hypot(x,dy)
+        return CGVector(dx:x/length,dy:dy/length)
+    }()
+}
 struct ScopePanel:View {
     @Bindable var sampler:ScopeSampler
     @Binding var mode:ScopeMode
+    @AppStorage("scope.skinHueGuide") private var skinGuide=false
     var body:some View {
         VStack(spacing:6) {
             Picker("Scope",selection:$mode) { ForEach(ScopeMode.allCases,id:\.self) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented)
@@ -102,8 +111,17 @@ struct ScopePanel:View {
                     if mode == .vectorscope { grid.addEllipse(in:rect);grid.move(to:CGPoint(x:rect.midX,y:rect.minY));grid.addLine(to:CGPoint(x:rect.midX,y:rect.maxY));grid.move(to:CGPoint(x:rect.minX,y:rect.midY));grid.addLine(to:CGPoint(x:rect.maxX,y:rect.midY)) }
                     else { for n in 1...3 { let y = size.height*Double(n)/4;grid.move(to:CGPoint(x:0,y:y));grid.addLine(to:CGPoint(x:size.width,y:y)) } }
                     context.stroke(grid,with:.color(.white.opacity(0.2)),lineWidth:0.5)
+                    if mode == .vectorscope,skinGuide,!snapshot.hdr {
+                        let d=SkinHueGuide.direction
+                        var guide=Path();guide.move(to:CGPoint(x:rect.midX,y:rect.midY));guide.addLine(to:CGPoint(x:rect.midX+d.dx*side*0.46,y:rect.midY+d.dy*side*0.46))
+                        context.stroke(guide,with:.color(.white.opacity(0.85)),style:StrokeStyle(lineWidth:1,dash:[3,2]))
+                    }
                 }
             }.frame(height:80).background(.black,in:RoundedRectangle(cornerRadius:8)).accessibilityLabel(mode.rawValue+" of the current preview")
+            if mode == .vectorscope {
+                Toggle("Skin hue guide",isOn:$skinGuide).font(.caption2).disabled(sampler.snapshot.hdr).accessibilityIdentifier("skinHueGuide")
+                if skinGuide || sampler.snapshot.hdr {Text(sampler.snapshot.hdr ? "Use SDR proof for the skin-hue guide.":"A common skin-hue direction, not a skin-color target. Lighting, makeup and your chosen look can move the trace.").font(.system(size:9)).foregroundStyle(StudioStyle.secondary)}
+            }
             Text(sampler.snapshot.hdr ? "HDR · linear 0–8× SDR white" : "SDR · RGB 0–100% · sampled preview").font(.system(size:9,design:.monospaced)).foregroundStyle(StudioStyle.secondary)
         }.padding(10).background(StudioStyle.panel)
     }

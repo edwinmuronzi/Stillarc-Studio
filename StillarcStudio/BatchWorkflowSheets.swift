@@ -81,16 +81,23 @@ struct BatchExportSheet:View {
 }
 struct RecentlyDeletedSheet:View {
     @Bindable var library:StudioLibrary
+    var requestEmpty=false
     @Environment(\.dismiss) private var dismiss
     @State private var entries:[DeletedProject] = []
     @State private var busy = false
     @State private var error:String?
     @State private var erase:DeletedProject?
+    @State private var emptySnapshot:[DeletedProject]?
+    @State private var emptyMessage:String?
     @State private var preview:DeletedProject?
     var body:some View {
         NavigationStack {
             List {
                 Section { Text("Studio copies stay here for 30 days, then are removed. Restoring brings back their media, edits, ratings and saved versions. Your original in Photos or Files is unchanged.").font(.subheadline).foregroundStyle(StudioStyle.secondary) }
+                Section {
+                    Button("Empty Bin",systemImage:"trash.slash",role:.destructive) {emptySnapshot=entries}.disabled(busy || entries.isEmpty).accessibilityIdentifier("emptyBinButton")
+                    if let emptyMessage {Text(emptyMessage).font(.caption).foregroundStyle(StudioStyle.secondary)}
+                }
                 if entries.isEmpty { Text("No recently deleted projects").foregroundStyle(StudioStyle.secondary) }
                 ForEach(entries) { entry in
                     VStack(alignment:.leading,spacing:10) {
@@ -110,7 +117,7 @@ struct RecentlyDeletedSheet:View {
                 }
                 if let error { Text(error).font(.caption).foregroundStyle(.orange) }
             }.navigationTitle("Recently Deleted").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { dismiss() }.disabled(busy) }
-        }.tint(StudioStyle.blue).task { await load() }.interactiveDismissDisabled(busy)
+        }.tint(StudioStyle.blue).task {await load();if requestEmpty,!entries.isEmpty {emptySnapshot=entries}}.interactiveDismissDisabled(busy)
         .sheet(item:$preview) { entry in
             NavigationStack {
                 ProjectThumbnail(project:entry.project,vault:library.vault,deletedEntry:entry)
@@ -120,9 +127,22 @@ struct RecentlyDeletedSheet:View {
                     .toolbar { Button("Done") { preview = nil } }
             }.tint(StudioStyle.blue)
         }
+        .alert("Permanently delete \(emptySnapshot?.count ?? 0) projects?",isPresented:Binding(get:{emptySnapshot != nil},set:{if !$0 {emptySnapshot=nil}})) {
+            Button("Empty Bin",role:.destructive) {let ids=Set((emptySnapshot ?? []).map(\.id));emptySnapshot=nil;Task {await empty(ids)}}
+            Button("Cancel",role:.cancel){emptySnapshot=nil}
+        } message: {Text("This permanently removes these Studio copies and their saved edits. It cannot be undone. Originals in Photos or Files are unchanged.")}
         .confirmationDialog("Permanently delete this Studio copy?",isPresented:Binding(get:{ erase != nil },set:{ if !$0 { erase = nil } }),titleVisibility:.visible) {
             Button("Delete permanently",role:.destructive) { if let entry = erase { Task { busy = true;defer { busy = false };do { try await library.vault.eraseDeleted(entry);await load() } catch { self.error = error.localizedDescription } } };erase = nil }
         } message: { Text("This cannot be restored from Studio. Your original in Photos or Files is unchanged.") }
+    }
+    private func empty(_ ids:Set<UUID>) async {
+        guard !busy else {return};busy=true;defer {busy=false};error=nil
+        do {
+            let result=try await library.vault.emptyDeleted(ids)
+            emptyMessage="Permanently deleted \(result.deleted) projects."
+            if !result.failures.isEmpty {error="\(result.failures.count) could not be deleted. "+result.failures.prefix(2).joined(separator:"; ")}
+            await ThumbnailCache.shared.clear();await load()
+        } catch {self.error=error.localizedDescription;await load()}
     }
     private func load() async { do { entries = try await library.vault.deletedProjects() } catch { self.error = error.localizedDescription } }
     private func restore(_ entry:DeletedProject) async {

@@ -62,6 +62,7 @@ enum StudioStyle {
     @State private var revertProject:Project?
     @State private var reverting = false
     @State private var recovery = false
+    @State private var emptyBinRequested=false
     @State private var files = false
     @State private var info = false
     @State private var deletion: Project?
@@ -183,7 +184,7 @@ enum StudioStyle {
             .task {
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("--privacy-demo") { ExportPrivacy().save() }
-                let qa = ProcessInfo.processInfo.arguments.contains("--verify-photo-development") || ProcessInfo.processInfo.arguments.contains("--verify-cutout-history") || ProcessInfo.processInfo.arguments.contains("--verify-pool") || ProcessInfo.processInfo.arguments.contains("--verify-real-video") || ProcessInfo.processInfo.arguments.contains("--verify-real-media") || ProcessInfo.processInfo.arguments.contains("--verify-refinement") || ProcessInfo.processInfo.arguments.contains("--verify-color-batch") || ProcessInfo.processInfo.arguments.contains("--verify-export-privacy") || ProcessInfo.processInfo.arguments.contains("--verify-video-suite") || ProcessInfo.processInfo.arguments.contains("--verify-studio") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") || ProcessInfo.processInfo.arguments.contains("--verify-automatic-only")
+                let qa = ProcessInfo.processInfo.arguments.contains("--verify-reference-match") || ProcessInfo.processInfo.arguments.contains("--verify-photo-development") || ProcessInfo.processInfo.arguments.contains("--verify-cutout-history") || ProcessInfo.processInfo.arguments.contains("--verify-pool") || ProcessInfo.processInfo.arguments.contains("--verify-real-video") || ProcessInfo.processInfo.arguments.contains("--verify-real-media") || ProcessInfo.processInfo.arguments.contains("--verify-refinement") || ProcessInfo.processInfo.arguments.contains("--verify-color-batch") || ProcessInfo.processInfo.arguments.contains("--verify-export-privacy") || ProcessInfo.processInfo.arguments.contains("--verify-video-suite") || ProcessInfo.processInfo.arguments.contains("--verify-studio") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") || ProcessInfo.processInfo.arguments.contains("--verify-automatic-only")
                 let oldIdle = UIApplication.shared.isIdleTimerDisabled
                 if qa { UIApplication.shared.isIdleTimerDisabled = true }
                 defer { if qa { UIApplication.shared.isIdleTimerDisabled = oldIdle } }
@@ -213,6 +214,7 @@ enum StudioStyle {
                     do { let report = try await Task.detached { try await TrackingVerification.video() }.value;try JSONSerialization.data(withJSONObject:report,options:.prettyPrinted).write(to:reportURL,options:.atomic) }
                     catch { try? JSONSerialization.data(withJSONObject:["passed":false,"error":error.localizedDescription],options:.prettyPrinted).write(to:reportURL,options:.atomic) }
                 }
+                if ProcessInfo.processInfo.arguments.contains("--verify-reference-match") {await ReferenceMatchVerification.writeReport()}
                 if ProcessInfo.processInfo.arguments.contains("--verify-photo-development") {await PhotoDevelopmentVerification.writeReport()}
                 if ProcessInfo.processInfo.arguments.contains("--verify-cutout-history") {await CutoutHistoryVerification.writeReport()}
                 if ProcessInfo.processInfo.arguments.contains("--verify-pool") {await PoolVerification.writeReport()}
@@ -272,7 +274,7 @@ enum StudioStyle {
             .fullScreenCover(item:$editingPool) {pool in EditingPoolEditor(pool:pool,library:library)}
             .fullScreenCover(item: $selected) { project in PhotoEditor(project: project, library: library) }
             .sheet(isPresented:$info) { StudioAbout() }
-            .sheet(isPresented:$recovery) { RecentlyDeletedSheet(library:library) }
+            .sheet(isPresented:$recovery,onDismiss:{emptyBinRequested=false}) { RecentlyDeletedSheet(library:library,requestEmpty:emptyBinRequested) }
             .sheet(item:$copyProject) { project in HomeCopyAdjustmentsSheet(project:project,library:library) }
             .sheet(item:$pasteProject) { project in if let clipboard = library.adjustmentClipboard { BatchPasteSheet(library:library,projects:[project],clipboard:clipboard) } }
             .sheet(isPresented:$batchPaste) { if let clipboard = library.adjustmentClipboard { BatchPasteSheet(library:library,projects:library.projects.filter { selection.contains($0.id) },clipboard:clipboard) } }
@@ -309,7 +311,12 @@ enum StudioStyle {
                 } label: { Label(sort.rawValue,systemImage:"arrow.up.arrow.down").font(.caption).padding(.vertical,8) }.accessibilityLabel("Sort workspace").accessibilityValue(sort.rawValue)
             }
             HStack {
-                Button { searchFocused = false;recovery = true } label: { Label("Recently Deleted",systemImage:"trash.arrow.up") }.accessibilityLabel("Recently Deleted")
+                Button { searchFocused = false;emptyBinRequested=false;recovery = true } label: { Label("Recently Deleted",systemImage:"trash.arrow.up") }.accessibilityLabel("Recently Deleted")
+                    .contextMenu {
+                        Button("Open Recently Deleted"){searchFocused=false;emptyBinRequested=false;recovery=true}
+                        Button("Empty Bin…",systemImage:"trash.slash",role:.destructive){searchFocused=false;emptyBinRequested=true;recovery=true}
+                    }
+                    .accessibilityAction(named:Text("Empty Bin")){searchFocused=false;emptyBinRequested=true;recovery=true}
                 Spacer()
                 Menu {
                     Button("Delete selected",role:.destructive) { deleteIDs = selection;confirmBulkDelete = true }.disabled(selection.isEmpty)
@@ -482,10 +489,12 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Photo development · 0.31.2").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Reference & Match · 0.32.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
                     Text("Select projects on Home and choose Edit together. Swipe between items or use the filmstrip; edits stay individual until you choose Sync edits. Sync selected sections to selected items or the entire pool, with recoverable before versions. Resume the pool later. In Masks → Add mask, Subject & Background creates two independent regions from one on-device analysis.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Remove a photo background, then choose Replace background for a solid color, your own image, or a blurred version of the scene. Position, resize and soften it separately from your subject. Transparent backgrounds export as PNG; opaque replacements can use JPEG, PNG or HDR HEIF. Check hair and translucent edges with the saved mask controls. Duplicate a mask for another adjustment, invert it to edit the other side, or use the extra local light, tint, clarity and blur controls.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Detail → Photo development gives supported RAW files their own white balance, exposure, rendering boost, decoder noise controls and supported camera lens/highlight-recovery switches. Manual optics controls reduce color fringing. In Detail's menu, Heal repairs small spots by matching a clean patch; Clone copies it directly. Inspect detail loads a full-resolution tile on demand. HDR development keeps available bright detail; SDR proof previews the JPEG/PNG tone mapping. Choose HDR HEIF for a 10-bit HLG still on compatible screens. From an editing pool, Export pool items lets you deliver everything or select individual items.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
+                    Text("Looks → Reference & Match keeps a visual target beside your edit. Import a reference photo or take an edited snapshot of another project. Suggest a match offers a gentle light/color starting point; adjust its strength or reset it. Video uses the first kept frame. Reference images stay private to their project, while the match correction can join a reusable color preset or a selective Color sync. Scopes → Vectorscope offers an optional skin-hue direction; lighting and your chosen look can move colors away from it.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
+                    Text("Recently Deleted includes Empty Bin. Hold its Home button to reach the same action quickly. Confirming permanently removes the displayed Studio copies and saved edits; originals in Photos or Files stay untouched.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export JPEG/PNG photographs or trimmed HEVC video with audio in SDR or 10-bit HLG HDR.")
                     Text("Levels sets black, white and midtones. Mark favorites, rate projects and search or filter your workspace. Dehaze reduces a washed-out veil or adds soft haze. Texture brings out fine surfaces or softens them; Clarity changes broader definition. The preview stays large, and Expand preview hides adjustments. Tap video to show playback controls. Use Scopes to inspect brightness and color. Drag crop corners to resize and drag inside to reposition. Fixed ratios stay locked; Free lets each edge change. Flips and perspective help refine your composition; every change stays reversible.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Open up to 20 photos or clips together. Select projects in the workspace to export their saved edits in one batch. Recently Deleted keeps Studio copies restorable for 30 days. Local settings recovery can repair a damaged project index, but does not replace a backup of your media. In Curves, tap Edit curve points to adjust the graph; otherwise swipe it to scroll.").font(.subheadline).foregroundStyle(StudioStyle.secondary)

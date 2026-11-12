@@ -1,0 +1,324 @@
+{
+  "thermalSamples" : [
+    {
+      "state" : 0,
+      "seconds" : 0.010576833330560476,
+      "rendered" : 0
+    },
+    {
+      "state" : 0,
+      "rendered" : 30,
+      "seconds" : 1.0810556666692719
+    },
+    {
+      "seconds" : 2.1495732500043232,
+      "state" : 0,
+      "rendered" : 60
+    },
+    {
+      "rendered" : 90,
+      "state" : 0,
+      "seconds" : 3.2137568333273521
+    },
+    {
+      "seconds" : 4.2808005416591186,
+      "state" : 0,
+      "rendered" : 120
+    },
+    {
+      "rendered" : 150,
+      "seconds" : 5.3484301666612737,
+      "state" : 0
+    },
+    {
+      "seconds" : 6.4144467500009341,
+      "state" : 0,
+      "rendered" : 180
+    },
+    {
+      "seconds" : 7.4816843333246652,
+      "rendered" : 210,
+      "state" : 0
+    },
+    {
+      "state" : 0,
+      "seconds" : 8.5513013750023674,
+      "rendered" : 240
+    },
+    {
+      "state" : 0,
+      "rendered" : 270,
+      "seconds" : 9.6196637499961071
+    },
+    {
+      "rendered" : 300,
+      "seconds" : 10.688691999996081,
+      "state" : 0
+    },
+    {
+      "rendered" : 330,
+      "seconds" : 11.758238416659879,
+      "state" : 0
+    },
+    {
+      "seconds" : 12.824687458327389,
+      "rendered" : 360,
+      "state" : 0
+    },
+    {
+      "seconds" : 13.89549058333796,
+      "state" : 0,
+      "rendered" : 390
+    },
+    {
+      "seconds" : 14.963977833336685,
+      "rendered" : 420,
+      "state" : 0
+    },
+    {
+      "state" : 0,
+      "rendered" : 450,
+      "seconds" : 16.026592708338285
+    },
+    {
+      "rendered" : 480,
+      "seconds" : 17.095579208325944,
+      "state" : 0
+    },
+    {
+      "seconds" : 18.163163374993019,
+      "state" : 0,
+      "rendered" : 510
+    },
+    {
+      "state" : 0,
+      "seconds" : 19.226749291658052,
+      "rendered" : 540
+    },
+    {
+      "rendered" : 570,
+      "state" : 0,
+      "seconds" : 20.293703624993213
+    },
+    {
+      "seconds" : 21.34548641667061,
+      "rendered" : 600,
+      "state" : 0
+    },
+    {
+      "state" : 0,
+      "seconds" : 22.408890416671056,
+      "rendered" : 630
+    },
+    {
+      "state" : 0,
+      "rendered" : 660,
+      "seconds" : 23.475796124999761
+    },
+    {
+      "rendered" : 690,
+      "seconds" : 24.54447979167162,
+      "state" : 0
+    },
+    {
+      "state" : 0,
+      "seconds" : 25.609870041662361,
+      "rendered" : 720
+    },
+    {
+      "seconds" : 26.677193166658981,
+      "state" : 0,
+      "rendered" : 750
+    },
+    {
+      "state" : 0,
+      "rendered" : 780,
+      "seconds" : 27.745483291670098
+    },
+    {
+      "rendered" : 810,
+      "seconds" : 28.811901541659608,
+      "state" : 0
+    },
+    {
+      "rendered" : 840,
+      "state" : 0,
+      "seconds" : 29.88114604166185
+    },
+    {
+      "seconds" : 30.949561000001268,
+      "state" : 0,
+      "rendered" : 870
+    },
+    {
+      "state" : 0,
+      "rendered" : 900,
+      "seconds" : 32.020008958337712
+    },
+    {
+      "seconds" : 33.087512791666086,
+      "state" : 0,
+      "rendered" : 930
+    },
+    {
+      "rendered" : 960,
+      "seconds" : 34.142331458337139,
+      "state" : 0
+    },
+    {
+      "state" : 0,
+      "rendered" : 990,
+      "seconds" : 35.214161166659323
+    },
+    {
+      "seconds" : 36.281284541662899,
+      "rendered" : 1020,
+      "state" : 0
+    },
+    {
+      "seconds" : 37.351122291671345,
+      "rendered" : 1050,
+      "state" : 0
+    },
+    {
+      "seconds" : 38.416048375001992,
+      "state" : 0,
+      "rendered" : 1080
+    },
+    {
+      "state" : 0,
+      "rendered" : 1110,
+      "seconds" : 39.483292749995599
+    },
+    {
+      "rendered" : 1140,
+      "state" : 0,
+      "seconds" : 40.551328999994439
+    },
+    {
+      "seconds" : 41.616019083332503,
+      "state" : 0,
+      "rendered" : 1170
+    },
+    {
+      "state" : 0,
+      "rendered" : 1200,
+      "seconds" : 42.681806874999893
+    },
+    {
+      "rendered" : 1230,
+      "state" : 0,
+      "seconds" : 43.750525708324858
+    },
+    {
+      "rendered" : 1260,
+      "state" : 0,
+      "seconds" : 44.818757333327085
+    },
+    {
+      "state" : 0,
+      "rendered" : 1290,
+      "seconds" : 45.875899583334103
+    },
+    {
+      "seconds" : 46.943894875003025,
+      "state" : 0,
+      "rendered" : 1320
+    },
+    {
+      "rendered" : 1350,
+      "seconds" : 48.008141875005094,
+      "state" : 0
+    },
+    {
+      "rendered" : 1380,
+      "seconds" : 49.073920333335991,
+      "state" : 0
+    },
+    {
+      "seconds" : 50.139006916666403,
+      "state" : 0,
+      "rendered" : 1410
+    },
+    {
+      "rendered" : 1440,
+      "seconds" : 51.205613333324436,
+      "state" : 0
+    },
+    {
+      "rendered" : 1470,
+      "seconds" : 52.26898745833023,
+      "state" : 0
+    },
+    {
+      "seconds" : 53.330129166657571,
+      "rendered" : 1500,
+      "state" : 0
+    },
+    {
+      "state" : 0,
+      "seconds" : 54.387974750003195,
+      "rendered" : 1530
+    },
+    {
+      "rendered" : 1560,
+      "seconds" : 55.452503958324087,
+      "state" : 0
+    },
+    {
+      "state" : 0,
+      "rendered" : 1590,
+      "seconds" : 56.514161291663186
+    },
+    {
+      "seconds" : 57.578819333328283,
+      "state" : 0,
+      "rendered" : 1620
+    },
+    {
+      "seconds" : 58.641827749990625,
+      "state" : 0,
+      "rendered" : 1650
+    },
+    {
+      "rendered" : 1680,
+      "seconds" : 59.705783625002368,
+      "state" : 0
+    },
+    {
+      "state" : 0,
+      "seconds" : 60.773998749995371,
+      "rendered" : 1710
+    },
+    {
+      "rendered" : 1740,
+      "seconds" : 61.827777250000509,
+      "state" : 0
+    },
+    {
+      "rendered" : 1770,
+      "state" : 0,
+      "seconds" : 62.8863222499931
+    }
+  ],
+  "cutoutCheck" : false,
+  "thermalPeak" : 0,
+  "inferenceCalls" : 0,
+  "cancelled" : false,
+  "extraIdleFrames" : 0,
+  "kernelBackend" : "Metal stitchable",
+  "gpuFailures" : 0,
+  "elapsedSeconds" : 80.683949083337211,
+  "rendered" : 1800,
+  "thermalEnd" : 0,
+  "version" : "0.32.0",
+  "matchCheck" : true,
+  "interrupted" : false,
+  "releaseCheck" : true,
+  "idleCheckSeconds" : 15,
+  "backgroundCheck" : false,
+  "requestedUpdates" : 1800,
+  "cutoutActive" : false,
+  "p95Milliseconds" : 26.100416667759418,
+  "thermalStart" : 0
+}

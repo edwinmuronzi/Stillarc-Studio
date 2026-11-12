@@ -8,6 +8,8 @@ struct Recipe: Codable, Equatable, Sendable {
     var optics:PhotoOptics? = nil
     var retouch:[RetouchSpot]? = nil
     var photoHDR:Bool? = nil
+    var reference:PhotoReference? = nil
+    var matchGrade:MatchGrade? = nil
     var geometry = GeometrySettings()
     var video = VideoEdit()
     var input = InputConversion()
@@ -55,7 +57,7 @@ struct Recipe: Codable, Equatable, Sendable {
     var look = FilmLook.original
     var lookAmount = 1.0
     init() {}
-    private enum CodingKeys: String, CodingKey { case background, rawDevelopment, optics, retouch, photoHDR, grainSize, grainModel, halation, levelBlack, levelWhite, levelGamma, levelOutputBlack, levelOutputWhite, masks, geometry, video, input, lut, lutAmount, colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, dehaze, texture, clarity, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
+    private enum CodingKeys: String, CodingKey { case reference, matchGrade, background, rawDevelopment, optics, retouch, photoHDR, grainSize, grainModel, halation, levelBlack, levelWhite, levelGamma, levelOutputBlack, levelOutputWhite, masks, geometry, video, input, lut, lutAmount, colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, dehaze, texture, clarity, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
     init(from decoder: Decoder) throws {
         self.init()
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -65,6 +67,8 @@ struct Recipe: Codable, Equatable, Sendable {
         levelOutputBlack = try values.decodeIfPresent(Double.self,forKey:.levelOutputBlack) ?? 0
         levelOutputWhite = try values.decodeIfPresent(Double.self,forKey:.levelOutputWhite) ?? 1
         masks = Array((try values.decodeIfPresent([LocalMask].self,forKey:.masks) ?? []).prefix(4)).map { $0.validated() }
+        reference=try values.decodeIfPresent(PhotoReference.self,forKey:.reference)
+        matchGrade=try values.decodeIfPresent(MatchGrade.self,forKey:.matchGrade)?.validated()
         background=try values.decodeIfPresent(PhotoBackground.self,forKey:.background)
         rawDevelopment=try values.decodeIfPresent(RawDevelopment.self,forKey:.rawDevelopment)
         optics=try values.decodeIfPresent(PhotoOptics.self,forKey:.optics)
@@ -176,7 +180,7 @@ struct PresetDocument: Codable {
     var schema = 1
     var name: String
     var recipe: Recipe
-    init(name: String, recipe: Recipe) { self.name = name; self.recipe = recipe; schema = recipe.halation>0 || (recipe.grain>0 && recipe.grainModel == 2) ? 3 : (recipe.lut == nil ? 1 : 2) }
+    init(name: String, recipe: Recipe) { self.name = name; self.recipe = recipe; schema = recipe.matchGrade != nil ? 4 : (recipe.halation>0 || (recipe.grain>0 && recipe.grainModel == 2) ? 3 : (recipe.lut == nil ? 1 : 2)) }
 }
 
 extension Recipe {
@@ -197,6 +201,7 @@ extension Recipe {
         copy.cropX = copy.cropX.isFinite ? min(1,max(0,copy.cropX)) : 0.5
         copy.cropY = copy.cropY.isFinite ? min(1,max(0,copy.cropY)) : 0.5
         copy.straighten = copy.straighten.isFinite ? min(15,max(-15,copy.straighten)) : 0
+        copy.matchGrade=matchGrade?.validated()
         copy.input = input.validated()
         copy.colorWheels = colorWheels.validated()
         copy.channelMixer = channelMixer.validated()
@@ -227,7 +232,7 @@ extension Recipe {
         let neutral = Recipe()
         if tool.valueKeys.contains(where: { key in if tool == .film && key == \.grainSize && grain == 0 { return false };return abs(self[keyPath:key]-neutral[keyPath:key])>0.000001 }) { return true }
         if tool == .curves && !rgbCurves.isNeutral { return true }
-        if tool == .color && (!selectiveColors.isNeutral || !colorWheels.isNeutral || !channelMixer.isNeutral) { return true }
+        if tool == .color && (!selectiveColors.isNeutral || !colorWheels.isNeutral || !channelMixer.isNeutral || matchGrade?.isNeutral == false) { return true }
         if tool == .film { return (look != .original && lookAmount > 0.000001) || (lut != nil && lutAmount > 0.000001) }
         if tool == .crop { return crop != .original || rotation % 4 != 0 || !geometry.isNeutral }
         return false
@@ -238,12 +243,12 @@ extension Recipe {
         let neutral = Recipe()
         for key in tool.valueKeys { self[keyPath: key] = neutral[keyPath: key] }
         if tool == .curves { rgbCurves = RGBCurves() }
-        if tool == .color { selectiveColors = SelectiveColors(); colorWheels = ColorWheels(); channelMixer = ChannelMixer() }
+        if tool == .color { matchGrade=nil;selectiveColors = SelectiveColors(); colorWheels = ColorWheels(); channelMixer = ChannelMixer() }
         if tool == .film { grainModel = 2;look = .original; lookAmount = 1; lut = nil; lutAmount = 1 }
         if tool == .crop { geometry = GeometrySettings();crop = .original; rotation = 0; straighten = 0; cropX = 0.5; cropY = 0.5 }
     }
     mutating func copyFraming(from source: Recipe) {
         geometry = source.geometry;crop = source.crop; rotation = source.rotation; straighten = source.straighten; cropX = source.cropX; cropY = source.cropY
     }
-    var colorPreset: Recipe { var copy = self; copy.reset(.crop); copy.input = InputConversion(); copy.video = VideoEdit();copy.masks = [];copy.background=nil;copy.rawDevelopment=nil;copy.optics=nil;copy.retouch=nil;copy.photoHDR=nil; return copy }
+    var colorPreset: Recipe { var copy = self; copy.reset(.crop); copy.input = InputConversion(); copy.video = VideoEdit();copy.masks = [];copy.reference=nil;copy.background=nil;copy.rawDevelopment=nil;copy.optics=nil;copy.retouch=nil;copy.photoHDR=nil; return copy }
 }

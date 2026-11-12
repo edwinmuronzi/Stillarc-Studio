@@ -113,3 +113,7 @@ Next: background replacement/compositing and richer local photo tools. Video bac
 
 ### 0.31 checkpoint
 Static-photo backgrounds and development from proposed batches 2–3 are implemented: solid/image/blurred-original replacement, richer local controls and duplicate, supported RAW decoder settings, manual color-fringe corrections, spot heal/clone, full-resolution tile inspection, HDR still preview/SDR proof and 10-bit HLG HEIF. Pool delivery supports all/selected items. Face/skin masks, advanced denoise and temporally stable video matting remain deferred; native RAW lens profiles appear only when the decoder reports support. See PRODUCT-DIRECTION.md for the next proposed color-workflow batch.
+
+
+### 0.32 checkpoint
+Implemented the first color-workflow tranche: reference comparison/import/project snapshots, one-tap bounded statistical light/color matching with strength/reset/Undo, schema-4 matched presets and Color transfer, first-kept-frame video comparison, plus an optional SDR vectorscope skin-hue guide. Empty Bin is available within Recently Deleted and its Home hold menu, with confirmed-snapshot deletion. Next proposed color work remains flexible color warping and explicit output choices; additional camera transforms and motion keyframes require fixture validation. No timeline app or external beta/store preparation is included.

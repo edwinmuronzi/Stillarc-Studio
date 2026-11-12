@@ -13,6 +13,7 @@ struct LivePreview: UIViewRepresentable {
     var scopes:ScopeSampler? = nil
     var split:Double? = nil
     var maskPreview:LocalMask? = nil
+    var stillFrame:MaskMotion.Frame? = nil
     func makeCoordinator() -> Renderer { Renderer() }
     func makeUIView(context: Context) -> MTKView {
         let view = MTKView(frame: .zero, device: context.coordinator.device)
@@ -30,7 +31,7 @@ struct LivePreview: UIViewRepresentable {
         view.colorPixelFormat = hdr ? .rgba16Float : .bgra8Unorm
         (view.layer as? CAMetalLayer)?.colorspace = hdr ? ImageEngine.working : ImageEngine.output
         (view.layer as? CAMetalLayer)?.wantsExtendedDynamicRangeContent = hdr
-        context.coordinator.update(source, signalSource:signalSource,recipe: recipe, original: original, rangePreview: rangePreview, active: active, hdr:hdr, scopes:scopes, split:split, maskPreview:maskPreview, view: view)
+        context.coordinator.update(source, signalSource:signalSource,recipe: recipe, original: original, rangePreview: rangePreview, active: active, hdr:hdr, scopes:scopes, split:split, maskPreview:maskPreview,stillFrame:stillFrame, view: view)
     }
     static func dismantleUIView(_ view: MTKView, coordinator: Renderer) { view.delegate = nil; coordinator.clear() }
     @MainActor final class Renderer: NSObject, MTKViewDelegate {
@@ -44,6 +45,7 @@ struct LivePreview: UIViewRepresentable {
         private var hdr = false
         private var scopes:ScopeSampler?
         private var split:Double?
+        private var stillFrame:MaskMotion.Frame?
         private var maskPreview:LocalMask?
         private var rangePreview: ColorRange?
         private var active = true
@@ -59,9 +61,9 @@ struct LivePreview: UIViewRepresentable {
             }
         }
         func clear() { if let brushObserver { NotificationCenter.default.removeObserver(brushObserver) };brushObserver = nil;source = nil; context?.clearCaches() }
-        func update(_ source:CIImage,signalSource:CIImage?,recipe: Recipe, original: Bool, rangePreview: ColorRange?, active: Bool, hdr:Bool, scopes:ScopeSampler?, split:Double?, maskPreview:LocalMask?, view: MTKView) {
-            let changed = self.source !== source || self.signalSource !== signalSource || self.recipe != recipe || self.original != original || self.rangePreview != rangePreview || self.active != active || self.hdr != hdr || self.scopes !== scopes || self.split != split || self.maskPreview != maskPreview
-            self.source = source; self.signalSource = signalSource; self.recipe = recipe; self.original = original; self.rangePreview = rangePreview; self.active = active;self.hdr = hdr;self.scopes = scopes;self.split = split;self.maskPreview = maskPreview
+        func update(_ source:CIImage,signalSource:CIImage?,recipe: Recipe, original: Bool, rangePreview: ColorRange?, active: Bool, hdr:Bool, scopes:ScopeSampler?, split:Double?, maskPreview:LocalMask?,stillFrame:MaskMotion.Frame?, view: MTKView) {
+            let changed = self.source !== source || self.signalSource !== signalSource || self.recipe != recipe || self.original != original || self.rangePreview != rangePreview || self.active != active || self.hdr != hdr || self.scopes !== scopes || self.split != split || self.maskPreview != maskPreview || self.stillFrame != stillFrame
+            self.source = source; self.signalSource = signalSource; self.recipe = recipe; self.original = original; self.rangePreview = rangePreview; self.active = active;self.hdr = hdr;self.scopes = scopes;self.split = split;self.maskPreview = maskPreview;self.stillFrame=stillFrame
             guard changed else { return }; dirty = true
             if active && !drawing { view.setNeedsDisplay() }
         }
@@ -72,6 +74,7 @@ struct LivePreview: UIViewRepresentable {
             drawing = true; dirty = false
             let began = CACurrentMediaTime()
             var originalRecipe = Recipe(); originalRecipe.copyFraming(from: recipe)
+            let image=MaskMotion.$frame.withValue(stillFrame) { () -> CIImage in
             var image = HDRPipeline.grade(!original && recipe.input.profile != .standard ? (signalSource ?? source) : source, recipe: original ? originalRecipe : recipe, hdr:hdr || recipe.photoHDR == true, rangePreview: original ? nil : rangePreview,preview:true)
             if !original,let split {
                 let before = HDRPipeline.grade(source,recipe:originalRecipe,hdr:hdr)
@@ -85,6 +88,8 @@ struct LivePreview: UIViewRepresentable {
                     reference = HDRPipeline.maskReference(recipe.input.profile != .standard ? (signalSource ?? source) : source,recipe:recipe,hdr:hdr)
                 }
                 image = MaskEngine.overlay(image,layer:maskPreview,reference:reference,layers:recipe.masks,framing:MaskMotion.signature(recipe))
+            }
+                return image
             }
             let scale = min(size.width / image.extent.width, size.height / image.extent.height)
             let placed = image.transformed(by: .init(scaleX: scale,y: scale)).transformed(by: .init(translationX: (size.width-image.extent.width*scale)/2, y: (size.height-image.extent.height*scale)/2))

@@ -1,5 +1,46 @@
 import XCTest
 final class GestureTests:XCTestCase {
+    func testReferenceMatchStrengthUndoAndPersistence() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--demo-editor","--reference-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Looks"].waitForExistence(timeout:30));app.buttons["Looks"].tap();app.buttons["Reference & Match"].tap()
+        XCTAssertTrue(app.buttons["suggestReferenceMatch"].waitForExistence(timeout:15));app.buttons["suggestReferenceMatch"].tap()
+        let strength=app.sliders["Match strength"];XCTAssertTrue(strength.waitForExistence(timeout:15));strength.adjust(toNormalizedSliderPosition:0.5);strength.doubleTap()
+        XCTAssertTrue(app.buttons["Reset match"].exists)
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Reference comparison and match";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Done"].tap();app.buttons["Undo"].tap();app.buttons["Redo"].tap()
+        app.buttons["Back to workspace"].tap();app.terminate();app.launchArguments=["--demo-editor"];app.launch()
+        XCTAssertTrue(app.buttons["Looks"].waitForExistence(timeout:30));app.buttons["Looks"].tap();app.buttons["Reference & Match"].tap()
+        XCTAssertTrue(app.sliders["Match strength"].waitForExistence(timeout:15));app.buttons["Reset match"].tap();XCTAssertFalse(app.sliders["Match strength"].exists)
+    }
+    func testReferenceFromPoolProjectAndClear() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--pool-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Looks"].waitForExistence(timeout:30));app.buttons["Looks"].tap();app.buttons["Reference & Match"].tap()
+        app.buttons["From projects"].tap();app.buttons["Pool sample 2"].tap()
+        XCTAssertTrue(app.buttons["suggestReferenceMatch"].waitForExistence(timeout:20));app.buttons["suggestReferenceMatch"].tap()
+        XCTAssertTrue(app.sliders["Match strength"].waitForExistence(timeout:15));app.swipeUp();app.buttons["Clear reference"].tap()
+        XCTAssertTrue(app.sliders["Match strength"].exists);app.buttons["Done"].tap();app.buttons["Undo"].tap()
+        app.buttons["Looks"].tap();app.buttons["Reference & Match"].tap();XCTAssertTrue(app.buttons["suggestReferenceMatch"].waitForExistence(timeout:10))
+    }
+    func testSkinHueGuideToggle() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--demo-editor","--neutral-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Scopes"].waitForExistence(timeout:30));app.buttons["Scopes"].tap();app.buttons["Vectorscope"].tap()
+        let guide=app.switches["skinHueGuide"];XCTAssertTrue(guide.waitForExistence(timeout:10));guide.tap()
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Vectorscope skin hue guide";shot.lifetime = .keepAlways;add(shot)
+        guide.tap();XCTAssertTrue(app.buttons["Export photo"].isEnabled)
+    }
+    func testEmptyBinMenuAndConfirmationCancel() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=[];app.launch()
+        let bin=app.buttons["Recently Deleted"];XCTAssertTrue(bin.waitForExistence(timeout:30));bin.press(forDuration:0.7)
+        XCTAssertTrue(app.buttons["Empty Bin…"].waitForExistence(timeout:10));app.buttons["Empty Bin…"].tap();if app.buttons["Cancel"].waitForExistence(timeout:3) {app.buttons["Cancel"].tap()}
+        XCTAssertTrue(app.buttons["emptyBinButton"].waitForExistence(timeout:10))
+        if app.buttons["emptyBinButton"].isEnabled {app.buttons["emptyBinButton"].tap();XCTAssertTrue(app.buttons["Cancel"].waitForExistence(timeout:10));app.buttons["Cancel"].tap()}
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Recently Deleted empty bin";shot.lifetime = .keepAlways;add(shot)
+    }
+
     func testHealCloneAndFullResolutionInspection() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments=["--demo-editor","--neutral-demo","--tool","Detail"];app.launch()

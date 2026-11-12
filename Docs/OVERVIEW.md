@@ -1,4 +1,4 @@
-# Stillarc Studio · 0.31
+# Stillarc Studio · 0.32
 
 A local, reversible photo and single-clip video editor for iPhone and iPad. Black-and-blue controls keep the image central.
 
@@ -27,3 +27,6 @@ Replace a photo background with a color, your own image or a softened original s
 Develop supported RAW photos with native white balance, exposure, boost and available recovery/noise/lens switches. Reduce color fringing with manual optics controls. Heal/Clone repairs small spots from a clean source patch; full-resolution detail inspection loads a movable tile only when requested. HDR still development preserves available bright detail, while SDR proof shows the JPEG/PNG rendering. HLG HEIF exports require compatible HDR viewers for their full brightness.
 
 Pool delivery now offers Export all or an individual selection. Each item retains its own framing, source settings and repairs. Matching blue arc/S light and dark app icons follow the Home Screen’s supported appearance.
+
+
+Reference & Match puts a saved visual target beside the current edit. A requested statistical suggestion offers a bounded light/color starting point, with adjustable strength and Undo/Redo. Video uses its first kept frame; HDR is compared as an SDR proof. References remain individual while color corrections can transfer across a pool. The optional vectorscope skin-hue guide gives a visual direction, not a prescribed skin color. Empty Bin is available in Recently Deleted and from its Home long-press menu, with permanent-delete confirmation.
