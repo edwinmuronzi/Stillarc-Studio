@@ -73,6 +73,7 @@ struct RecentlyDeletedSheet:View {
     @State private var busy = false
     @State private var error:String?
     @State private var erase:DeletedProject?
+    @State private var preview:DeletedProject?
     var body:some View {
         NavigationStack {
             List {
@@ -80,14 +81,32 @@ struct RecentlyDeletedSheet:View {
                 if entries.isEmpty { Text("No recently deleted projects").foregroundStyle(StudioStyle.secondary) }
                 ForEach(entries) { entry in
                     VStack(alignment:.leading,spacing:10) {
-                        Text(entry.project.name).font(.headline)
-                        Text("Deleted \(entry.deleted.formatted(date:.abbreviated,time:.omitted))").font(.caption).foregroundStyle(StudioStyle.secondary)
-                        HStack { Button("Restore") { Task { await restore(entry) } };Spacer();Button("Delete permanently",role:.destructive) { erase = entry } }.font(.caption).disabled(busy)
+                        HStack(alignment:.top,spacing:14) {
+                            Button { preview = entry } label: {
+                                ProjectThumbnail(project:entry.project,vault:library.vault,deletedEntry:entry).frame(width:90,height:100).clipShape(RoundedRectangle(cornerRadius:14))
+                            }.buttonStyle(.plain).accessibilityLabel("Preview deleted \(entry.project.name)")
+                            VStack(alignment:.leading,spacing:7) {
+                                Text(entry.project.name).font(.headline)
+                                Text("Deleted \(entry.deleted.formatted(date:.abbreviated,time:.omitted))").font(.caption).foregroundStyle(StudioStyle.secondary)
+                                Text(entry.daysRemaining() == 1 ? "1 day left" : "\(entry.daysRemaining()) days left").font(.caption.weight(.semibold)).foregroundStyle(entry.daysRemaining()<=3 ? .orange : StudioStyle.blue)
+                                if entry.project.isVideo { Label("Video",systemImage:"video").font(.caption2).foregroundStyle(StudioStyle.secondary) }
+                            }
+                        }
+                        HStack { Button("Restore") { Task { await restore(entry) } };Spacer();Button("Delete permanently",role:.destructive) { erase = entry } }.font(.caption).buttonStyle(.borderless).disabled(busy)
                     }.padding(.vertical,6)
                 }
                 if let error { Text(error).font(.caption).foregroundStyle(.orange) }
             }.navigationTitle("Recently Deleted").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { dismiss() }.disabled(busy) }
         }.tint(StudioStyle.blue).task { await load() }.interactiveDismissDisabled(busy)
+        .sheet(item:$preview) { entry in
+            NavigationStack {
+                ProjectThumbnail(project:entry.project,vault:library.vault,deletedEntry:entry)
+                    .aspectRatio(CGFloat(max(1,entry.project.width))/CGFloat(max(1,entry.project.height)),contentMode:.fit)
+                    .clipShape(RoundedRectangle(cornerRadius:20)).padding(20)
+                    .navigationTitle(entry.project.name).navigationBarTitleDisplayMode(.inline)
+                    .toolbar { Button("Done") { preview = nil } }
+            }.tint(StudioStyle.blue)
+        }
         .confirmationDialog("Permanently delete this Studio copy?",isPresented:Binding(get:{ erase != nil },set:{ if !$0 { erase = nil } }),titleVisibility:.visible) {
             Button("Delete permanently",role:.destructive) { if let entry = erase { Task { busy = true;defer { busy = false };do { try await library.vault.eraseDeleted(entry);await load() } catch { self.error = error.localizedDescription } } };erase = nil }
         } message: { Text("This cannot be restored from Studio. Your original in Photos or Files is unchanged.") }

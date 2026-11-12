@@ -4,10 +4,12 @@ struct DeletedProject:Identifiable,Codable,Sendable {
     let id:UUID
     let project:Project
     let deleted:Date
+    func daysRemaining(at date:Date = Date()) -> Int { min(30,max(0,Int(ceil((deleted.addingTimeInterval(30*24*60*60).timeIntervalSince(date))/86400)))) }
 }
 extension ProjectVault {
     var recoveryRoot:URL { root.appendingPathComponent("recovery",isDirectory:true) }
     var trashRoot:URL { root.appendingPathComponent("trash",isDirectory:true) }
+    func deletedSource(_ entry:DeletedProject) -> URL { trashRoot.appendingPathComponent(entry.id.uuidString).appendingPathComponent("media").appendingPathComponent(entry.project.sourceName) }
     func backupURL(_ id:UUID) -> URL { recoveryRoot.appendingPathComponent(id.uuidString+".json") }
     func writeRecoverableIndex(_ project:Project,forceBackup:Bool = false) throws {
         let data = try JSONEncoder().encode(project),backup = backupURL(project.id)

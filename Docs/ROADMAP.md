@@ -56,7 +56,9 @@ Implemented in 0.21: serial multi-item import, per-project batch export, 30-day 
 
 Implemented in 0.22: thumbnail hold previews with project actions, double-tap favourites, visibly labelled Recently Deleted, selected-project deletion and confirmed delete-all using recoverable local copies.
 
-Next: more robust tracking, changing-pose segmentation, healing and carefully bounded advanced noise reduction. Batch copy/paste and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
+Implemented in 0.23: bin thumbnails/enlarged poster previews and days remaining; selection-aware hold actions; serial batch paste of chosen copied adjustment groups with per-project before versions.
+
+Next: more robust tracking, changing-pose segmentation, healing and carefully bounded advanced noise reduction. Explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
 
 ## 5 — Video grading
 

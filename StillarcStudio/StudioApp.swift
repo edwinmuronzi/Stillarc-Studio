@@ -55,6 +55,7 @@ enum StudioStyle {
     @State private var selecting = false
     @State private var selection = Set<UUID>()
     @State private var batchExport = false
+    @State private var batchPaste = false
     @State private var recovery = false
     @State private var files = false
     @State private var info = false
@@ -62,6 +63,7 @@ enum StudioStyle {
     @State private var deleteIDs = Set<UUID>()
     @State private var confirmBulkDelete = false
     @State private var deletingProjects = false
+    @State private var favoritingProjects = false
     @State private var demoBusy = false
     @State private var workspaceSearch = ""
     @FocusState private var searchFocused:Bool
@@ -101,6 +103,10 @@ enum StudioStyle {
                             Button(items.count>20 ? "Select first 20 shown" : "Select shown") { selection = Set(items.prefix(20).map(\.id)) }
                             Spacer()
                             Button("Export \(selection.count)") { batchExport = true }.disabled(selection.isEmpty || importingBatch)
+                        }.font(.caption).buttonStyle(.bordered)
+                        HStack {
+                            Button("Paste adjustments") { batchPaste = true }.disabled(selection.isEmpty || library.adjustmentClipboard == nil)
+                            Spacer()
                             Button("Delete selected",role:.destructive) { deleteIDs = selection;confirmBulkDelete = true }.disabled(selection.isEmpty || deletingProjects)
                         }.font(.caption).buttonStyle(.bordered)
                     }
@@ -132,7 +138,12 @@ enum StudioStyle {
                                             }
                                         })
                                         .contextMenu {
-                                            projectActions(project)
+                                            if selecting && selection.contains(project.id) {
+                                                Button("Favourite selected",systemImage:"heart") { favoriteSelected() }.disabled(favoritingProjects)
+                                                Button("Paste adjustments",systemImage:"doc.on.clipboard") { batchPaste = true }.disabled(library.adjustmentClipboard == nil)
+                                                Button("Export selected",systemImage:"square.and.arrow.up") { batchExport = true }
+                                                Button("Delete selected",systemImage:"trash",role:.destructive) { deleteIDs = selection;confirmBulkDelete = true }
+                                            } else { projectActions(project) }
                                         } preview: {
                                             ProjectThumbnail(project:project,vault:library.vault).scaledToFit().frame(width:300,height:380).clipShape(RoundedRectangle(cornerRadius:22))
                                         }
@@ -161,7 +172,7 @@ enum StudioStyle {
             }
             .scrollDismissesKeyboard(.interactively)
             .background(StudioStyle.ink)
-            .background { HomeKeyboardDismiss(active:searchFocused && selected == nil && !info && !recovery && !batchExport) { searchFocused = false }.allowsHitTesting(false) }
+            .background { HomeKeyboardDismiss(active:searchFocused && selected == nil && !info && !recovery && !batchExport && !batchPaste) { searchFocused = false }.allowsHitTesting(false) }
             .toolbar(.hidden,for: .navigationBar)
             .safeAreaInset(edge: .bottom) { importBar }
             .task {
@@ -198,6 +209,10 @@ enum StudioStyle {
                     else if let url = try? await VideoFixtures.make(profile:.standard,frames:90) { selected = await library.add(url);try? FileManager.default.removeItem(at:url.deletingLastPathComponent()) }
                 }
                 if ProcessInfo.processInfo.arguments.contains("--batch-demo") {
+                    if ProcessInfo.processInfo.arguments.contains("--batch-paste-demo") {
+                        var recipe = Recipe();recipe.exposure = 0.5
+                        _ = await library.copyAdjustments(name:"Batch QA grade",recipe:recipe,sections:[.light])
+                    }
                     let previous = Set(UserDefaults.standard.stringArray(forKey:"qa.batch.ids") ?? [])
                     for p in library.projects where previous.contains(p.id.uuidString) { await library.remove(p) }
                     if let trash = try? await library.vault.deletedProjects() { for entry in trash where previous.contains(entry.project.id.uuidString) { try? await library.vault.eraseDeleted(entry) } }
@@ -234,6 +249,7 @@ enum StudioStyle {
             .fullScreenCover(item: $selected) { project in PhotoEditor(project: project, library: library) }
             .sheet(isPresented:$info) { StudioAbout() }
             .sheet(isPresented:$recovery) { RecentlyDeletedSheet(library:library) }
+            .sheet(isPresented:$batchPaste) { if let clipboard = library.adjustmentClipboard { BatchPasteSheet(library:library,projects:library.projects.filter { selection.contains($0.id) },clipboard:clipboard) } }
             .sheet(isPresented:$batchExport) { BatchExportSheet(projects:library.projects.filter { selection.contains($0.id) },vault:library.vault) }
             .onChange(of:library.projects.map(\.id)) { _,ids in selection.formIntersection(ids) }
             .onChange(of:scenePhase) { _,phase in if phase != .active { importTask?.cancel() } }
@@ -281,6 +297,15 @@ enum StudioStyle {
             ForEach(1...5,id:\.self) { value in Button("\(value) \(value == 1 ? "star" : "stars")") { Task { await library.organize(project,rating:value) } } }
         }
         Button("Delete Studio copy",systemImage:"trash",role:.destructive) { deletion = project }
+    }
+    private func favoriteSelected() {
+        guard !favoritingProjects else { return }
+        let projects = library.projects.filter { selection.contains($0.id) }
+        favoritingProjects = true
+        Task { @MainActor in
+            defer { favoritingProjects = false }
+            for project in projects { await library.organize(project,favorite:true);if library.error != nil { break } }
+        }
     }
     private func deleteProjects(_ ids:Set<UUID>) {
         let projects = library.projects.filter { ids.contains($0.id) }
@@ -372,6 +397,7 @@ enum StudioStyle {
 @MainActor struct ProjectThumbnail: View {
     let project: Project
     let vault: ProjectVault
+    var deletedEntry:DeletedProject? = nil
     @State private var image: UIImage?
     var body: some View {
         GeometryReader { geometry in
@@ -381,7 +407,8 @@ enum StudioStyle {
                 else { Image(systemName: "photo").foregroundStyle(StudioStyle.secondary) }
             }
         }.task(id: project.modified) {
-            let url = await vault.source(project)
+            let url:URL
+            if let deletedEntry { url = await vault.deletedSource(deletedEntry) } else { url = await vault.source(project) }
             image = await ThumbnailCache.shared.image(url: url, project: project)
         }
     }
@@ -394,7 +421,7 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Project gestures & library actions · 0.22.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Library previews & selection actions · 0.23.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
                     Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export JPEG/PNG photographs or trimmed HEVC video with audio in SDR or 10-bit HLG HDR.")
                     Text("Levels sets black, white and midtones. Mark favorites, rate projects and search or filter your workspace. Dehaze reduces a washed-out veil or adds soft haze. Texture brings out fine surfaces or softens them; Clarity changes broader definition. The preview stays large, and Expand preview hides adjustments. Tap video to show playback controls. Use Scopes to inspect brightness and color. Drag crop corners to resize and drag inside to reposition. Fixed ratios stay locked; Free lets each edge change. Flips and perspective help refine your composition; every change stays reversible.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Open up to 20 photos or clips together. Select projects in the workspace to export their saved edits in one batch. Recently Deleted keeps Studio copies restorable for 30 days. Local settings recovery can repair a damaged project index, but does not replace a backup of your media. In Curves, tap Edit curve points to adjust the graph; otherwise swipe it to scroll.").font(.subheadline).foregroundStyle(StudioStyle.secondary)

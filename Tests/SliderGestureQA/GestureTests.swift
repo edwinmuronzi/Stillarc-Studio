@@ -108,6 +108,28 @@ final class GestureTests:XCTestCase {
         if !card.isHittable { app.scrollViews.firstMatch.swipeUp() };card.tap()
         XCTAssertTrue(app.buttons["Remove favorite"].exists)
     }
+    func testSelectedHoldActionsTrashPreviewAndBatchPaste() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = ["--batch-demo","--batch-paste-demo"];app.launch()
+        XCTAssertTrue(app.staticTexts["Added 2 of 2."].waitForExistence(timeout:30))
+        let search = app.textFields["workspaceSearch"];search.tap();search.typeText("Studio batch QA");app.keyboards.buttons["Search"].tap()
+        app.buttons["Select"].tap();app.buttons["Select shown"].tap();app.scrollViews.firstMatch.swipeUp()
+        let project = app.buttons["Select Studio batch QA 1"]
+        project.press(forDuration:1)
+        XCTAssertTrue(app.buttons["Favourite selected"].waitForExistence(timeout:5));app.buttons["Favourite selected"].tap()
+        project.press(forDuration:1);app.buttons["Export selected"].tap()
+        XCTAssertTrue(app.buttons["createBatchExport"].waitForExistence(timeout:5));app.navigationBars["Batch export"].buttons["Done"].tap()
+        project.press(forDuration:1);app.buttons["doc.on.clipboard"].tap()
+        let apply = app.buttons["applyBatchPaste"];XCTAssertTrue(apply.waitForExistence(timeout:5));apply.tap()
+        XCTAssertTrue(app.staticTexts["Applied to 2 of 2."].waitForExistence(timeout:10));app.navigationBars["Paste adjustments"].buttons["Done"].tap()
+        project.press(forDuration:1);app.buttons["Delete selected"].firstMatch.tap();app.buttons["Delete 2 projects"].tap()
+        XCTAssertTrue(app.staticTexts["No matching items"].waitForExistence(timeout:10));app.scrollViews.firstMatch.swipeDown();app.buttons["Recently Deleted"].tap()
+        XCTAssertTrue(app.staticTexts["30 days left"].firstMatch.waitForExistence(timeout:10))
+        let preview = app.buttons["Preview deleted Studio batch QA 1"]
+        if !preview.isHittable { app.swipeUp() };preview.tap()
+        XCTAssertTrue(app.navigationBars["Studio batch QA 1"].waitForExistence(timeout:5));app.navigationBars["Studio batch QA 1"].buttons["Done"].tap()
+        let shot = XCTAttachment(screenshot:app.screenshot());shot.name = "Trash thumbnails and days remaining";shot.lifetime = .keepAlways;add(shot)
+    }
     func testProjectHoldFavoriteAndBulkDelete() throws {
         let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments = ["--batch-demo"];app.launch()

@@ -83,7 +83,26 @@ enum Batch021Verification {
         defer { try? FileManager.default.removeItem(at:mixed.folder) }
         try check(mixed.urls.count == 2 && mixed.failures.isEmpty && mixed.urls.last?.pathExtension == "mov","Mixed photo/video batch")
         #endif
-        return ["passed":true,"originalImportNames":true,"partialBatch":true,"perProjectGradeCrop":true,"uniqueSafeNames":true,"cancellation":true,"indexRecovery":true,"backupThrottle":true,"restoreMediaVersionsRatings":true,"interruptedDeleteRestore":true,"trashExpiry":true,"looksRecovery":true,"originalPreserved":true]
+        var pasteProject = try await vault.importPhoto(url)
+        pasteProject.recipe.crop = .square;pasteProject.recipe.warmth = 0.2
+        _ = try await vault.save(pasteProject)
+        var copied = Recipe();copied.exposure = 0.65;copied.warmth = -0.5
+        let clipboard = AdjustmentClipboard(name:"Batch",recipe:copied,sections:[.light,.whiteBalance])
+        let pasted = try await vault.pasteCopiedAdjustments(pasteProject.id,clipboard:clipboard,sections:[.light])
+        try check(pasted.recipe.exposure == 0.65 && pasted.recipe.warmth == 0.2 && pasted.recipe.crop == .square,"Batch paste did not preserve destination/section boundaries")
+        let checkpoint = pasted.versions!.last!
+        let prior = try await vault.loadVersion(pasted,version:checkpoint)
+        try check(prior == pasteProject.recipe,"Batch paste checkpoint lost prior edit")
+        let unchanged = try await vault.pasteCopiedAdjustments(pasteProject.id,clipboard:clipboard,sections:[.light])
+        try check(unchanged.versions?.count == 1,"No-op batch paste created another version")
+        var full = pasted;full.versions = (0..<20).map { EditVersion(name:"Version \($0)") };_ = try await vault.save(full)
+        do { _ = try await vault.pasteCopiedAdjustments(full.id,clipboard:clipboard,sections:[.whiteBalance]);throw StudioError.render }
+        catch let error as NSError { try check(error.domain == "BatchPaste","Batch paste silently discarded version history") }
+        let now = Date(),countdownEntry = DeletedProject(id:UUID(),project:pasted,deleted:now)
+        try check(countdownEntry.daysRemaining(at:now) == 30 && countdownEntry.daysRemaining(at:now.addingTimeInterval(29.5*86400)) == 1 && countdownEntry.daysRemaining(at:now.addingTimeInterval(31*86400)) == 0,"Trash countdown boundaries")
+        let deletedSource = await vault.deletedSource(countdownEntry)
+        try check(deletedSource.lastPathComponent == pasted.sourceName && deletedSource.path.contains("/trash/"),"Trash preview source path")
+        return ["passed":true,"batchPasteSectionsCheckpointNoOpVersionCap":true,"trashCountdown":true,"originalImportNames":true,"partialBatch":true,"perProjectGradeCrop":true,"uniqueSafeNames":true,"cancellation":true,"indexRecovery":true,"backupThrottle":true,"restoreMediaVersionsRatings":true,"interruptedDeleteRestore":true,"trashExpiry":true,"looksRecovery":true,"originalPreserved":true]
     }
 }
 #endif
