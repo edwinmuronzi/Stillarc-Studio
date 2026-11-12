@@ -1,0 +1,18 @@
+{
+  "traversalDuplicateFutureRejected" : true,
+  "editsMasksLUTWarp" : true,
+  "midStreamCancellation" : true,
+  "projectCount" : 6,
+  "passed" : true,
+  "restoredExport" : true,
+  "newIdentitiesAndRepeatedRestore" : true,
+  "privateReferenceBackground" : true,
+  "version" : "0.34.0",
+  "corruptionTruncationTrailing" : true,
+  "versionsAndRatings" : true,
+  "photoVideoSourceBytes" : true,
+  "thermal" : 0,
+  "cancelledRestoreSafe" : true,
+  "seconds" : 0.45633101463317871,
+  "packageBytes" : 1632154
+}

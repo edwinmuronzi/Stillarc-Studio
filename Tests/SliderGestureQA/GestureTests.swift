@@ -1,5 +1,26 @@
 import XCTest
 final class GestureTests:XCTestCase {
+    func testProjectBackupCreateInspectRestore() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--archive-ui-test"];app.launch()
+        XCTAssertTrue(app.buttons["Project backups"].waitForExistence(timeout:30));app.scrollViews.firstMatch.swipeUp();app.buttons["Project backups"].tap()
+        XCTAssertTrue(app.buttons["createProjectBackup"].waitForExistence(timeout:15))
+        let source=app.buttons["Back up Studio sample"];var scrolls=0;while !source.exists && scrolls<12 {app.swipeUp();scrolls+=1};XCTAssertTrue(source.waitForExistence(timeout:10));source.tap()
+        let create=app.buttons["createProjectBackup"];XCTAssertTrue(create.isEnabled);create.tap()
+        XCTAssertTrue(app.buttons["shareProjectBackup"].waitForExistence(timeout:30))
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Project backup ready";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["inspectTestBackup"].tap();XCTAssertTrue(app.buttons["restoreProjectBackup"].waitForExistence(timeout:10));app.buttons["restoreProjectBackup"].tap()
+        XCTAssertTrue(app.staticTexts["Restored 1 new editable projects."].waitForExistence(timeout:30));app.buttons["Done"].tap()
+        XCTAssertTrue(app.buttons["Project backups"].waitForExistence(timeout:10))
+    }
+    func testProjectBackupSelectionAndFilePickerCancel() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--archive-ui-test"];app.launch()
+        XCTAssertTrue(app.buttons["Project backups"].waitForExistence(timeout:30));app.scrollViews.firstMatch.swipeUp();app.buttons["Project backups"].tap()
+        XCTAssertTrue(app.buttons["createProjectBackup"].waitForExistence(timeout:15));XCTAssertFalse(app.buttons["createProjectBackup"].isEnabled);app.buttons["Select up to 20"].tap();XCTAssertTrue(app.buttons["createProjectBackup"].isEnabled);app.buttons["Clear"].tap();XCTAssertFalse(app.buttons["createProjectBackup"].isEnabled)
+        app.buttons["Restore"].tap();app.buttons["chooseProjectBackup"].tap()
+        XCTAssertTrue(app.buttons["Cancel"].waitForExistence(timeout:10));app.buttons["Cancel"].tap();XCTAssertTrue(app.buttons["chooseProjectBackup"].exists);app.buttons["Done"].tap()
+    }
     func testColorWarpResetUndoAndPersistence() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments=["--demo-editor","--neutral-demo"];app.launch()

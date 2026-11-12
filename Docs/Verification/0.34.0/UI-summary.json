@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "distinctWorkflows": 4,
+  "mainSimulator": [
+    "ProjectBackupCreateInspectRestore",
+    "ProjectBackupSelectionAndFilePickerCancel",
+    "DeliverySizeQualityAndRetry",
+    "EmptyBinMenuAndConfirmationCancel"
+  ],
+  "compactSimulator": [
+    "ProjectBackupSelectionAndFilePickerCancel"
+  ],
+  "notes": "Final labelled Backups entry passed. Compact UI harness scrolls the Home control into view before tapping. Original failing header variants were replaced."
+}

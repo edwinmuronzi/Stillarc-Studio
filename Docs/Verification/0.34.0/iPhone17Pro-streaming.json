@@ -1,0 +1,13 @@
+{
+  "thermalPeak" : 0,
+  "thermalEnd" : 0,
+  "restoreSeconds" : 0.15523898601531982,
+  "chunkBytes" : 524288,
+  "seconds" : 0.47877597808837891,
+  "maxMainActorWakeSeconds" : 0.027355074882507324,
+  "payloadBytes" : 134217728,
+  "passed" : true,
+  "packSeconds" : 0.16125297546386719,
+  "heartbeatSamples" : 27,
+  "version" : "0.34.0"
+}

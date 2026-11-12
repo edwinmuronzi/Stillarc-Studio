@@ -1,3 +1,7 @@
+## 0.34.0, build 38 — Portable project backups
+
+Native/compact backup round-trip, damaged-file rejection and mid-stream cancellation checks passed, together with native core regression and the corrected backup UI workflows. The 128 MiB native streaming check retained nominal iOS thermal state, with 27.36 ms maximum main-actor wake interval including the requested 16 ms sleep. [Reports and limits](Verification/0.34.0/README.md).
+
 ## 0.33.0, build 37 — Color Warp and delivery
 
 Native color/export and full Studio/video regressions, compact simulator correctness and five UI cases passed. The sustained native preview completed 1,799 renders for 1,800 updates with 26.74 ms p95 completion, no GPU failures or idle draws, and nominal iOS thermal state. [Reports and limits](Verification/0.33.0/README.md).

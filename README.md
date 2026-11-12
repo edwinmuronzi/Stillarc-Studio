@@ -4,7 +4,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.33 Color Warp and export-delivery milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.34 portable-project backup milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -329,3 +329,13 @@ Open a project → **Looks → Color Warp** (also accessible in Color). Add up t
 Warps belong to the Color copy/sync/reset group, persist with projects/versions and are included in Studio presets and color-only LUT export. Warped presets use schema 5; older Studio versions reject them instead of silently dropping the adjustment. No object detection is implied.
 
 Single and pool exports now share remembered **Original / 3840 / 1920 / 1280 px** longest-edge limits, applied after cropping. Small originals are never enlarged; video dimensions remain even for HEVC. **Maximum / Balanced / Compact** change JPEG/HEIF compression and target HEVC bitrate, preserving selected size, trim, HDR/SDR, audio policy and source timing. PNG stays lossless and preserves transparency. Original + Maximum remain the defaults. Full-source grading precedes Lanczos downsizing so mask geometry and film scale do not depend on preview size. Compression ratios and resulting file sizes vary with content.
+
+## Editable project backups · 0.34
+
+Tap **Backups beside Recently Deleted on Home**. Choose up to 20 projects and **Create backup**, then **Save or share backup → Save to Files**. You can also hold a project or use its options → **Back up project**, or select items → **Back up selected**.
+
+To restore, open Project backups → **Restore → Choose .stillarc file**. Review the item count/size, then tap **Restore new copies**. Names gain a “Restored” suffix and project IDs are new. Existing projects and originals in Photos/Files remain untouched. Repeated restores create additional copies.
+
+A .stillarc file contains the original source bytes, current reversible edits, LUT/Color Warp/matching settings, masks/tracking, stored reference/background images, organization and saved versions. Media is streamed in 512 KiB chunks, with SHA-256 integrity checks, throttled progress and cancellation. It is not rendered or recompressed. Keep Studio open during the operation; leaving cancels unfinished work. All payloads are verified before new projects are committed; runtime failures/cancellation roll back newly created indexes/media. Successful complete projects can remain after a process/power interruption during the short final commit; reimport remains safe because it creates new IDs.
+
+Backups include original metadata and stored private images, including assets retained for saved edits. They are not encrypted or authenticated; integrity checks detect damage, not who created a file. Use finished exports with metadata/privacy settings when sharing publicly. Saved-look libraries, app preferences and editing-pool membership are separate. Save the backup outside Studio to keep it if the app/device is removed. The temporary share file is cleaned when the backup page closes. Version-1 packages require Studio 0.34 or newer; future unsupported packages are rejected with an update message. Limits: 20 projects, 4,096 files, 100 GB total and bounded JSON records. Files/iCloud provider failures and insufficient space report errors without replacing existing work.

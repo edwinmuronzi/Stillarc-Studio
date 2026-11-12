@@ -61,6 +61,8 @@ enum StudioStyle {
     @State private var pasteProject:Project?
     @State private var revertProject:Project?
     @State private var reverting = false
+    @State private var archives=false
+    @State private var archiveIDs=Set<UUID>()
     @State private var recovery = false
     @State private var emptyBinRequested=false
     @State private var files = false
@@ -178,13 +180,13 @@ enum StudioStyle {
             }
             .scrollDismissesKeyboard(.interactively)
             .background(StudioStyle.ink)
-            .background { HomeKeyboardDismiss(active:searchFocused && selected == nil && !info && !recovery && !batchExport && !batchPaste && copyProject == nil && pasteProject == nil) { searchFocused = false }.allowsHitTesting(false) }
+            .background { HomeKeyboardDismiss(active:searchFocused && selected == nil && !archives && !info && !recovery && !batchExport && !batchPaste && copyProject == nil && pasteProject == nil) { searchFocused = false }.allowsHitTesting(false) }
             .toolbar(.hidden,for: .navigationBar)
             .safeAreaInset(edge: .bottom) { importBar }
             .task {
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("--privacy-demo") { ExportPrivacy().save() }
-                let qa = ProcessInfo.processInfo.arguments.contains("--verify-color-delivery") || ProcessInfo.processInfo.arguments.contains("--verify-reference-match") || ProcessInfo.processInfo.arguments.contains("--verify-photo-development") || ProcessInfo.processInfo.arguments.contains("--verify-cutout-history") || ProcessInfo.processInfo.arguments.contains("--verify-pool") || ProcessInfo.processInfo.arguments.contains("--verify-real-video") || ProcessInfo.processInfo.arguments.contains("--verify-real-media") || ProcessInfo.processInfo.arguments.contains("--verify-refinement") || ProcessInfo.processInfo.arguments.contains("--verify-color-batch") || ProcessInfo.processInfo.arguments.contains("--verify-export-privacy") || ProcessInfo.processInfo.arguments.contains("--verify-video-suite") || ProcessInfo.processInfo.arguments.contains("--verify-studio") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") || ProcessInfo.processInfo.arguments.contains("--verify-automatic-only")
+                let qa = ProcessInfo.processInfo.arguments.contains("--verify-archive-performance") || ProcessInfo.processInfo.arguments.contains("--verify-project-archive") || ProcessInfo.processInfo.arguments.contains("--verify-color-delivery") || ProcessInfo.processInfo.arguments.contains("--verify-reference-match") || ProcessInfo.processInfo.arguments.contains("--verify-photo-development") || ProcessInfo.processInfo.arguments.contains("--verify-cutout-history") || ProcessInfo.processInfo.arguments.contains("--verify-pool") || ProcessInfo.processInfo.arguments.contains("--verify-real-video") || ProcessInfo.processInfo.arguments.contains("--verify-real-media") || ProcessInfo.processInfo.arguments.contains("--verify-refinement") || ProcessInfo.processInfo.arguments.contains("--verify-color-batch") || ProcessInfo.processInfo.arguments.contains("--verify-export-privacy") || ProcessInfo.processInfo.arguments.contains("--verify-video-suite") || ProcessInfo.processInfo.arguments.contains("--verify-studio") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") || ProcessInfo.processInfo.arguments.contains("--verify-automatic-only")
                 let oldIdle = UIApplication.shared.isIdleTimerDisabled
                 if qa { UIApplication.shared.isIdleTimerDisabled = true }
                 defer { if qa { UIApplication.shared.isIdleTimerDisabled = oldIdle } }
@@ -214,6 +216,8 @@ enum StudioStyle {
                     do { let report = try await Task.detached { try await TrackingVerification.video() }.value;try JSONSerialization.data(withJSONObject:report,options:.prettyPrinted).write(to:reportURL,options:.atomic) }
                     catch { try? JSONSerialization.data(withJSONObject:["passed":false,"error":error.localizedDescription],options:.prettyPrinted).write(to:reportURL,options:.atomic) }
                 }
+                if ProcessInfo.processInfo.arguments.contains("--verify-archive-performance"){await ProjectArchiveVerification.writePerformanceReport()}
+                if ProcessInfo.processInfo.arguments.contains("--verify-project-archive") {await ProjectArchiveVerification.writeReport()}
                 if ProcessInfo.processInfo.arguments.contains("--verify-color-delivery") {await ColorDeliveryVerification.writeReport()}
                 if ProcessInfo.processInfo.arguments.contains("--verify-reference-match") {await ReferenceMatchVerification.writeReport()}
                 if ProcessInfo.processInfo.arguments.contains("--verify-photo-development") {await PhotoDevelopmentVerification.writeReport()}
@@ -259,6 +263,7 @@ enum StudioStyle {
                     }
                 }
                 if ProcessInfo.processInfo.arguments.contains("--video-demo"),let url = try? await VideoFixtures.make(profile:.standard,frames:90) { selected = await library.add(url);try? FileManager.default.removeItem(at:url.deletingLastPathComponent()) }
+                if ProcessInfo.processInfo.arguments.contains("--archive-ui-test") {_ = await addDemo()}
                 if ProcessInfo.processInfo.arguments.contains("--demo-editor"), let project = await addDemo() { selected = project }
                 #endif
             }
@@ -274,6 +279,7 @@ enum StudioStyle {
             }
             .fullScreenCover(item:$editingPool) {pool in EditingPoolEditor(pool:pool,library:library)}
             .fullScreenCover(item: $selected) { project in PhotoEditor(project: project, library: library) }
+            .fullScreenCover(isPresented:$archives){ProjectArchiveSheet(library:library,initialSelection:archiveIDs)}
             .sheet(isPresented:$info) { StudioAbout() }
             .sheet(isPresented:$recovery,onDismiss:{emptyBinRequested=false}) { RecentlyDeletedSheet(library:library,requestEmpty:emptyBinRequested) }
             .sheet(item:$copyProject) { project in HomeCopyAdjustmentsSheet(project:project,library:library) }
@@ -318,6 +324,7 @@ enum StudioStyle {
                         Button("Empty Bin…",systemImage:"trash.slash",role:.destructive){searchFocused=false;emptyBinRequested=true;recovery=true}
                     }
                     .accessibilityAction(named:Text("Empty Bin")){searchFocused=false;emptyBinRequested=true;recovery=true}
+                Button("Backups"){openBackups(selection)}.accessibilityLabel("Project backups")
                 Spacer()
                 Menu {
                     Button("Delete selected",role:.destructive) { deleteIDs = selection;confirmBulkDelete = true }.disabled(selection.isEmpty)
@@ -327,6 +334,7 @@ enum StudioStyle {
         }
     }
     @ViewBuilder private var selectionActions:some View {
+        Button("Back up selected",systemImage:"externaldrive"){openBackups(selection)}
         Button("Favourite selected",systemImage:"heart") { organizeSelected(favorite:true) }.disabled(favoritingProjects)
         Button("Remove selected favourites",systemImage:"heart.slash") { organizeSelected(favorite:false) }.disabled(favoritingProjects)
         Menu("Rate selected",systemImage:"star") {
@@ -339,6 +347,7 @@ enum StudioStyle {
         Button("Delete selected",systemImage:"trash",role:.destructive) { deleteIDs = selection;confirmBulkDelete = true }
     }
     @ViewBuilder private func projectActions(_ project:Project) -> some View {
+        Button("Back up project",systemImage:"externaldrive"){openBackups([project.id])}
         Button("Copy adjustments",systemImage:"doc.on.doc") { searchFocused = false;copyProject = project }
         Button("Paste adjustments",systemImage:"doc.on.clipboard") { searchFocused = false;pasteProject = project }.disabled(library.adjustmentClipboard == nil)
         Button("Revert to original",systemImage:"arrow.uturn.backward",role:.destructive) { searchFocused = false;revertProject = project }.disabled(project.recipe == project.originalRecipe || reverting)
@@ -359,6 +368,9 @@ enum StudioStyle {
                 if let index = library.projects.firstIndex(where:{ $0.id == updated.id }) { library.projects[index] = updated }
             } catch { library.error = error.localizedDescription }
         }
+    }
+    private func openBackups(_ ids:Set<UUID>) {
+        searchFocused=false;archiveIDs=ids;archives=true
     }
     private func organizeSelected(favorite:Bool? = nil,rating:Int? = nil) {
         guard !favoritingProjects else { return }
@@ -490,7 +502,8 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Color Warp & Delivery · 0.33.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Project backups · 0.34.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Project backups on Home saves originals, current edits, masks, stored reference/background images and saved versions into one .stillarc file. Choose Save to Files to keep it. Restore makes new editable copies, leaving existing projects untouched. Backups include original metadata and private images; use finished exports for public sharing. Global preset libraries, editing pools and app settings are separate.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Select projects on Home and choose Edit together. Swipe between items or use the filmstrip; edits stay individual until you choose Sync edits. Sync selected sections to selected items or the entire pool, with recoverable before versions. Resume the pool later. In Masks → Add mask, Subject & Background creates two independent regions from one on-device analysis.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Remove a photo background, then choose Replace background for a solid color, your own image, or a blurred version of the scene. Position, resize and soften it separately from your subject. Transparent backgrounds export as PNG; opaque replacements can use JPEG, PNG or HDR HEIF. Check hair and translucent edges with the saved mask controls. Duplicate a mask for another adjustment, invert it to edit the other side, or use the extra local light, tint, clarity and blur controls.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Detail → Photo development gives supported RAW files their own white balance, exposure, rendering boost, decoder noise controls and supported camera lens/highlight-recovery switches. Manual optics controls reduce color fringing. In Detail's menu, Heal repairs small spots by matching a clean patch; Clone copies it directly. Inspect detail loads a full-resolution tile on demand. HDR development keeps available bright detail; SDR proof previews the JPEG/PNG tone mapping. Choose HDR HEIF for a 10-bit HLG still on compatible screens. From an editing pool, Export pool items lets you deliver everything or select individual items.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
