@@ -3,7 +3,7 @@ import CoreImage
 
 extension Recipe {
     var lutCompatibleColor:Recipe {
-        var copy = colorPreset
+        var copy = colorPreset;copy.videoAnimation=nil
         copy.highlights = 0;copy.shadows = 0;copy.dehaze = 0
         copy.texture = 0;copy.clarity = 0;copy.noise = 0;copy.sharpen = 0
         copy.grain = 0;copy.grainSize = 0.5;copy.grainModel = 2;copy.halation = 0;copy.bloom = 0;copy.vignette = 0
@@ -11,6 +11,7 @@ extension Recipe {
     }
     var lutExcludedEdits:[String] {
         var names:[String] = []
+        if videoAnimation?.tracks.isEmpty == false {names.append("Video animation")}
         if input.profile != .standard { names.append("Input conversion") }
         if highlights != 0 || shadows != 0 { names.append("Highlights/Shadows") }
         if dehaze != 0 || texture != 0 || clarity != 0 || noise != 0 || sharpen != 0 { names.append("Detail tools") }

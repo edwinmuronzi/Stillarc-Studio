@@ -153,7 +153,7 @@ private struct ColorLUTRequest:Identifiable { let id = UUID();let recipe:Recipe 
                     ForEach(visibleLooks) { look in
                         HStack {
                             Button {
-                                session.change { recipe in let framing = recipe; recipe = look.recipe; recipe.copyFraming(from: framing); recipe.input = framing.input;recipe.video = framing.video;recipe.masks = framing.masks }
+                                session.change { recipe in let framing = recipe; recipe = look.recipe; recipe.copyFraming(from: framing); recipe.input = framing.input;recipe.video = framing.video;recipe.masks = framing.masks;recipe.videoAnimation=framing.videoAnimation }
                                 dismiss()
                             } label: { Label(look.name,systemImage: "camera.filters").foregroundStyle(.white) }
                             Spacer()

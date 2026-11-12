@@ -1,5 +1,29 @@
 import XCTest
 final class GestureTests:XCTestCase {
+    func testVideoAnimationPointsAndUndo() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--video-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Looks"].waitForExistence(timeout:30));app.buttons["Looks"].tap();app.buttons["Video animation"].tap()
+        let set=app.buttons["setAnimationPoint"];XCTAssertTrue(set.waitForExistence(timeout:15));set.tap();XCTAssertTrue(app.staticTexts["1/32 points"].exists)
+        app.buttons["End"].tap();app.sliders["Animation value"].adjust(toNormalizedSliderPosition:0.7)
+        XCTAssertTrue(app.staticTexts["2/32 points"].waitForExistence(timeout:10))
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Video keyframes and live preview";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["animationUndo"].tap();XCTAssertTrue(app.staticTexts["1/32 points"].exists)
+        app.buttons["animationRedo"].tap();XCTAssertTrue(app.staticTexts["2/32 points"].exists)
+        app.buttons["closeVideoAnimation"].tap();app.buttons["Export video"].tap();app.buttons["Create export"].tap();XCTAssertTrue(app.buttons["Change export options"].waitForExistence(timeout:40))
+    }
+    func testVideoAnimationLandscapeLayout() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--video-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Looks"].waitForExistence(timeout:30));app.buttons["Looks"].tap();app.buttons["Video animation"].tap()
+        XCUIDevice.shared.orientation = .landscapeLeft;defer {XCUIDevice.shared.orientation = .portrait}
+        XCTAssertTrue(app.buttons["setAnimationPoint"].waitForExistence(timeout:15))
+        let preview=app.descendants(matching:.any).matching(identifier:"animationPreview").firstMatch;XCTAssertTrue(preview.waitForExistence(timeout:10));XCTAssertGreaterThan(preview.frame.height,150)
+        let wide=expectation(for:NSPredicate {_,_ in app.frame.width>app.frame.height && preview.frame.width>300},evaluatedWith:nil);wait(for:[wide],timeout:8)
+        app.buttons["setAnimationPoint"].tap();XCTAssertTrue(app.staticTexts["1/32 points"].waitForExistence(timeout:10))
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Landscape video animation";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["closeVideoAnimation"].tap()
+    }
     func testProjectBackupCreateInspectRestore() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments=["--archive-ui-test"];app.launch()

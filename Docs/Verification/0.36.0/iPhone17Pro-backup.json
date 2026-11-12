@@ -1,0 +1,20 @@
+{
+  "seconds" : 0.54539299011230469,
+  "photoVideoSourceBytes" : true,
+  "midStreamCancellation" : true,
+  "corruptionTruncationTrailing" : true,
+  "passed" : true,
+  "symlinkRootRoundtrip" : true,
+  "packageBytes" : 1632154,
+  "privateReferenceBackground" : true,
+  "restoredExport" : true,
+  "cancelledRestoreSafe" : true,
+  "version" : "0.36.0",
+  "versionsAndRatings" : true,
+  "backupAll21ProjectsTwoParts" : true,
+  "newIdentitiesAndRepeatedRestore" : true,
+  "thermal" : 1,
+  "editsMasksLUTWarp" : true,
+  "projectCount" : 6,
+  "traversalDuplicateFutureRejected" : true
+}

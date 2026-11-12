@@ -35,6 +35,8 @@ import UniformTypeIdentifiers
     @State private var splitPosition = 0.5
     @State private var versionsSheet = false
     @State private var transferSheet:AdjustmentTransferMode?
+    @State private var videoPosition=ClipPosition()
+    @State private var animationSheet=false
     @State private var warpSheet=false
     @State private var referenceSheet=false
     @State private var photoDevelopment=false
@@ -178,6 +180,7 @@ import UniformTypeIdentifiers
         }
         .task(id:developmentTaskKey) {await refreshPhotoSource()}
         .task(id:session.backgroundKey) {await session.warmBackground()}
+        .sheet(isPresented:$animationSheet){VideoAnimationSheet(session:session,pool:pool,undoAction:{undoEdit()},redoAction:{undoEdit(redo:true)},initialTime:videoPosition.time,onFinish:{videoPosition.seek($0)})}
         .sheet(isPresented:$warpSheet) {ColorWarpSheet(session:session)}
         .sheet(isPresented:$referenceSheet) {ReferenceMatchSheet(session:session,library:library,pool:pool)}
         .sheet(isPresented:$photoDevelopment) {PhotoDevelopmentSheet(session:session,sdrProof:$sdrProof)}
@@ -189,6 +192,7 @@ import UniformTypeIdentifiers
         .onChange(of:tool) { _,_ in curveEditing = false; pool?.tool=tool; cropAwaitingAdjustment = false;cropDisplayFinal = false;cropFocused = false }
         .onChange(of:scopesActive) { _,value in scopeSampler.setEnabled(value) }
         .onDisappear { scopeSampler.setEnabled(false) }
+        .onChange(of:session.project.id){_,_ in videoPosition.seek(0)}
         .onChange(of: session.recipe) { _, _ in if !diagnosticsRunning && pool?.historyBusy != true { session.scheduleSave(library) } }
         .onChange(of: phase) { _, phase in if phase != .active { curveEditing = false;session.end();if pool?.historyBusy != true {Task { await session.persist(library) }} } }
         .onDisappear {saveOnExit()}
@@ -447,9 +451,9 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,position:videoPosition)
                         } else {
-                            LivePreview(source:PhotoRendering.rawPreview(source,recipe:session.recipe),recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && !retouchSheet && !detailSheet && !backgroundSheet && !photoDevelopment && transferSheet == nil && trackingMask == nil && automaticTarget == nil,hdr:session.recipe.photoHDR == true && !sdrProof,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
+                            LivePreview(source:PhotoRendering.rawPreview(source,recipe:session.recipe),recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && !retouchSheet && !detailSheet && !backgroundSheet && !photoDevelopment && transferSheet == nil && trackingMask == nil && automaticTarget == nil,hdr:session.recipe.photoHDR == true && !sdrProof,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
                         }
                     }
                         .padding(tool == .crop ? (cropDisplayFinal ? 8 : 22) : 0)
@@ -491,6 +495,7 @@ import UniformTypeIdentifiers
                     Spacer()
                     HStack {
                         Menu {
+                            if session.project.isVideo {Button("Video animation",systemImage:"diamond"){animationSheet=true}}
                             Button("Color Warp",systemImage:"slider.horizontal.3"){warpSheet=true}
                             Button("Reference & Match",systemImage:"rectangle.split.2x1") {referenceSheet=true}
                             Button("Looks & presets",systemImage:"square.stack") { presets = true }
@@ -509,7 +514,7 @@ import UniformTypeIdentifiers
             }.coordinateSpace(name:"comparisonPreview").frame(width: geometry.size.width,height: geometry.size.height).clipped()
         }
     }
-    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil && !inputSheet }
+    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil && !inputSheet }
     @ViewBuilder private var scopePanel:some View {
         if scopesVisible && tool != .crop { ScopePanel(sampler:scopeSampler,mode:$scopeMode) }
     }

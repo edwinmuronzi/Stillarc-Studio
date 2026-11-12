@@ -61,3 +61,7 @@ Portable .stillarc backups now package up to 20 projects with exact originals, s
 
 ### 0.35 checkpoint
 Fixed backup asset paths across canonical/symlink directory aliases, with an aggregate-only read-only audit of actual device projects. The picker gains bounded photo/video thumbnails and fixed All/selected actions. Back up all writes complete numbered 20-project parts rather than omitting later projects. A persistent serial export queue snapshots per-delivery settings, supports explicit start, foreground pause/retry, ordering, retained completed files and safe removal, and is available from single/batch/pool delivery and Home. Queue work pauses while hidden or inactive; active unfinished work restarts at job boundaries. Additional camera transforms, grade keyframes, source relinking and Camera/Studio shared-look interchange remain separate scope.
+
+
+### 0.36 checkpoint
+Source-time video animation now covers exposure offsets and look/LUT/local-mask strength fades, with bounded points, Linear/Smooth interpolation, live slider preview, seek/add/update/delete/move, source/pool Undo/Redo and portrait/landscape layouts. Frame-time grading is shared by preview, direct/queued export, references and saved-source work. Animation stays out of reusable grades/LUTs; versions and backups retain it. New packages require reader build 40; queue schema 2 preserves animation while still loading earlier records. Additional camera transforms, source relinking, richer tracking correction and shared Camera/Studio look interchange remain separate scope.

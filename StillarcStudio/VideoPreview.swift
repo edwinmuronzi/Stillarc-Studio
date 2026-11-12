@@ -141,13 +141,14 @@ struct VideoPreview:View {
     var hideTransport = false
     var automaticReferenceIDs:[UUID]? = nil
     var rangePreview:ColorRange?
+    var position:ClipPosition? = nil
     @State private var playback:VideoPlayback?
     var body:some View {
         Group {
-            if let playback { VideoPreviewContent(playback:playback,poster:poster,recipe:recipe,original:original,active:active,onTrim:onTrim,showTrimButton:showTrimButton,scopes:scopes,split:split,maskPreview:maskPreview,hideTransport:hideTransport,rangePreview:rangePreview,automaticReferenceIDs:automaticReferenceIDs ?? recipe.masks.compactMap { $0.automatic?.id }) }
+            if let playback { VideoPreviewContent(playback:playback,poster:poster,recipe:recipe,original:original,active:active,onTrim:onTrim,showTrimButton:showTrimButton,scopes:scopes,split:split,maskPreview:maskPreview,hideTransport:hideTransport,rangePreview:rangePreview,automaticReferenceIDs:automaticReferenceIDs ?? recipe.masks.compactMap { $0.automatic?.id },position:position) }
             else { LivePreview(source:poster.image,recipe:recipe,signalSource:poster.signalImage,original:original,active:active,hdr:recipe.video.hdr,split:split,maskPreview:maskPreview) }
         }
-        .task { if playback == nil { let controller = VideoPlayback(url:url,descriptor:descriptor);controller.setEdit(recipe.video);controller.setActive(active);playback = controller } }
+        .task { if playback == nil { let controller = VideoPlayback(url:url,descriptor:descriptor);controller.setEdit(recipe.video);if let position {controller.seek(position.time)};controller.setActive(active);playback = controller } }
         .onChange(of:active) { _,value in playback?.setActive(value) }
         .onChange(of:hideTransport) { _,value in if value { playback?.pause() } }
         .onChange(of:recipe.video) { _,value in playback?.setEdit(value) }
@@ -157,6 +158,7 @@ struct VideoPreview:View {
 private struct VideoPreviewContent:View {
     @Bindable var playback:VideoPlayback
     let poster:PreparedPhoto;let recipe:Recipe;let original:Bool;let active:Bool;let onTrim:() -> Void;let showTrimButton:Bool;let scopes:ScopeSampler?;let split:Double?;let maskPreview:LocalMask?;let hideTransport:Bool;let rangePreview:ColorRange?;let automaticReferenceIDs:[UUID]
+    var position:ClipPosition? = nil
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var transportVisible = false
     @State private var scrubbing = false
@@ -181,6 +183,12 @@ private struct VideoPreviewContent:View {
             guard transportVisible,!scrubbing else { return }
             do { try await Task.sleep(for:.seconds(3));withAnimation(.easeInOut(duration:reduceMotion ? 0.12 : 0.28)) { transportVisible = false } } catch {}
         }.onChange(of:hideTransport) { _,value in if value { transportVisible = false } }
+        .onAppear {position?.time=playback.time;position?.playing=playback.playing}
+        .onChange(of:playback.time){_,value in position?.time=value}
+        .onChange(of:playback.frameTime){_,value in if !playback.playing {position?.time=value}}
+        .onChange(of:playback.playing){_,value in position?.playing=value;if !value {position?.time=playback.frameTime}}
+        .onChange(of:position?.seekToken){_,_ in if let position {playback.beginScrub();playback.seek(position.time);playback.endScrub()}}
+        .onChange(of:position?.pauseToken){_,_ in playback.pause()}
         .onChange(of:automaticReferenceIDs) { old,new in
             if new.contains(where:{ !old.contains($0) }) { playback.showAutomaticReferenceFrame() }
         }
@@ -251,7 +259,7 @@ struct VideoMetalView:UIViewRepresentable {
             let pair = VideoEngine.images(buffer,descriptor:descriptor,maxDimension:1280)
             let image = MaskMotion.$frame.withValue(MaskMotion.Frame(time:frameTime,framing:MaskMotion.signature(recipe))) {
                 var comparison = Recipe();comparison.copyFraming(from:recipe)
-                let selected = original ? comparison : recipe
+                let selected = VideoAnimation.resolve(original ? comparison : recipe,time:frameTime)
                 let source = selected.input.profile == .standard ? pair.managed : pair.signal
                 var image = HDRPipeline.grade(source,recipe:selected,hdr:recipe.video.hdr,rangePreview:original ? nil : range,preview:true)
                 if !original,let split {
@@ -263,9 +271,9 @@ struct VideoMetalView:UIViewRepresentable {
                 if !original {
                     var reference:CIImage? = nil
                     if maskPreview != nil && recipe.masks.contains(where:{ $0.isRange }) {
-                        reference = HDRPipeline.maskReference(source,recipe:recipe,hdr:recipe.video.hdr)
+                        reference = HDRPipeline.maskReference(source,recipe:selected,hdr:recipe.video.hdr)
                     }
-                    image = MaskEngine.overlay(image,layer:maskPreview,reference:reference,layers:recipe.masks,framing:MaskMotion.signature(recipe))
+                    image = MaskEngine.overlay(image,layer:maskPreview.flatMap {preview in selected.masks.first(where:{$0.id==preview.id})},reference:reference,layers:selected.masks,framing:MaskMotion.signature(recipe))
                 }
                 return image
             }

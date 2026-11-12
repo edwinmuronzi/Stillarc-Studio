@@ -35,6 +35,7 @@ enum HDRPipeline {
         return ImageEngine.apply(normalized,recipe:base,preview:true)
     }
     static func grade(_ source:CIImage,recipe:Recipe,hdr:Bool,rangePreview:ColorRange? = nil,preview:Bool = false) -> CIImage {
+        let recipe=VideoAnimation.resolve(recipe,time:MaskMotion.frame?.time)
         guard hdr else { return ImageEngine.apply(source,recipe:recipe,rangePreview:rangePreview,preview:preview) }
         var input = recipe.input;input.softHighlights = false
         let decoded = LogConversion.apply(source,input:input)

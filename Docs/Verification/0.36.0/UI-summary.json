@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "distinctWorkflows": 4,
+  "tests": [
+    "VideoAnimationPointsAndUndo",
+    "VideoAnimationLandscapeLayout",
+    "ExportQueueDelivery",
+    "ColorWarpResetUndoAndPersistence"
+  ],
+  "compactRepeat": "VideoAnimationPointsAndUndo passed on iPhone 13 mini simulator",
+  "notes": "Header Undo/Redo is always accessible and uses pool history where applicable. A test-harness nested selector/force unwrap was corrected. Rotation proof waits for landscape geometry and sets a point before capture."
+}

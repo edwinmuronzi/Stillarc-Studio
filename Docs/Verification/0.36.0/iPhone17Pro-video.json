@@ -1,0 +1,91 @@
+{
+  "encodedAutomaticCropRepair" : true,
+  "encodedCombinedBrushRangeMask" : true,
+  "levelsVideoExport" : true,
+  "version" : "0.36.0",
+  "passed" : true,
+  "encodedAutomaticMask" : true,
+  "trimHDR" : {
+    "audioTracks" : 2,
+    "headroomVectors" : 5,
+    "zeroBasedTiming" : true,
+    "trimFrames" : 33,
+    "trimSeconds" : 1.1000000000000001,
+    "persistence" : true,
+    "presetIsolation" : true,
+    "HDRToSDRPreviewClamp" : true,
+    "passed" : true
+  },
+  "boundedTrackingDecode" : true,
+  "encodedColorLuminanceMasks" : true,
+  "maskTracking" : {
+    "passed" : true,
+    "pointCounts" : [
+      30,
+      30
+    ],
+    "encodedTracking" : true,
+    "exportFramesPerClip" : 60,
+    "movingTargetErrors" : [
+      0.0051411703706012168,
+      0.0033422505339212594
+    ],
+    "cancellation" : true,
+    "portraitLandscape" : true
+  },
+  "clips" : [
+    {
+      "profile" : "standard",
+      "metadata" : true,
+      "width" : 640,
+      "frames" : 18,
+      "height" : 360,
+      "color" : true,
+      "originalPreserved" : true,
+      "projectRoundTrip" : true,
+      "audioTracks" : 2,
+      "cancellation" : true
+    },
+    {
+      "projectRoundTrip" : true,
+      "cancellation" : true,
+      "color" : true,
+      "audioTracks" : 1,
+      "frames" : 18,
+      "originalPreserved" : true,
+      "profile" : "appleLog",
+      "metadata" : true,
+      "height" : 640,
+      "width" : 360
+    },
+    {
+      "audioTracks" : 1,
+      "originalPreserved" : true,
+      "frames" : 18,
+      "width" : 640,
+      "metadata" : true,
+      "projectRoundTrip" : true,
+      "profile" : "appleLog2",
+      "color" : true,
+      "cancellation" : true,
+      "height" : 360
+    },
+    {
+      "frames" : 3,
+      "cornerResized4KLog" : true,
+      "width" : 1860,
+      "height" : 1860
+    }
+  ],
+  "dehazeVideoExport" : true,
+  "photoInput" : {
+    "exposureAlpha" : true,
+    "highlightShoulder" : true,
+    "passed" : true,
+    "bothGamuts" : true,
+    "standardBypass" : true,
+    "curveVectors" : 32,
+    "persistence" : true,
+    "presetInputIsolation" : true
+  }
+}

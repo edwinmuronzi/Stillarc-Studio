@@ -1,3 +1,7 @@
+## 0.36.0, build 40 — Video keyframes
+
+Native math/HDR/video/audio, animated backup/queue and compatibility regressions passed, plus four UI workflows and a compact-screen repeat. The sustained animation run completed 1,882 frames with 24.49 ms p95 completion, no GPU failures/idle frames, and fair thermal state throughout sampled checks. [Reports and limits](Verification/0.36.0/README.md).
+
 ## 0.35.0, build 39 — Backup fix and export queue
 
 Actual-device path audit: 4/4 previously rejected asset paths now pass. Symlink-root 21-project/two-part backup, native queue lifecycle and core regressions passed, with five UI workflows passing across targeted retests. The native queue run ended at fair iOS thermal state after repeated tests; no no-heat guarantee is made. [Reports and limits](Verification/0.35.0/README.md).

@@ -4,7 +4,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.35 backup fixes and queued-delivery milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.36 video-animation milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -349,3 +349,13 @@ In a photo/video Export page choose **Add to export queue → Open export queue*
 Keep the queue page visible. Closing it or leaving the app pauses the active job; unfinished jobs restart from their beginning. Completed files and waiting jobs survive reopening Studio, without automatically starting work. Keep source projects until delivery finishes. Missing sources produce per-job failures; other waiting jobs can continue. Partial batches list skipped items beside available files. When paused, use a job’s options to reorder or remove it; failed/cancelled jobs offer Retry. Cancelling the active job pauses the queue. Removing a job asks for confirmation and deletes only its queue records/export files, never source projects or copies saved outside Studio. Up to 10 retained jobs (20 items per job) are supported; remove finished jobs to free room. Queue files are private local copies, not a substitute for saving final deliveries externally.
 
 Backup path handling now normalizes aliases such as `/var` and `/private/var` before deriving relative paths, while retaining outside-folder and traversal checks. The regression suite covers the alias failure and complete 21-project/two-part backup/restoration.
+
+## Video keyframes · 0.36
+
+Open a video → **Looks → Video animation**. Pause or scrub to a moment, then drag **Animation value** to add/update a point live; **Set point** captures the shown value. Choose another moment and another value. Select **Exposure shift**, **Look fade**, **LUT fade**, or one of your source masks. Exposure adds to the main exposure (up to ±3 EV shift); fades multiply the existing look/LUT/mask strength. Choose/import the effect first to see a fade. Base exposure/effect controls remain useful across the whole clip.
+
+Each target supports 32 points. Smooth gently eases; Linear changes at a steady rate. Values hold outside the first/last points. Tap a point to seek to it; select a point then scrub and use Move selected point here to change its time. Delete the current point or hold a point to delete it, including points outside the kept trim. Reset this animation removes only the chosen target. Header Undo/Redo uses the same source/pool history as the main editor. The preview remains large in portrait, landscape and on iPad; rotating changes layout without deliberately recreating the player.
+
+Points use original source seconds, so trimming does not silently move them. Changing crop can still require existing mask repair/tracking validation; scalar fades do not run segmentation. Missing/deleted-mask tracks are harmless and can be cleaned from the panel. Animation is source-specific: project/complete versions, .stillarc backups and queued exports keep it; reusable presets, adjustment copy/sync and color-only LUT export exclude it. Applying a static look preserves the destination clip’s animation. New backups require Studio 0.36 or newer; older backup files still open. Queue records migrate from schema 1 to 2, which older versions should not overwrite.
+
+Evaluation runs inside the existing frame-time grading path, using small bounded scalar tracks and no new image pass, decoder loop or per-frame inference. Only the visible player runs; hidden editor playback/scopes pause. Interpolation is not optical motion tracking, a video timeline or arbitrary effect keyframing.
