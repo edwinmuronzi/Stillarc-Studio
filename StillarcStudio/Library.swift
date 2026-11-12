@@ -16,6 +16,11 @@ struct PhotoTransfer: Transferable {
     }
 }
 actor ProjectVault {
+    private struct OrganizationSnapshot { let value:ProjectOrganization? }
+    private var organizations:[UUID:OrganizationSnapshot] = [:]
+    #if DEBUG
+    private(set) var organizationSaveReads = 0
+    #endif
     let root: URL
     init(root: URL? = nil) {
         self.root = root ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("StillarcStudio", isDirectory: true)
@@ -23,14 +28,38 @@ actor ProjectVault {
     func load() throws -> ([Project], [SavedLook]) {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let projects = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil))?.filter { $0.pathExtension == "json" && $0.lastPathComponent != "looks.json" && $0.lastPathComponent != "adjustments-clipboard.json" }.compactMap { try? JSONDecoder().decode(Project.self, from: Data(contentsOf: $0)) } ?? []
+        organizations = Dictionary(uniqueKeysWithValues:projects.map { ($0.id,OrganizationSnapshot(value:$0.organization)) })
         let lookURL = root.appendingPathComponent("looks.json")
         let looks = FileManager.default.fileExists(atPath: lookURL.path) ? try JSONDecoder().decode([SavedLook].self, from: Data(contentsOf: lookURL)) : []
         return (projects.sorted { $0.modified > $1.modified }, looks)
     }
     func source(_ project: Project) -> URL { root.appendingPathComponent(project.id.uuidString, isDirectory: true).appendingPathComponent(project.sourceName) }
-    func save(_ project: Project) throws {
+    @discardableResult func save(_ incoming: Project) throws -> Project {
+        var project = incoming
+        let index = root.appendingPathComponent(project.id.uuidString+".json")
+        if FileManager.default.fileExists(atPath:index.path) {
+            if let known = organizations[project.id] { project.organization = known.value }
+            else {
+                project.organization = try JSONDecoder().decode(Project.self,from:Data(contentsOf:index)).organization
+                #if DEBUG
+                organizationSaveReads += 1
+                #endif
+            }
+        }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         try JSONEncoder().encode(project).write(to: root.appendingPathComponent(project.id.uuidString + ".json"), options: .atomic)
+        organizations[project.id] = OrganizationSnapshot(value:project.organization)
+        return project
+    }
+    func updateOrganization(_ id:UUID,favorite:Bool?,rating:Int?) throws -> Project {
+        let url = root.appendingPathComponent(id.uuidString+".json")
+        var project = try JSONDecoder().decode(Project.self,from:Data(contentsOf:url))
+        var metadata = project.organization ?? ProjectOrganization()
+        if let favorite { metadata.favorite = favorite };if let rating { metadata.rating = min(5,max(0,rating)) }
+        project.organization = metadata
+        try JSONEncoder().encode(project).write(to:url,options:.atomic)
+        organizations[project.id] = OrganizationSnapshot(value:project.organization)
+        return project
     }
     func loadClipboard() throws -> AdjustmentClipboard? {
         let url = root.appendingPathComponent("adjustments-clipboard.json")
@@ -85,6 +114,7 @@ actor ProjectVault {
     func remove(_ project: Project) throws {
         // Remove the index first: a failed cleanup cannot leave a broken library item.
         try FileManager.default.removeItem(at: root.appendingPathComponent(project.id.uuidString + ".json"))
+        organizations.removeValue(forKey:project.id)
         try? FileManager.default.removeItem(at: root.appendingPathComponent(project.id.uuidString))
     }
 }
@@ -94,6 +124,7 @@ actor ProjectVault {
     var adjustmentClipboard:AdjustmentClipboard?
     var loading = true
     var importing = false
+    var organizationBusy = Set<UUID>()
     var error: String?
     let vault:ProjectVault
     init(vault:ProjectVault = ProjectVault()) { self.vault = vault }
@@ -124,10 +155,18 @@ actor ProjectVault {
     }
     @discardableResult func save(_ project: Project) async -> Bool {
         do {
-            try await vault.save(project)
-            if let index = projects.firstIndex(where: { $0.id == project.id }) { projects[index] = project }
+            let updated = try await vault.save(project)
+            if let index = projects.firstIndex(where: { $0.id == project.id }) { projects[index] = updated }
             return true
         } catch { self.error = error.localizedDescription; return false }
+    }
+    func organize(_ project:Project,favorite:Bool? = nil,rating:Int? = nil) async {
+        guard organizationBusy.insert(project.id).inserted else { return }
+        defer { organizationBusy.remove(project.id) }
+        do {
+            let updated = try await vault.updateOrganization(project.id,favorite:favorite,rating:rating)
+            if let index = projects.firstIndex(where:{ $0.id == project.id }) { projects[index] = updated }
+        } catch { self.error = error.localizedDescription }
     }
     func remove(_ project: Project) async {
         do { try await vault.remove(project); projects.removeAll { $0.id == project.id } } catch { self.error = error.localizedDescription }

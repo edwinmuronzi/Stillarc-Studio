@@ -77,7 +77,7 @@ enum VideoVerification {
             let output = try await VideoEngine.poster(result.url,descriptor:converted,maxDimension:450)
             let actual = mean(output.image)
             try require((0..<3).allSatisfy { abs(actual[$0]-expected[$0])<0.025 },"Preview/export color mismatch: \(profile.rawValue) expected=\(expected) actual=\(actual)")
-            var hazed = recipe;hazed.dehaze = 0.8
+            var hazed = recipe;hazed.dehaze = 0.8;hazed.levelBlack = 0.02;hazed.levelWhite = 0.98;hazed.levelGamma = 1.2;hazed.levelOutputBlack = 0.01;hazed.levelOutputWhite = 0.99
             let expectedDehaze = mean(ImageEngine.apply(prepared.source(for:hazed),recipe:hazed))
             let dehazed = try await VideoEngine.export(source:url,descriptor:descriptor,recipe:hazed,tenBit:tenBit,progress:{ _ in })
             defer { try? FileManager.default.removeItem(at:dehazed.url) }
@@ -178,7 +178,7 @@ enum VideoVerification {
         try require(try await frameTimes(scaledResult.url).count == 3,"Corner-resized export dropped frames")
         checks.append(["cornerResized4KLog":true,"width":scaledResult.width,"height":scaledResult.height,"frames":3])
         #endif
-        return ["maskTracking":try await TrackingVerification.video(),"passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","clips":checks,"photoInput":try LogVerification.run(),"boundedTrackingDecode":true,"dehazeVideoExport":true,"encodedAutomaticCropRepair":true,"encodedAutomaticMask":true,"encodedCombinedBrushRangeMask":true,"encodedColorLuminanceMasks":true,"trimHDR":try await HDRTrimVerification.run()]
+        return ["maskTracking":try await TrackingVerification.video(),"passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","clips":checks,"photoInput":try LogVerification.run(),"boundedTrackingDecode":true,"levelsVideoExport":true,"dehazeVideoExport":true,"encodedAutomaticCropRepair":true,"encodedAutomaticMask":true,"encodedCombinedBrushRangeMask":true,"encodedColorLuminanceMasks":true,"trimHDR":try await HDRTrimVerification.run()]
     }
     @MainActor static func writeReport() async {
         let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("video-verification.json")

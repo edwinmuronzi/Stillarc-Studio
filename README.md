@@ -178,3 +178,16 @@ The crop fit now starts after **0.7 seconds** and eases into place over **0.4 se
 Dehaze uses one GPU color operation before creative looks/LUTs. It bypasses completely at zero, needs no additional blur, image readback, AI analysis or background processing loop, and retains HDR highlight headroom. Lens-profile correction is still planned separately.
 
 ![Live Dehaze control](Docs/Screenshots/Dehaze.png)
+
+### Levels and workspace organization (0.20)
+
+This release bundles six additions:
+
+- **Curves → Levels:** choose the input black/white points, brighten or darken midtones, and set the darkest/brightest output. Black/white points stay separated. Levels supports live preview, undo, double-tap defaults, saved looks, versions and Curves copy/paste, with matching full-source photo/video exports.
+- **Favorites:** use the **•••** menu beside a project’s name to mark a favorite or remove it.
+- **Star ratings:** use that same menu to give a project 1–5 stars or clear its rating.
+- **Search:** find projects by name without reopening their media.
+- **Filters:** show all media, favorites, photos, videos, RAW photos or 4–5-star projects. Clear search and filters if nothing matches.
+- **Sorting:** choose recently edited, newest/oldest imported, name or highest rating. Filters and sort choice survive restarts.
+
+Favorites and ratings belong to Studio projects; they do not change the original in Photos/Files or travel in exported media. Changing them preserves the edit timestamp, so thumbnails are not re-decoded just to update a heart or star. The project actor preserves current organization when an older editor snapshot saves, and caches it to avoid re-parsing the full index on every normal autosave. Levels uses one GPU color operation and bypasses it entirely at neutral settings.

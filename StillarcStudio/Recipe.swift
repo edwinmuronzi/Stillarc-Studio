@@ -26,6 +26,11 @@ struct Recipe: Codable, Equatable, Sendable {
     var grain = 0.0
     var bloom = 0.0
     var vignette = 0.0
+    var levelBlack = 0.0
+    var levelWhite = 1.0
+    var levelGamma = 1.0
+    var levelOutputBlack = 0.0
+    var levelOutputWhite = 1.0
     var dehaze = 0.0
     var texture = 0.0
     var clarity = 0.0
@@ -42,10 +47,15 @@ struct Recipe: Codable, Equatable, Sendable {
     var look = FilmLook.original
     var lookAmount = 1.0
     init() {}
-    private enum CodingKeys: String, CodingKey { case masks, geometry, video, input, lut, lutAmount, colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, dehaze, texture, clarity, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
+    private enum CodingKeys: String, CodingKey { case levelBlack, levelWhite, levelGamma, levelOutputBlack, levelOutputWhite, masks, geometry, video, input, lut, lutAmount, colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, dehaze, texture, clarity, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
     init(from decoder: Decoder) throws {
         self.init()
         let values = try decoder.container(keyedBy: CodingKeys.self)
+        levelBlack = try values.decodeIfPresent(Double.self,forKey:.levelBlack) ?? 0
+        levelWhite = try values.decodeIfPresent(Double.self,forKey:.levelWhite) ?? 1
+        levelGamma = try values.decodeIfPresent(Double.self,forKey:.levelGamma) ?? 1
+        levelOutputBlack = try values.decodeIfPresent(Double.self,forKey:.levelOutputBlack) ?? 0
+        levelOutputWhite = try values.decodeIfPresent(Double.self,forKey:.levelOutputWhite) ?? 1
         masks = Array((try values.decodeIfPresent([LocalMask].self,forKey:.masks) ?? []).prefix(4)).map { $0.validated() }
         geometry = (try values.decodeIfPresent(GeometrySettings.self,forKey:.geometry) ?? GeometrySettings()).validated()
         video = try values.decodeIfPresent(VideoEdit.self,forKey:.video) ?? VideoEdit()
@@ -136,6 +146,7 @@ struct Project: Identifiable, Codable, Equatable, Sendable {
     var width: Int
     var height: Int
     var isRAW: Bool
+    var organization:ProjectOrganization? = nil
     var versions:[EditVersion]? = nil
     var video: VideoDescriptor? = nil
     var isVideo:Bool { video != nil }
@@ -160,6 +171,10 @@ extension Recipe {
         for key in signed { copy[keyPath: key] = copy[keyPath: key].isFinite ? min(1, max(-1, copy[keyPath: key])) : 0 }
         for key in positive { copy[keyPath: key] = copy[keyPath: key].isFinite ? min(1, max(0, copy[keyPath: key])) : 0 }
         copy.exposure = copy.exposure.isFinite ? min(3,max(-3,copy.exposure)) : 0
+        func bounded(_ v:Double,_ low:Double,_ high:Double,_ fallback:Double) -> Double { v.isFinite ? min(high,max(low,v)) : fallback }
+        copy.levelBlack = bounded(levelBlack,0,0.95,0);copy.levelWhite = bounded(levelWhite,max(0.05,copy.levelBlack+0.01),1,1)
+        copy.levelGamma = bounded(levelGamma,0.2,3,1)
+        copy.levelOutputBlack = bounded(levelOutputBlack,0,0.95,0);copy.levelOutputWhite = bounded(levelOutputWhite,max(0.05,copy.levelOutputBlack+0.01),1,1)
         copy.geometry = copy.geometry.validated()
         copy.cropX = copy.cropX.isFinite ? min(1,max(0,copy.cropX)) : 0.5
         copy.cropY = copy.cropY.isFinite ? min(1,max(0,copy.cropY)) : 0.5
@@ -180,7 +195,7 @@ extension Tool {
         case .light: [\.exposure, \.contrast, \.highlights, \.shadows, \.whites, \.blacks]
         case .color: [\.warmth, \.tint, \.saturation, \.vibrance]
         case .film: [\.grain, \.bloom, \.fade, \.vignette]
-        case .curves: [\.curveShadows, \.curveMidtones, \.curveHighlights]
+        case .curves: [\.levelBlack, \.levelWhite, \.levelGamma, \.levelOutputBlack, \.levelOutputWhite, \.curveShadows, \.curveMidtones, \.curveHighlights]
         case .detail: [\.dehaze, \.texture, \.clarity, \.sharpen, \.noise]
         case .masks: []
         case .crop: [\.straighten]
@@ -190,7 +205,8 @@ extension Tool {
 extension Recipe {
     func hasAdjustments(in tool: Tool) -> Bool {
         if tool == .masks { return !masks.isEmpty }
-        if tool.valueKeys.contains(where: { abs(self[keyPath: $0]) > 0.000001 }) { return true }
+        let neutral = Recipe()
+        if tool.valueKeys.contains(where: { abs(self[keyPath: $0]-neutral[keyPath:$0]) > 0.000001 }) { return true }
         if tool == .curves && !rgbCurves.isNeutral { return true }
         if tool == .color && (!selectiveColors.isNeutral || !colorWheels.isNeutral || !channelMixer.isNeutral) { return true }
         if tool == .film { return (look != .original && lookAmount > 0.000001) || (lut != nil && lutAmount > 0.000001) }

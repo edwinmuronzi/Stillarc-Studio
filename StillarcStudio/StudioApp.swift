@@ -51,7 +51,15 @@ enum StudioStyle {
     @State private var info = false
     @State private var deletion: Project?
     @State private var demoBusy = false
+    @State private var workspaceSearch = ""
+    @FocusState private var searchFocused:Bool
+    @AppStorage("studio.library.filter") private var filterRaw = LibraryFilter.all.rawValue
+    @AppStorage("studio.library.sort") private var sortRaw = LibrarySort.edited.rawValue
+    private var filter:LibraryFilter { LibraryFilter(rawValue:filterRaw) ?? .all }
+    private var sort:LibrarySort { LibrarySort(rawValue:sortRaw) ?? .edited }
+    private var visibleProjects:[Project] { LibraryQuery.projects(library.projects,query:workspaceSearch,filter:filter,sort:sort) }
     var body: some View {
+        let items = visibleProjects
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
@@ -68,27 +76,47 @@ enum StudioStyle {
                     HStack {
                         Text("Your workspace").font(.title3.weight(.semibold))
                         Spacer()
-                        Text("\(library.projects.count) \(library.projects.count == 1 ? "item" : "items")").font(.caption.monospaced()).foregroundStyle(StudioStyle.secondary)
+                        Text("\(items.count) of \(library.projects.count)").font(.caption.monospaced()).foregroundStyle(StudioStyle.secondary)
                     }
+                    workspaceControls
                     if library.loading { ProgressView().frame(maxWidth: .infinity) }
                     else if library.projects.isEmpty {
                         VStack(alignment: .leading, spacing: 9) {
                             Text("A space for your point of view.").font(.headline)
                             Text("Open photo or video to start. Your original stays untouched, and every adjustment stays editable.").font(.subheadline).foregroundStyle(StudioStyle.secondary).lineSpacing(3)
                         }.padding(22).frame(maxWidth: .infinity,alignment: .leading).background(StudioStyle.panel,in: RoundedRectangle(cornerRadius: 22))
+                    } else if items.isEmpty {
+                        VStack(spacing:12) {
+                            Text("No matching items").font(.headline)
+                            Text("Try another search or show all media.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                            Button("Clear search and filters") { workspaceSearch = "";filterRaw = LibraryFilter.all.rawValue }
+                        }.frame(maxWidth:.infinity).padding(22)
                     } else {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150),spacing: 14)],spacing: 20) {
-                            ForEach(library.projects) { project in
-                                Button { selected = project } label: {
-                                    VStack(alignment: .leading,spacing: 9) {
-                                        ProjectThumbnail(project: project, vault: library.vault)
-                                            .aspectRatio(0.9,contentMode: .fit).clipShape(RoundedRectangle(cornerRadius: 18))
-                                        Text(project.name).font(.subheadline.weight(.medium)).lineLimit(1)
-                                        Text("\(project.isVideo ? "VIDEO" : (project.isRAW ? "RAW" : "PHOTO")) · \(project.width) × \(project.height)").font(.system(size: 10,design: .monospaced)).foregroundStyle(StudioStyle.secondary)
-                                    }.foregroundStyle(.white)
-                                }.buttonStyle(.plain).contextMenu {
-                                    Button("Delete Studio copy",systemImage: "trash",role: .destructive) { deletion = project }
-                                }
+                            ForEach(items) { project in
+                                VStack(alignment:.leading,spacing:9) {
+                                    Button { selected = project } label: {
+                                        ProjectThumbnail(project:project,vault:library.vault).aspectRatio(0.9,contentMode:.fit).clipShape(RoundedRectangle(cornerRadius:18)).contentShape(RoundedRectangle(cornerRadius:18)).accessibilityHidden(true)
+                                    }.buttonStyle(.plain).contentShape(RoundedRectangle(cornerRadius:18)).accessibilityElement(children:.ignore).accessibilityLabel("Open \(project.name)")
+                                    HStack(alignment:.top,spacing:6) {
+                                        VStack(alignment:.leading,spacing:5) {
+                                            HStack(spacing:4) {
+                                                Text(project.name).font(.subheadline.weight(.medium)).lineLimit(1)
+                                                if project.organization?.favorite == true { Image(systemName:"heart.fill").font(.caption).foregroundStyle(StudioStyle.blue) }
+                                                if let rating = project.organization?.rating,rating>0 { Text("\(rating)★").font(.caption.monospacedDigit()).foregroundStyle(StudioStyle.blue) }
+                                            }
+                                            Text("\(project.isVideo ? "VIDEO" : (project.isRAW ? "RAW" : "PHOTO")) · \(project.width) × \(project.height)").font(.system(size:10,design:.monospaced)).foregroundStyle(StudioStyle.secondary)
+                                        }.frame(maxWidth:.infinity,alignment:.leading).contentShape(Rectangle()).onTapGesture { selected = project }
+                                        Menu {
+                                            Button(project.organization?.favorite == true ? "Remove favorite" : "Mark favorite",systemImage:"heart") { Task { await library.organize(project,favorite:project.organization?.favorite != true) } }
+                                            Menu("Rate",systemImage:"star") {
+                                                Button("No rating") { Task { await library.organize(project,rating:0) } }
+                                                ForEach(1...5,id:\.self) { value in Button("\(value) \(value == 1 ? "star" : "stars")") { Task { await library.organize(project,rating:value) } } }
+                                            }
+                                            Button("Delete Studio copy",systemImage:"trash",role:.destructive) { deletion = project }
+                                        } label: { Image(systemName:"ellipsis").frame(width:32,height:32) }.accessibilityLabel("Manage \(project.name)")
+                                    }
+                                }.foregroundStyle(.white)
                             }
                         }
                     }
@@ -107,6 +135,9 @@ enum StudioStyle {
                 defer { if qa { UIApplication.shared.isIdleTimerDisabled = oldIdle } }
                 #endif
                 await library.load()
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("--organization-demo"),let p = await addDemo() { await library.organize(p,favorite:false,rating:0);filterRaw = LibraryFilter.all.rawValue;sortRaw = LibrarySort.edited.rawValue }
+                #endif
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("--verify-automatic-only") {
                     let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("automatic-verification.json")
@@ -157,6 +188,24 @@ enum StudioStyle {
             .confirmationDialog("Delete this Studio project?",isPresented: Binding(get: { deletion != nil },set: { if !$0 { deletion = nil } }),titleVisibility: .visible) {
                 Button("Delete Studio copy",role: .destructive) { if let deletion { Task { await library.remove(deletion) } }; deletion = nil }
             } message: { Text("Your original in Photos or Files will remain. The imported Studio copy and its adjustments will be removed.") }
+        }
+    }
+    private var workspaceControls:some View {
+        VStack(spacing:12) {
+            HStack(spacing:8) {
+                Image(systemName:"magnifyingglass").foregroundStyle(StudioStyle.secondary)
+                TextField("Search workspace",text:$workspaceSearch).focused($searchFocused).submitLabel(.search).onSubmit { searchFocused = false }.accessibilityIdentifier("workspaceSearch")
+                if !workspaceSearch.isEmpty { Button { workspaceSearch = "" } label: { Image(systemName:"xmark.circle.fill").frame(width:30,height:30) }.accessibilityLabel("Clear workspace search") }
+            }.padding(12).background(StudioStyle.panel,in:RoundedRectangle(cornerRadius:14))
+            HStack {
+                Menu {
+                    ForEach(LibraryFilter.allCases) { item in Button { filterRaw = item.rawValue } label: { HStack { Text(item.rawValue);if filter == item { Image(systemName:"checkmark") } } } }
+                } label: { Label(filter.rawValue,systemImage:"line.3.horizontal.decrease").font(.caption).padding(.vertical,8) }.accessibilityLabel("Filter workspace").accessibilityValue(filter.rawValue)
+                Spacer()
+                Menu {
+                    ForEach(LibrarySort.allCases) { item in Button { sortRaw = item.rawValue } label: { HStack { Text(item.rawValue);if sort == item { Image(systemName:"checkmark") } } } }
+                } label: { Label(sort.rawValue,systemImage:"arrow.up.arrow.down").font(.caption).padding(.vertical,8) }.accessibilityLabel("Sort workspace").accessibilityValue(sort.rawValue)
+            }
         }
     }
     private var hero: some View {
@@ -218,9 +267,9 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Dehaze · Refined preview motion · 0.19.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Levels · Favorites & ratings · 0.20.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
                     Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export JPEG/PNG photographs or trimmed HEVC video with audio in SDR or 10-bit HLG HDR.")
-                    Text("Dehaze reduces a washed-out veil or adds soft haze. Texture brings out fine surfaces or softens them; Clarity changes broader definition. The preview stays large, and Expand preview hides adjustments. Tap video to show playback controls. Use Scopes to inspect brightness and color. Drag crop corners to resize and drag inside to reposition. Fixed ratios stay locked; Free lets each edge change. Flips and perspective help refine your composition; every change stays reversible.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
+                    Text("Levels sets black, white and midtones. Mark favorites, rate projects and search or filter your workspace. Dehaze reduces a washed-out veil or adds soft haze. Texture brings out fine surfaces or softens them; Clarity changes broader definition. The preview stays large, and Expand preview hides adjustments. Tap video to show playback controls. Use Scopes to inspect brightness and color. Drag crop corners to resize and drag inside to reposition. Fixed ratios stay locked; Free lets each edge change. Flips and perspective help refine your composition; every change stays reversible.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Drag the split divider to compare original and edit. Save complete versions under Looks to try different grades and return to a favorite.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Copy selected adjustments under Looks, then paste them onto another photo or clip. Its framing, camera input and trim stay intact; undo reverses the paste.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Use Masks to brighten a face or darken part of a sky. Linear and radial shapes have soft edges, inversion and strength; the red guide is only a preview. Masks stay with this source; Radial, Brush and Subject masks can use position tracking.").font(.subheadline).foregroundStyle(StudioStyle.secondary)

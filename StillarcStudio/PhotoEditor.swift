@@ -214,7 +214,7 @@ import UniformTypeIdentifiers
         let settled = PreviewMetrics.shared.times.count
         try? await Task.sleep(for:.seconds(2))
         let idleRenders = PreviewMetrics.shared.times.count-settled
-        let result:[String:Any] = ["version":"0.19.0","fittedCropRenders":fittedRenders,"fittedAfterDelay":fitted,"passed":!interrupted && fitted && dragRenders == 0 && fittedRenders<=2 && idleRenders == 0 && PreviewMetrics.shared.failures == 0 && VideoPlayback.creationCount == players && maxDelay<0.25,"updates":180,"dragImageRenders":dragRenders,"idleImageRenders":idleRenders,"playersCreated":VideoPlayback.creationCount-players,"maxMainActorWakeSeconds":maxDelay,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
+        let result:[String:Any] = ["version":"0.20.0","fittedCropRenders":fittedRenders,"fittedAfterDelay":fitted,"passed":!interrupted && fitted && dragRenders == 0 && fittedRenders<=2 && idleRenders == 0 && PreviewMetrics.shared.failures == 0 && VideoPlayback.creationCount == players && maxDelay<0.25,"updates":180,"dragImageRenders":dragRenders,"idleImageRenders":idleRenders,"playersCreated":VideoPlayback.creationCount-players,"maxMainActorWakeSeconds":maxDelay,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
         let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("crop-ui-verification.json")
         if let data = try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted) { try? data.write(to:url,options:.atomic) }
     }
@@ -478,6 +478,16 @@ import UniformTypeIdentifiers
                     adjustment("Fade",key: \.fade,range: 0...1)
                     adjustment("Vignette",key: \.vignette,range: 0...1)
                 case .curves:
+                    DisclosureGroup("Levels") {
+                        VStack(spacing:18) {
+                            Text("Set which tones become black or white. Midtones brightens or darkens the tones between them. Output limits soften the darkest or brightest result.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                            adjustment("Input black",key:\.levelBlack,range:0...min(0.95,max(0.01,session.recipe.levelWhite-0.01)))
+                            adjustment("Input white",key:\.levelWhite,range:max(0.05,min(0.99,session.recipe.levelBlack+0.01))...1,defaultValue:1)
+                            adjustment("Midtones",key:\.levelGamma,range:0.2...3,defaultValue:1)
+                            adjustment("Output black",key:\.levelOutputBlack,range:0...min(0.95,max(0.01,session.recipe.levelOutputWhite-0.01)))
+                            adjustment("Output white",key:\.levelOutputWhite,range:max(0.05,min(0.99,session.recipe.levelOutputBlack+0.01))...1,defaultValue:1)
+                        }.padding(.top,12)
+                    }.font(.subheadline)
                     curveControls
                 case .masks:
                     maskControls
@@ -831,6 +841,7 @@ import UniformTypeIdentifiers
         let start = ProcessInfo.processInfo.thermalState.rawValue
         let began = CACurrentMediaTime()
         session.recipe.lut = try? await Task.detached(priority:.userInitiated) { try LUTVerification.example(dimension:65) }.value
+        session.recipe.levelGamma = 1.1;session.recipe.levelBlack = 0.015;session.recipe.levelWhite = 0.98
         session.recipe.dehaze = 0.25;session.recipe.texture = 0.4;session.recipe.clarity = 0.3
         session.recipe.look = .daylight; session.recipe.grain = 0.15; session.recipe.bloom = 0.1
         session.recipe.straighten = 3; session.recipe.crop = .portrait
@@ -840,6 +851,7 @@ import UniformTypeIdentifiers
             if Task.isCancelled || UIApplication.shared.applicationState != .active { interrupted = true; break }
             if index % 120 == 0 { writeProgress(["stage":"running","step":index,"rendered":PreviewMetrics.shared.times.count,"active":UIApplication.shared.applicationState == .active]) }
             session.recipe.lutAmount = 0.5 + sin(Double(index)*0.1)*0.5
+            session.recipe.levelGamma = 1+sin(Double(index)*0.03)*0.15
             session.recipe.dehaze = sin(Double(index)*0.05)*0.4
             session.recipe.texture = sin(Double(index)*0.08)*0.6;session.recipe.clarity = cos(Double(index)*0.06)*0.4
             session.recipe.exposure = sin(Double(index) * 0.13)

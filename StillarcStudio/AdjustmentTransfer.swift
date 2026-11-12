@@ -4,7 +4,7 @@ enum AdjustmentSection:String,CaseIterable,Codable,Identifiable,Sendable {
     case light,whiteBalance,color,curves,wheels,mixer,look,lut,texture,detail
     var id:String { rawValue }
     var title:String { switch self { case .light:"Light";case .whiteBalance:"White balance";case .color:"Color & color mix";case .curves:"Curves";case .wheels:"Color wheels";case .mixer:"Channel mixer";case .look:"Built-in look";case .lut:"LUT";case .texture:"Film texture";case .detail:"Detail" } }
-    var help:String { switch self { case .light:"Exposure, contrast and bright/dark tones";case .whiteBalance:"Warmth and tint";case .color:"Saturation, vibrance and individual color ranges";case .curves:"Master/RGB curves and tone shaping";case .wheels:"Shadows, midtones, highlights and global tint";case .mixer:"Channel mixing, offsets and monochrome";case .look:"Creative look and its strength";case .lut:"The LUT itself and its strength; Off clears the destination LUT";case .texture:"Grain, bloom, fade and vignette";case .detail:"Dehaze, texture, clarity, sharpening and noise reduction" } }
+    var help:String { switch self { case .light:"Exposure, contrast and bright/dark tones";case .whiteBalance:"Warmth and tint";case .color:"Saturation, vibrance and individual color ranges";case .curves:"Levels, Master/RGB curves and tone shaping";case .wheels:"Shadows, midtones, highlights and global tint";case .mixer:"Channel mixing, offsets and monochrome";case .look:"Creative look and its strength";case .lut:"The LUT itself and its strength; Off clears the destination LUT";case .texture:"Grain, bloom, fade and vignette";case .detail:"Dehaze, texture, clarity, sharpening and noise reduction" } }
 }
 struct AdjustmentClipboard:Codable,Sendable {
     var schema = 1

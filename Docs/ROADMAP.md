@@ -22,7 +22,9 @@ Implemented in 0.18: background crop repair for automatic selections and their s
 
 Implemented in 0.19: a signed live Dehaze control before creative looks/LUTs, quicker crop settling with gentler easing, explicit playback opacity transitions and Reduce Motion support.
 
-Next: lens corrections. Levels and freely placed extra curve points. Numeric inputs, accessible adjustable controls and iPad keyboard shortcuts. Validate RAW camera fixtures, wide-gamut/HDR interpretation and export matching before adding HDR photo output.
+Implemented in 0.20: input/output Levels and midtone gamma; favorites, star ratings, name search, media/favorite/rating filters and persistent sorting, with metadata-safe autosave and stable thumbnail cache keys.
+
+Next: lens corrections and freely placed extra curve points. Numeric inputs, accessible adjustable controls and iPad keyboard shortcuts. Validate RAW camera fixtures, wide-gamut/HDR interpretation and export matching before adding HDR photo output.
 
 ## 3 — Reusable grades and film
 
@@ -50,7 +52,7 @@ Implemented in 0.15: cancellable forward region tracking for Radial/Brush masks,
 
 Implemented in 0.16: on-request foreground Subject and Sky selection, saved 16-bit mattes, GPU edge refinement, first-kept-frame video masks and Subject position tracking. No per-frame semantic video segmentation.
 
-Next: more robust tracking/recovery, changing-pose segmentation, healing and carefully bounded advanced noise reduction. Multiple versions, favorites/ratings, project recovery, batch copy/paste, batch export and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
+Next: more robust tracking/recovery, changing-pose segmentation, healing and carefully bounded advanced noise reduction. Project recovery, batch copy/paste, batch export and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
 
 ## 5 — Video grading
 

@@ -66,6 +66,48 @@ final class GestureTests:XCTestCase {
         reveal.tap();XCTAssertTrue(app.buttons["Trim video"].waitForExistence(timeout:5))
         let attachment = XCTAttachment(screenshot:app.screenshot());attachment.name = "Large video preview and playback on tap";attachment.lifetime = .keepAlways;add(attachment)
     }
+    func testLevelsUndoResetAndReopen() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = ["--demo-editor","--neutral-demo","--tool","Curves"];app.launch()
+        let levels = app.buttons["Levels"];XCTAssertTrue(levels.waitForExistence(timeout:30));levels.tap()
+        let black = app.sliders["Input black"];XCTAssertTrue(black.waitForExistence(timeout:10));black.doubleTap()
+        black.adjust(toNormalizedSliderPosition:0.15);let changed = black.value as? String;XCTAssertNotEqual(changed,"0")
+        app.buttons["Undo"].tap();XCTAssertEqual(black.value as? String,"0")
+        app.buttons["Redo"].tap();XCTAssertEqual(black.value as? String,changed)
+        let gamma = app.sliders["Midtones"];gamma.doubleTap();gamma.adjust(toNormalizedSliderPosition:0.65)
+        XCTAssertNotEqual(gamma.value as? String,"1");gamma.doubleTap();XCTAssertEqual(gamma.value as? String,"1")
+        let image = XCTAttachment(screenshot:app.screenshot());image.name = "Levels controls and large preview";image.lifetime = .keepAlways;add(image)
+        app.buttons["Back to workspace"].tap()
+        XCTAssertTrue(app.buttons["About Stillarc Studio"].waitForExistence(timeout:10))
+        app.terminate();app.launchArguments = ["--demo-editor","--tool","Curves"];app.launch()
+        XCTAssertTrue(app.buttons["Levels"].waitForExistence(timeout:30));app.buttons["Levels"].tap()
+        XCTAssertEqual(app.sliders["Input black"].value as? String,changed)
+    }
+    func testWorkspaceFavoritesRatingsSearchAndSort() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = ["--organization-demo"];app.launch()
+        let search = app.textFields["workspaceSearch"];XCTAssertTrue(search.waitForExistence(timeout:30));search.tap();search.typeText("Studio sample")
+        app.keyboards.buttons["Search"].tap()
+        let card = app.buttons["Manage Studio sample"]
+        if !card.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        XCTAssertTrue(card.waitForExistence(timeout:10));card.tap()
+        app.buttons["Mark favorite"].tap();XCTAssertFalse(app.buttons["Back to workspace"].exists)
+        if !app.buttons["Filter workspace"].isHittable { app.scrollViews.firstMatch.swipeDown() }
+        app.buttons["Filter workspace"].tap();app.buttons["Favorites"].tap()
+        if !card.isHittable { app.scrollViews.firstMatch.swipeUp() };card.tap()
+        app.buttons["Rate"].tap();app.buttons["4 stars"].tap()
+        if !app.buttons["Sort workspace"].isHittable { app.scrollViews.firstMatch.swipeDown() }
+        app.buttons["Sort workspace"].tap();app.buttons["Highest rated"].tap()
+        XCTAssertEqual(app.buttons["Sort workspace"].value as? String,"Highest rated")
+        let screenshot = XCTAttachment(screenshot:app.screenshot());screenshot.name = "Search favorites ratings and sorting";screenshot.lifetime = .keepAlways;add(screenshot)
+        app.terminate();app.launchArguments = [];app.launch()
+        XCTAssertTrue(app.buttons["Filter workspace"].waitForExistence(timeout:30))
+        XCTAssertEqual(app.buttons["Filter workspace"].value as? String,"Favorites")
+        XCTAssertEqual(app.buttons["Sort workspace"].value as? String,"Highest rated")
+        search.tap();search.typeText("Studio sample");app.keyboards.buttons["Search"].tap()
+        if !card.isHittable { app.scrollViews.firstMatch.swipeUp() };card.tap()
+        XCTAssertTrue(app.buttons["Remove favorite"].exists)
+    }
     func testDoubleTapAndDrag() throws {
         let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments = ["--verify-slider-gestures"];app.launch()

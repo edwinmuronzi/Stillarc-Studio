@@ -1,0 +1,90 @@
+{
+  "encodedCombinedBrushRangeMask" : true,
+  "levelsVideoExport" : true,
+  "encodedAutomaticMask" : true,
+  "trimHDR" : {
+    "headroomVectors" : 5,
+    "persistence" : true,
+    "audioTracks" : 2,
+    "zeroBasedTiming" : true,
+    "presetIsolation" : true,
+    "trimFrames" : 33,
+    "trimSeconds" : 1.1000000000000001,
+    "passed" : true
+  },
+  "maskTracking" : {
+    "cancellation" : true,
+    "encodedTracking" : true,
+    "movingTargetErrors" : [
+      0.0051411703706012168,
+      0.0033422505339212594
+    ],
+    "pointCounts" : [
+      30,
+      30
+    ],
+    "exportFramesPerClip" : 60,
+    "passed" : true,
+    "portraitLandscape" : true
+  },
+  "clips" : [
+    {
+      "color" : true,
+      "originalPreserved" : true,
+      "metadata" : true,
+      "frames" : 18,
+      "projectRoundTrip" : true,
+      "profile" : "standard",
+      "width" : 640,
+      "height" : 360,
+      "cancellation" : true,
+      "audioTracks" : 2
+    },
+    {
+      "projectRoundTrip" : true,
+      "width" : 360,
+      "height" : 640,
+      "originalPreserved" : true,
+      "audioTracks" : 1,
+      "cancellation" : true,
+      "frames" : 18,
+      "metadata" : true,
+      "color" : true,
+      "profile" : "appleLog"
+    },
+    {
+      "originalPreserved" : true,
+      "profile" : "appleLog2",
+      "width" : 640,
+      "cancellation" : true,
+      "height" : 360,
+      "audioTracks" : 1,
+      "frames" : 18,
+      "projectRoundTrip" : true,
+      "metadata" : true,
+      "color" : true
+    },
+    {
+      "frames" : 3,
+      "cornerResized4KLog" : true,
+      "width" : 1860,
+      "height" : 1860
+    }
+  ],
+  "photoInput" : {
+    "curveVectors" : 16,
+    "passed" : true,
+    "bothGamuts" : true,
+    "highlightShoulder" : true,
+    "standardBypass" : true,
+    "presetInputIsolation" : true,
+    "exposureAlpha" : true,
+    "persistence" : true
+  },
+  "boundedTrackingDecode" : true,
+  "dehazeVideoExport" : true,
+  "encodedAutomaticCropRepair" : true,
+  "version" : "0.20.0",
+  "passed" : true,
+  "encodedColorLuminanceMasks" : true
+}
