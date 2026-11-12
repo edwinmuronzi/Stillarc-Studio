@@ -10,6 +10,7 @@ import UniformTypeIdentifiers
     @State private var scopesVisible = false
     @State private var scopeMode = ScopeMode.histogram
     @State private var scopeSampler = ScopeSampler()
+    @State private var automaticTarget:AutomaticSelectionTarget?
     @State private var trackingMask:LocalMask?
     @State private var selectedMaskID:UUID?
     @State private var showMask = true
@@ -74,6 +75,7 @@ import UniformTypeIdentifiers
                 session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks
                 try? await Task.sleep(for:.seconds(1));trackingMask = layer
             }
+            if arguments.contains("--neutral-demo") { session.change { $0 = Recipe() } }
             if arguments.contains("--brush-demo") { var layer = LocalMask(kind:.brush);var drawing = BrushDrawing();let id = drawing.begin(point:BrushPoint(x:0.3,y:0.3),radius:0.08,feather:0.6,erase:false)!;drawing.append(BrushPoint(x:0.7,y:0.6),stroke:id);layer.brush = drawing;layer.exposure = 0.5;session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks }
             if arguments.contains("--mask-demo") { var layer = LocalMask(kind:.radial);layer.exposure = 0.5;session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks }
             if arguments.contains("--split") { splitComparison = true }
@@ -144,6 +146,7 @@ import UniformTypeIdentifiers
         .sheet(isPresented: $export) { ExportSheet(session: session) }
         .sheet(item:$transferSheet) { mode in AdjustmentTransferSheet(mode:mode,session:session,library:library) }
         .sheet(isPresented:$versionsSheet) { VersionsSheet(session:session,library:library) }
+        .sheet(item:$automaticTarget) { target in AutomaticSelectionSheet(session:session,target:target) { id in selectedMaskID = id;showMask = true } }
         .sheet(item:$trackingMask) { mask in MaskTrackingSheet(session:session,maskID:mask.id) }
         .sheet(isPresented: $presets) { PresetsSheet(session: session,library: library) }
         .sheet(isPresented:$trimSheet) { VideoTrimSheet(session:session) }
@@ -262,9 +265,9 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:comparing,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:comparing,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
                         } else {
-                            LivePreview(source:source.image,recipe:session.recipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && trackingMask == nil,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
+                            LivePreview(source:source.image,recipe:session.recipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && trackingMask == nil && automaticTarget == nil,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
                         }
                     }
                         .scaleEffect(zoom * pinch).offset(x: offset.width+drag.width,y: offset.height+drag.height)
@@ -281,7 +284,7 @@ import UniformTypeIdentifiers
                 else { ContentUnavailableView("Could not open media",systemImage: "photo.badge.exclamationmark",description: Text(session.error ?? "Return to the workspace and try another file.")) }
                 if tool == .masks,!comparing,let layer = selectedMask,let source = session.source {
                     if layer.kind == .brush { if isPaintingBrush { BrushMaskCanvas(session:session,id:layer.id,sourceSize:source.image.extent.size,erase:brushMode == .erase) } }
-                    else if !layer.isRange && layer.motion == nil { MaskPositionHandle(session:session,id:layer.id,sourceSize:source.image.extent.size) }
+                    else if !layer.isRange && !layer.kind.isAutomatic && layer.motion == nil { MaskPositionHandle(session:session,id:layer.id,sourceSize:source.image.extent.size) }
                 }
                 if splitComparison,!comparing,let source = session.source {
                     SplitComparisonDivider(sourceSize:source.image.extent.size,recipe:session.recipe,fraction:$splitPosition)
@@ -317,7 +320,7 @@ import UniformTypeIdentifiers
             }.coordinateSpace(name:"comparisonPreview").frame(width: geometry.size.width,height: geometry.size.height).clipped()
         }
     }
-    private var scopesActive:Bool { scopesVisible && phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && !inputSheet }
+    private var scopesActive:Bool { scopesVisible && phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil && !inputSheet }
     @ViewBuilder private var scopePanel:some View {
         if scopesVisible { ScopePanel(sampler:scopeSampler,mode:$scopeMode) }
     }
@@ -437,9 +440,16 @@ import UniformTypeIdentifiers
     }
     private var maskControls:some View {
         VStack(alignment:.leading,spacing:12) {
-            ScrollView(.horizontal,showsIndicators:false) { HStack {
-                ForEach(LocalMaskKind.allCases) { kind in Button("+ \(kind.rawValue)") { guard session.recipe.masks.count<4 else { return };var layer = LocalMask(kind:kind);layer = layer.validated();session.change { $0.masks.append(layer) };selectedMaskID = layer.id;if kind == .brush { brushMode = .paint };showMask = true }.disabled(session.recipe.masks.count>=4) }
-            }}.buttonStyle(.bordered).font(.caption)
+            Menu {
+                ForEach(LocalMaskKind.allCases) { kind in
+                    Button(kind.rawValue) {
+                        guard session.recipe.masks.count<4 else { return }
+                        if kind.isAutomatic { automaticTarget = AutomaticSelectionTarget(kind:kind,maskID:nil);return }
+                        var layer = LocalMask(kind:kind);layer = layer.validated();session.change { $0.masks.append(layer) };selectedMaskID = layer.id
+                        if kind == .brush { brushMode = .paint };showMask = true
+                    }
+                }
+            } label: { Label("Add mask",systemImage:"plus.circle") }.buttonStyle(.bordered).font(.caption).disabled(session.recipe.masks.count>=4)
             if let layer = selectedMask {
                 ScrollView(.horizontal) {
                     HStack { ForEach(Array(session.recipe.masks.enumerated()),id:\.element.id) { index,mask in Button("\(index+1) · \(mask.kind.rawValue)") { selectedMaskID = mask.id }.buttonStyle(.bordered).tint(mask.id == layer.id ? StudioStyle.blue : .gray) } }
@@ -450,9 +460,9 @@ import UniformTypeIdentifiers
                     }.pickerStyle(.menu)
                     Text("Uses mask \(index)’s selection. Intersect keeps the overlap; Add includes either area; Subtract removes the previous area. Its adjustment strength and On/off state do not change this selection. Delete a preceding mask and the link follows the new previous mask.").font(.caption).foregroundStyle(StudioStyle.secondary)
                 }
-                if session.project.isVideo && (layer.kind == .radial || layer.kind == .brush) {
+                if session.project.isVideo && (layer.kind == .radial || layer.kind == .brush || layer.kind == .subject) {
                     HStack {
-                        Button { if layer.kind == .brush { brushMode = .view };trackingMask = layer } label: { Label(layer.motion == nil ? "Track mask" : "Track again",systemImage:"viewfinder") }
+                        Button { if layer.kind == .brush { brushMode = .view };trackingMask = layer } label: { Label(layer.motion == nil ? "Track mask" : "Track again",systemImage:"viewfinder") }.disabled(layer.kind.isAutomatic && layer.automatic?.matches(session.recipe) != true)
                         if layer.motion != nil { Button("Clear tracking",role:.destructive) { updateMask { $0.motion = nil } } }
                     }.buttonStyle(.bordered).font(.caption)
                     if let motion = layer.motion {
@@ -467,6 +477,17 @@ import UniformTypeIdentifiers
                     Button { updateMask { $0.enabled.toggle() } } label: { Label("On",systemImage:"power").font(.caption) }.tint(layer.enabled ? StudioStyle.blue : .gray).accessibilityValue(layer.enabled ? "On" : "Off")
                     Button { updateMask { $0.inverted.toggle() } } label: { Label("Invert",systemImage:"circle.lefthalf.filled").font(.caption) }.tint(layer.inverted ? StudioStyle.blue : .gray).accessibilityValue(layer.inverted ? "On" : "Off")
                 }.buttonStyle(.bordered)
+                if layer.kind.isAutomatic {
+                    Button("Recreate \(layer.kind.rawValue.lowercased()) selection",systemImage:"arrow.clockwise") { automaticTarget = AutomaticSelectionTarget(kind:layer.kind,maskID:layer.id) }.font(.caption)
+                    if let stored = layer.automatic,!stored.matches(session.recipe) { Text("Crop or clip start changed. Recreate this selection before exporting.").font(.caption).foregroundStyle(StudioStyle.secondary) }
+                    DisclosureGroup("Refine automatic selection") {
+                        automaticSlider("Selection threshold",key:\.threshold,range:0.05...0.95)
+                        automaticSlider("Edge transition",key:\.transition,range:0.02...1)
+                        automaticSlider("Grow / shrink (%)",key:\.expand,range:-0.01...0.01,scale:100)
+                        automaticSlider("Soft edge (%)",key:\.softness,range:0...0.01,scale:100)
+                        Text("Threshold changes how certain a pixel must be; transition blends that cutoff. Grow/shrink adjusts the border and soft edge feathers it. Double-tap a slider to restore its default. Use a separate Brush with Intersect/Subtract for manual corrections.").font(.caption2).foregroundStyle(StudioStyle.secondary)
+                    }.font(.caption)
+                }
                 if layer.kind == .color {
                     HStack(spacing:8) {
                         ForEach(Array([0.0,30,60,120,180,240,300].enumerated()),id:\.offset) { _,hue in
@@ -503,7 +524,7 @@ import UniformTypeIdentifiers
                         Text("Size and softness apply to new strokes. \(layer.brush?.strokes.count ?? 0)/64 strokes; up to 2,048 points per stroke. Lift and start another stroke if it stops extending.").font(.caption2).foregroundStyle(StudioStyle.secondary)
                         Button("Clear painted area",role:.destructive) { updateMask { $0.brush = BrushDrawing() } }
                     }.font(.caption)
-                } else if !layer.isRange {
+                } else if !layer.isRange && !layer.kind.isAutomatic {
                 DisclosureGroup("Shape, position & feather") {
                 maskSlider("Horizontal position",key:\.centerX,range:0...1)
                 maskSlider("Vertical position",key:\.centerY,range:0...1)
@@ -516,6 +537,15 @@ import UniformTypeIdentifiers
                 Button("Delete selected mask",role:.destructive) { let id = layer.id;session.change { $0.masks.removeAll { $0.id == id } };selectedMaskID = nil }
             }
             Text("Up to four masks. Drag the center in the fitted preview, or use position sliders. Feather softens the edge; invert adjusts the other side. For brush masks, paint directly on the image; View restores preview controls and video scrubbing. Painting pauses video. Size/softness apply to new strokes; undo removes a whole stroke. Masks are anchored to the current crop, stay with this source, and are excluded from reusable looks and copy/paste. Untracked brush and gradient masks stay fixed in video; tracked Radial/Brush masks follow saved position changes. Color and luminance masks select matching pixels in each frame, without object tracking or keyframes. The red guide is never exported.").font(.caption).foregroundStyle(StudioStyle.secondary)
+        }
+    }
+    private func automaticSlider(_ title:String,key:WritableKeyPath<AutomaticRefinement,Double>,range:ClosedRange<Double>,scale:Double = 1) -> some View {
+        VStack(spacing:5) {
+            HStack { Text(title);Spacer();Text((selectedMask?.refinement ?? AutomaticRefinement())[keyPath:key]*scale,format:.number.precision(.fractionLength(2))).monospacedDigit() }.font(.caption)
+            Slider(value:Binding(get:{ (selectedMask?.refinement ?? AutomaticRefinement())[keyPath:key] },set:{ value in
+                guard let layer = selectedMask,let index = session.recipe.masks.firstIndex(where:{ $0.id == layer.id }) else { return }
+                var r = session.recipe.masks[index].refinement ?? AutomaticRefinement();r[keyPath:key] = value;session.recipe.masks[index].refinement = r
+            }),in:range,onEditingChanged:{ $0 ? session.begin() : session.end() }).accessibilityLabel(title).sliderReset { updateMask { var r = $0.refinement ?? AutomaticRefinement();r[keyPath:key] = AutomaticRefinement()[keyPath:key];$0.refinement = r } }
         }
     }
     private func selectionSlider(_ name:String,key:WritableKeyPath<MaskSelection,Double>,range:ClosedRange<Double>,scale:Double = 1) -> some View {

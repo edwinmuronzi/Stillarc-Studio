@@ -131,15 +131,16 @@ enum ImageEngine {
             image = texture.applyingFilter("CISoftLightBlendMode", parameters: [kCIInputBackgroundImageKey: image])
         }
         if r.vignette > 0 { filter("CIVignette", [kCIInputIntensityKey: r.vignette * 1.6, kCIInputRadiusKey: max(image.extent.width,image.extent.height) * 0.6]) }
-        return MaskEngine.apply(PhotoFraming.apply(image,recipe:r),layers:r.masks,preview:preview)
+        return MaskEngine.apply(PhotoFraming.apply(image,recipe:r),layers:r.masks,preview:preview,framing:MaskMotion.signature(r))
     }
 
     static func export(source: URL, recipe: Recipe, format: ExportFormat) throws -> ExportResult {
         try autoreleasepool {
+            let automatic = try AutomaticMaskBitmap.prepare(recipe)
             let original = try open(source)
             let framed = PhotoFraming.window(in:PhotoFraming.orientedSize(original.image.extent.size,recipe:recipe),recipe:recipe)
             let brushes = try BrushMaskRasterizer.prepareExport(layers:recipe.masks,extent:framed)
-            let image = BrushMaskRasterizer.$preparedExport.withValue(brushes) { apply(original.source(for:recipe),recipe:recipe) }
+            let image = AutomaticMaskBitmap.$prepared.withValue(automatic) { BrushMaskRasterizer.$preparedExport.withValue(brushes) { apply(original.source(for:recipe),recipe:recipe) } }
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("Stillarc-\(UUID().uuidString.prefix(8)).\(format.ext)")
             let context = context()
             if format == .jpeg {

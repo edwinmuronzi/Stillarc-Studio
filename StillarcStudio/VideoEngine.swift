@@ -71,6 +71,7 @@ enum VideoEngine {
         try Task.checkCancellation()
         try ColorPipeline.prepare(); try LogConversion.prepare();try HDRPipeline.prepare();try MaskEngine.prepare()
         try MaskMotion.validateExport(recipe,duration:descriptor.duration)
+        let automatic = try AutomaticMaskBitmap.prepare(recipe)
         let asset = AVURLAsset(url:source)
         guard let track = try await asset.loadTracks(withMediaType:.video).first else { throw StudioError.unreadable }
         let reader = try AVAssetReader(asset:asset)
@@ -137,7 +138,7 @@ enum VideoEngine {
                         CVBufferSetAttachment(destination,kCVImageBufferTransferFunctionKey,hdr ? kCVImageBufferTransferFunction_ITU_R_2100_HLG : kCVImageBufferTransferFunction_sRGB,.shouldPropagate)
                         CVBufferSetAttachment(destination,kCVImageBufferYCbCrMatrixKey,hdr ? kCVImageBufferYCbCrMatrix_ITU_R_2020 : kCVImageBufferYCbCrMatrix_ITU_R_709_2,.shouldPropagate)
                         let pair = images(sourceBuffer,descriptor:descriptor)
-                        let image = MaskMotion.$frame.withValue(.init(time:presentation.seconds,framing:MaskMotion.signature(recipe))) { BrushMaskRasterizer.$preparedExport.withValue(brushes) { HDRPipeline.grade(recipe.input.profile == .standard ? pair.managed : pair.signal,recipe:recipe,hdr:hdr) } }
+                        let image = AutomaticMaskBitmap.$prepared.withValue(automatic) { MaskMotion.$frame.withValue(.init(time:presentation.seconds,framing:MaskMotion.signature(recipe))) { BrushMaskRasterizer.$preparedExport.withValue(brushes) { HDRPipeline.grade(recipe.input.profile == .standard ? pair.managed : pair.signal,recipe:recipe,hdr:hdr) } } }
                         let normalized = image.transformed(by:.init(translationX:-image.extent.minX,y:-image.extent.minY))
                         context.render(normalized,to:destination,bounds:CGRect(x:0,y:0,width:width,height:height),colorSpace:outputSpace)
                         let time = CMSampleBufferGetPresentationTimeStamp(sample)

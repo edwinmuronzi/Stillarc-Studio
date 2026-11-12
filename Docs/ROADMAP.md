@@ -42,7 +42,9 @@ Implemented in 0.14: previous-mask intersection/addition/subtraction with soft G
 
 Implemented in 0.15: cancellable forward region tracking for Radial/Brush masks, with normalized timestamped translation, background analysis, persistent/undoable tracks and full-resolution export. No deformation, scale/rotation tracking or manual motion-keyframe editor.
 
-Next: more robust tracking/recovery and on-device subject/sky selection, healing and carefully bounded advanced noise reduction. Multiple versions, favorites/ratings, project recovery, batch copy/paste, batch export and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
+Implemented in 0.16: on-request foreground Subject and Sky selection, saved 16-bit mattes, GPU edge refinement, first-kept-frame video masks and Subject position tracking. No per-frame semantic video segmentation.
+
+Next: more robust tracking/recovery, changing-pose segmentation, healing and carefully bounded advanced noise reduction. Multiple versions, favorites/ratings, project recovery, batch copy/paste, batch export and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
 
 ## 5 — Video grading
 

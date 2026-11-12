@@ -54,7 +54,7 @@ struct LivePreview: UIViewRepresentable {
             brushObserver = NotificationCenter.default.addObserver(forName:.studioBrushReady,object:nil,queue:.main) { [weak self,weak view] note in
                 guard let id = note.object as? UUID else { return }
                 Task { @MainActor [weak self,weak view] in
-                    guard let self,let view,self.active,self.recipe.masks.contains(where:{ $0.brush?.id == id }) else { return };self.dirty = true;if !self.drawing { view.setNeedsDisplay() }
+                    guard let self,let view,self.active,self.recipe.masks.contains(where:{ $0.brush?.id == id || $0.automatic?.id == id }) else { return };self.dirty = true;if !self.drawing { view.setNeedsDisplay() }
                 }
             }
         }
@@ -83,7 +83,7 @@ struct LivePreview: UIViewRepresentable {
                 if maskPreview != nil && recipe.masks.contains(where:{ $0.isRange }) {
                     reference = HDRPipeline.maskReference(recipe.input.profile != .standard ? (signalSource ?? source) : source,recipe:recipe,hdr:hdr)
                 }
-                image = MaskEngine.overlay(image,layer:maskPreview,reference:reference,layers:recipe.masks)
+                image = MaskEngine.overlay(image,layer:maskPreview,reference:reference,layers:recipe.masks,framing:MaskMotion.signature(recipe))
             }
             let scale = min(size.width / image.extent.width, size.height / image.extent.height)
             let placed = image.transformed(by: .init(scaleX: scale,y: scale)).transformed(by: .init(translationX: (size.width-image.extent.width*scale)/2, y: (size.height-image.extent.height*scale)/2))

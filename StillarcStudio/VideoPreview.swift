@@ -105,6 +105,9 @@ import CoreImage
             seek(previous.start != value.start ? selection.lowerBound : max(selection.lowerBound,selection.upperBound-1/max(1,descriptor.frameRate)))
         } else if time < selection.lowerBound || time >= selection.upperBound { seek(selection.lowerBound) }
     }
+    func showAutomaticReferenceFrame() {
+        resume = false;resumeAfterScrub = false;pause();seek(selection.lowerBound)
+    }
     func beginScrub() { resumeAfterScrub = playing;pause() }
     func endScrub() { if resumeAfterScrub && active { resumeAfterScrub = false;playing = true;player.play();startLink() } }
     func seek(_ seconds:Double) {
@@ -166,6 +169,8 @@ private struct VideoPreviewContent:View {
             }.padding(.horizontal,10).background(.ultraThinMaterial,in:Capsule()).padding(.horizontal,16).padding(.bottom,showTrimButton ? 62 : 12)
             }
             if let error = playback.error { Text(error).font(.caption).padding().background(.black.opacity(0.8)).frame(maxHeight:.infinity,alignment:.center) }
+        }.onChange(of:recipe.masks.compactMap { $0.automatic?.id }) { old,new in
+            if new.contains(where:{ !old.contains($0) }) { playback.showAutomaticReferenceFrame() }
         }
     }
 }
@@ -215,7 +220,7 @@ struct VideoMetalView:UIViewRepresentable {
             brushObserver = NotificationCenter.default.addObserver(forName:.studioBrushReady,object:nil,queue:.main) { [weak self,weak view] note in
                 guard let id = note.object as? UUID else { return }
                 Task { @MainActor [weak self,weak view] in
-                    guard let self,let view,self.active,self.recipe.masks.contains(where:{ $0.brush?.id == id }) else { return };self.dirty = true;if !self.drawing { view.setNeedsDisplay() }
+                    guard let self,let view,self.active,self.recipe.masks.contains(where:{ $0.brush?.id == id || $0.automatic?.id == id }) else { return };self.dirty = true;if !self.drawing { view.setNeedsDisplay() }
                 }
             }
         }
@@ -248,7 +253,7 @@ struct VideoMetalView:UIViewRepresentable {
                     if maskPreview != nil && recipe.masks.contains(where:{ $0.isRange }) {
                         reference = HDRPipeline.maskReference(source,recipe:recipe,hdr:recipe.video.hdr)
                     }
-                    image = MaskEngine.overlay(image,layer:maskPreview,reference:reference,layers:recipe.masks)
+                    image = MaskEngine.overlay(image,layer:maskPreview,reference:reference,layers:recipe.masks,framing:MaskMotion.signature(recipe))
                 }
                 return image
             }

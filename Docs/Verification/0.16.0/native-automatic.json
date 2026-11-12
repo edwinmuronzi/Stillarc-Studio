@@ -1,0 +1,32 @@
+{
+  "inference" : {
+    "skySeconds" : 0.84124600887298584,
+    "skyWidth" : 384,
+    "skyBytes" : 47775,
+    "street" : 0,
+    "subjectSeconds" : 0.15674400329589844,
+    "skyTop" : 1,
+    "passed" : true,
+    "skyHeight" : 384,
+    "subjectSky" : 0,
+    "subjectHeight" : 1024,
+    "subjectWidth" : 576,
+    "cancellation" : true,
+    "subjectPerson" : 1
+  },
+  "math" : {
+    "passed" : true,
+    "persistence" : true,
+    "storedSubjectTracking" : true,
+    "presetCopyIsolation" : true,
+    "photoExport" : true,
+    "sourcePreserved" : true,
+    "softProbability" : true,
+    "featherGrow" : true,
+    "orientation" : true,
+    "cropClipStartGuards" : true,
+    "emptySelectionGuard" : true,
+    "staleInvertSafe" : true
+  },
+  "passed" : true
+}

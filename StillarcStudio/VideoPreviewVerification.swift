@@ -1,6 +1,7 @@
 #if DEBUG
 import SwiftUI
 import AVFoundation
+import CoreImage
 
 struct VideoPreviewVerification:View {
     @State private var playback:VideoPlayback?
@@ -36,7 +37,10 @@ struct VideoPreviewVerification:View {
                 var drawing = BrushDrawing();_ = drawing.begin(point:BrushPoint(x:0.2,y:0.4),radius:0.04,feather:0.6,erase:false);local.brush = drawing
                 var sky = LocalMask(kind:.color);sky.combination = .intersect;sky.warmth = 0.1;sky.saturation = -0.1
                 var accent = LocalMask(kind:.luminance);accent.combination = .add;accent.centerX = 0.7;accent.contrast = 0.1
-                var foreground = LocalMask(kind:.linear);foreground.combination = .subtract;foreground.inverted = true;foreground.exposure = -0.2
+                var foreground = LocalMask(kind:.sky);foreground.combination = .subtract;foreground.exposure = -0.2
+                let autoExtent = CGRect(x:0,y:0,width:1280,height:720)
+                let autoShape = CIFilter(name:"CILinearGradient",parameters:["inputPoint0":CIVector(x:0,y:250),"inputPoint1":CIVector(x:0,y:500),"inputColor0":CIColor.black,"inputColor1":CIColor.white])!.outputImage!.cropped(to:autoExtent)
+                foreground.automatic = try AutomaticMaskBitmap.make(autoShape,recipe:recipe,videoStart:recipe.video.start);foreground.refinement = AutomaticRefinement()
                 recipe.masks = [local,sky,accent,foreground]
                 recipe.masks[0].motion = MaskMotion(framing:MaskMotion.signature(recipe),start:0,end:10,points:[.init(time:0,x:0,y:0),.init(time:5,x:0.15,y:-0.1),.init(time:10,x:0,y:0)])
                 recipe.grain = 0.1;recipe.bloom = 0.08;recipe.look = .daylight
@@ -52,6 +56,7 @@ struct VideoPreviewVerification:View {
                 guard (0..<3).allSatisfy({ abs(Double(pixels[$0])-reference[$0])<0.025 }) else { throw NSError(domain:"StudioVideoPreview",code:1,userInfo:[NSLocalizedDescriptionKey:"Playback Log decoding differs from export: \(pixels)"]) }
                 PreviewMetrics.shared.times = [];PreviewMetrics.shared.failures = 0
                 let began = CACurrentMediaTime(),thermal = ProcessInfo.processInfo.thermalState.rawValue,startFrames = player.frameNumber
+                let inferenceBefore = AutomaticSelectionEngine.analysisCount
                 let steps = ProcessInfo.processInfo.arguments.contains("--sustained-preview") ? 7200 : 180
                 var interrupted = false
                 for step in 0..<steps {
@@ -60,6 +65,7 @@ struct VideoPreviewVerification:View {
                     if (recipe.masks[0].brush?.strokes.last?.points.count ?? 0)>=2000 { _ = recipe.masks[0].brush?.begin(point:point,radius:0.04,feather:0.6,erase:step%4000>=2000) }
                     else if let id = recipe.masks[0].brush?.strokes.last?.id { recipe.masks[0].brush?.append(point,stroke:id) }
                     recipe.masks[1].selection?.hue = Double(step%360);recipe.masks[2].selection?.upper = 0.6+sin(Double(step)*0.04)*0.3
+                    recipe.masks[3].refinement?.threshold = 0.5+sin(Double(step)*0.03)*0.1
                     split = 0.5+sin(Double(step)*0.05)*0.4
                     recipe.input.exposure = sin(Double(step)*0.04)*0.5
                     recipe.lutAmount = 0.5+sin(Double(step)*0.1)*0.5
@@ -75,7 +81,7 @@ struct VideoPreviewVerification:View {
                 let count = PreviewMetrics.shared.times.count
                 try await Task.sleep(for:.seconds(3))
                 let times = PreviewMetrics.shared.times.sorted(),idleFrames = times.count-count,decoded = player.frameNumber-startFrames
-                let result:[String:Any] = ["passed":!interrupted && decoded>0 && count>0 && idleFrames == 0 && scopeSampler.completed == scopeCount && scopeSampler.completed>0 && PreviewMetrics.shared.failures == 0,"version":"0.15.0","trackedMaskPlayback":true,"maskCombinations":true,"colorAndLuminanceMasks":true,"liveBrushPainting":true,"brushRaster":BrushMaskRasterizer.statistics(),"activeMaskLayers":4,"maskGuideVisible":true,"splitComparison":true,"scopesEnabled":true,"scopeJobs":scopeSampler.completed,"scopeJobsAfterHide":scopeSampler.completed-scopeCount,"scopeAnalysisP95Milliseconds":scopeSampler.analysisTimes.sorted().dropFirst(Int(Double(scopeSampler.analysisTimes.count)*0.95)).first ?? 0,"hdrPreview":true,"trimmedPlayback":true,"requestedUpdates":steps,"rendered":count,"decodedFrames":decoded,"elapsedSeconds":CACurrentMediaTime()-began,"p95Milliseconds":times.isEmpty ? 9999 : times[min(times.count-1,Int(Double(times.count)*0.95))],"gpuFailures":PreviewMetrics.shared.failures,"idleFrames":idleFrames,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
+                let result:[String:Any] = ["analysisCallsDuringPlayback":AutomaticSelectionEngine.analysisCount-inferenceBefore,"cachedAutomaticMask":true,"passed":AutomaticSelectionEngine.analysisCount == inferenceBefore && !interrupted && decoded>0 && count>0 && idleFrames == 0 && scopeSampler.completed == scopeCount && scopeSampler.completed>0 && PreviewMetrics.shared.failures == 0,"version":"0.16.0","trackedMaskPlayback":true,"maskCombinations":true,"colorAndLuminanceMasks":true,"liveBrushPainting":true,"brushRaster":BrushMaskRasterizer.statistics(),"activeMaskLayers":4,"maskGuideVisible":true,"splitComparison":true,"scopesEnabled":true,"scopeJobs":scopeSampler.completed,"scopeJobsAfterHide":scopeSampler.completed-scopeCount,"scopeAnalysisP95Milliseconds":scopeSampler.analysisTimes.sorted().dropFirst(Int(Double(scopeSampler.analysisTimes.count)*0.95)).first ?? 0,"hdrPreview":true,"trimmedPlayback":true,"requestedUpdates":steps,"rendered":count,"decodedFrames":decoded,"elapsedSeconds":CACurrentMediaTime()-began,"p95Milliseconds":times.isEmpty ? 9999 : times[min(times.count-1,Int(Double(times.count)*0.95))],"gpuFailures":PreviewMetrics.shared.failures,"idleFrames":idleFrames,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
                 try JSONSerialization.data(withJSONObject:result,options:.prettyPrinted).write(to:reportURL,options:.atomic)
                 status = "Video preview check complete";progress = 1
             } catch {

@@ -69,6 +69,13 @@ import ImageIO
             trackingSession.change { $0.masks[0].motion = nil };trackingSession.undo()
             try require(trackingSession.recipe.masks[0].motion == tracked.motion,"Clear tracking Undo")
             trackingSession.redo();try require(trackingSession.recipe.masks[0].motion == nil,"Clear tracking Redo")
+            let previewDescriptor = VideoDescriptor(width:640,height:360,duration:2,frameRate:30,transform:[1,0,0,1,0,0],detectedLog:nil)
+            let referencePlayer = VideoPlayback(url:URL(fileURLWithPath:"/private/tmp/studio-nonexistent-preview.mov"),descriptor:previewDescriptor)
+            referencePlayer.setEdit(VideoEdit(start:0.2,end:1.8));referencePlayer.playing = true;referencePlayer.setActive(false);referencePlayer.time = 1
+            referencePlayer.showAutomaticReferenceFrame();referencePlayer.setActive(true)
+            try require(abs(referencePlayer.time-0.2)<0.001 && !referencePlayer.playing,"Automatic video reference did not pause/rewind")
+            referencePlayer.setActive(false);referencePlayer.clear()
+            report["automaticReferencePlayback"] = true
             report["trackingUndoRedo"] = true
             report["sliderResetAndCombinationUndoRedo"] = true
             report["brushStrokeUndoRedoAndVersion"] = true
@@ -236,7 +243,7 @@ import ImageIO
                 guard context.createCGImage(image,from: image.extent) != nil else { throw StudioError.render }
             }
         }
-        return ["maskTracking":try TrackingVerification.math(),"maskCombinations":try MaskCombinationVerification.run(),"rangeMasks":try RangeMaskVerification.run(),"brush":try await BrushVerification.run(),"masks":try MaskVerification.run(),"adjustmentTransfer":try await AdjustmentTransferVerification.run(),"versionsComparison":try await VersionComparisonVerification.run(),"scopesGeometry":try ScopeGeometryVerification.run(),"logInput":logReport,"lutTools":lutReport,"gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
+        return ["automaticMasks":try AutomaticSelectionVerification.math(),"automaticInference":try await AutomaticSelectionVerification.inference(),"maskTracking":try TrackingVerification.math(),"maskCombinations":try MaskCombinationVerification.run(),"rangeMasks":try RangeMaskVerification.run(),"brush":try await BrushVerification.run(),"masks":try MaskVerification.run(),"adjustmentTransfer":try await AdjustmentTransferVerification.run(),"versionsComparison":try await VersionComparisonVerification.run(),"scopesGeometry":try ScopeGeometryVerification.run(),"logInput":logReport,"lutTools":lutReport,"gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
     }
 }
 #endif

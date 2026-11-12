@@ -59,4 +59,32 @@ final class GestureTests:XCTestCase {
         XCTAssertTrue(app.buttons["Track mask"].exists)
     }
 
+    func testAutomaticSkyMaskAndRefinement() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = ["--demo-editor","--neutral-demo","--tool","Masks"];app.launch()
+        let add = app.buttons["Add mask"]
+        XCTAssertTrue(add.waitForExistence(timeout:30));add.tap();app.buttons["Sky"].tap()
+        let create = app.buttons["createAutomaticMask"]
+        XCTAssertTrue(create.waitForExistence(timeout:15))
+        if !create.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        XCTAssertTrue(create.isEnabled);create.tap()
+        let recreate = app.buttons["Recreate sky selection"]
+        XCTAssertTrue(recreate.waitForExistence(timeout:30))
+        let refine = app.buttons["Refine automatic selection"]
+        if !refine.isHittable { app.scrollViews.firstMatch.swipeUp() };refine.tap()
+        let threshold = app.sliders["Selection threshold"]
+        XCTAssertTrue(threshold.waitForExistence(timeout:10))
+        if !threshold.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        let original = threshold.value as? String
+        threshold.adjust(toNormalizedSliderPosition:0.8);XCTAssertNotEqual(threshold.value as? String,original)
+        threshold.doubleTap();XCTAssertEqual(threshold.value as? String,original)
+        let capture = XCTAttachment(screenshot:app.screenshot());capture.name = "Sky selection and refinement";capture.lifetime = .keepAlways;self.add(capture)
+        if !add.isHittable { app.scrollViews.firstMatch.swipeDown() }
+        add.tap();app.buttons["Subject"].tap()
+        XCTAssertTrue(app.buttons["createAutomaticMask"].waitForExistence(timeout:15))
+        app.buttons["Done"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["Recreate sky selection"].exists)
+        XCTAssertFalse(app.buttons["Recreate subject selection"].exists)
+    }
+
 }

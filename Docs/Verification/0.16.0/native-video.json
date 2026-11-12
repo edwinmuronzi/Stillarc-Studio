@@ -1,0 +1,81 @@
+{
+  "encodedColorLuminanceMasks" : true,
+  "photoInput" : {
+    "bothGamuts" : true,
+    "passed" : true,
+    "persistence" : true,
+    "exposureAlpha" : true,
+    "standardBypass" : true,
+    "highlightShoulder" : true,
+    "curveVectors" : 16,
+    "presetInputIsolation" : true
+  },
+  "clips" : [
+    {
+      "width" : 640,
+      "cancellation" : true,
+      "height" : 360,
+      "projectRoundTrip" : true,
+      "color" : true,
+      "audioTracks" : 2,
+      "profile" : "standard",
+      "metadata" : true,
+      "frames" : 18,
+      "originalPreserved" : true
+    },
+    {
+      "cancellation" : true,
+      "width" : 360,
+      "frames" : 18,
+      "height" : 640,
+      "metadata" : true,
+      "profile" : "appleLog",
+      "color" : true,
+      "originalPreserved" : true,
+      "audioTracks" : 1,
+      "projectRoundTrip" : true
+    },
+    {
+      "metadata" : true,
+      "projectRoundTrip" : true,
+      "originalPreserved" : true,
+      "frames" : 18,
+      "width" : 640,
+      "height" : 360,
+      "audioTracks" : 1,
+      "profile" : "appleLog2",
+      "color" : true,
+      "cancellation" : true
+    }
+  ],
+  "boundedTrackingDecode" : true,
+  "encodedAutomaticMask" : true,
+  "passed" : true,
+  "trimHDR" : {
+    "zeroBasedTiming" : true,
+    "persistence" : true,
+    "trimSeconds" : 1.1000000000000001,
+    "presetIsolation" : true,
+    "audioTracks" : 2,
+    "passed" : true,
+    "headroomVectors" : 5,
+    "trimFrames" : 33
+  },
+  "encodedCombinedBrushRangeMask" : true,
+  "maskTracking" : {
+    "cancellation" : true,
+    "encodedTracking" : true,
+    "exportFramesPerClip" : 60,
+    "passed" : true,
+    "movingTargetErrors" : [
+      0.0051411703706012168,
+      0.0033422505339212594
+    ],
+    "pointCounts" : [
+      30,
+      30
+    ],
+    "portraitLandscape" : true
+  },
+  "version" : "0.16.0"
+}

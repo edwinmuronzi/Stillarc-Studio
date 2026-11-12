@@ -114,6 +114,16 @@ enum VideoVerification {
                 let base = patch(prepared.image,0.5,0.5),center = patch(maskPoster.image,0.35,0.8),outside = patch(maskPoster.image,0.5,0.3),erased = patch(maskPoster.image,0.5,0.8)
                 try require((0..<3).allSatisfy { abs(center[$0]-base[$0]*2)<0.015 && abs(outside[$0]-base[$0])<0.015 && abs(erased[$0]-base[$0])<0.015 },"Video mask changed outside pixels or exported the guide")
 
+                let automaticExtent = prepared.image.extent
+                let autoShape = CIImage(color:.white).cropped(to:CGRect(x:automaticExtent.width*0.2,y:automaticExtent.height*0.65,width:automaticExtent.width*0.6,height:automaticExtent.height*0.3)).composited(over:CIImage(color:.black).cropped(to:automaticExtent))
+                var automaticRecipe = recipe,automaticLayer = LocalMask(kind:.subject)
+                automaticLayer.automatic = try AutomaticMaskBitmap.make(autoShape,recipe:recipe,videoStart:0);automaticLayer.exposure = 1;automaticRecipe.masks = [automaticLayer]
+                let automaticOutput = try await VideoEngine.export(source:url,descriptor:descriptor,recipe:automaticRecipe,tenBit:false,progress:{ _ in })
+                defer { try? FileManager.default.removeItem(at:automaticOutput.url) }
+                let automaticInfo = try await VideoEngine.describe(automaticOutput.url),automaticPoster = try await VideoEngine.poster(automaticOutput.url,descriptor:automaticInfo,maxDimension:450)
+                let automaticInside = patch(automaticPoster.image,0.35,0.8),automaticOutside = patch(automaticPoster.image,0.5,0.3)
+                try require((0..<3).allSatisfy { abs(automaticInside[$0]-base[$0]*2)<0.015 && abs(automaticOutside[$0]-base[$0])<0.015 },"Automatic matte video export or guide isolation")
+                try require(try await frameTimes(automaticOutput.url).count == originalTimes.count,"Automatic mask dropped video frames")
                 for kind in [LocalMaskKind.color,.luminance] {
                     var range = LocalMask(kind:kind);range.exposure = 1
                     range.selection = MaskSelection(hue:30,tolerance:90,lower:0,upper:1)
@@ -145,7 +155,7 @@ enum VideoVerification {
         try require(largeResult.width == 2160 && largeResult.height == 2160,"4K source crop geometry changed")
         try require(try await frameTimes(largeResult.url).count == 3,"4K export dropped frames")
         #endif
-        return ["maskTracking":try await TrackingVerification.video(),"passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","clips":checks,"photoInput":try LogVerification.run(),"boundedTrackingDecode":true,"encodedCombinedBrushRangeMask":true,"encodedColorLuminanceMasks":true,"trimHDR":try await HDRTrimVerification.run()]
+        return ["maskTracking":try await TrackingVerification.video(),"passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","clips":checks,"photoInput":try LogVerification.run(),"boundedTrackingDecode":true,"encodedAutomaticMask":true,"encodedCombinedBrushRangeMask":true,"encodedColorLuminanceMasks":true,"trimHDR":try await HDRTrimVerification.run()]
     }
     @MainActor static func writeReport() async {
         let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("video-verification.json")

@@ -162,8 +162,9 @@ actor ProjectVault {
     func open(library: StudioLibrary) async {
         let url = await library.vault.source(project); sourceURL = url
         do {
-            let video = project.video
+            let video = project.video,maskLayers = recipe.masks
             source = try await Task.detached(priority:.userInitiated) {
+                AutomaticMaskBitmap.warm(maskLayers)
                 if let video { return try await VideoEngine.poster(url,descriptor:video) }
                 return try ImageEngine.open(url,maxDimension:1600)
             }.value
