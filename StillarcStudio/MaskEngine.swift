@@ -31,6 +31,11 @@ enum MaskEngine {
                 .transformed(by:.init(rotationAngle:angle))
                 .transformed(by:.init(translationX:center.x,y:center.y))
         }
+        if !m.isRange,let motion = m.motion,let frame = MaskMotion.frame,motion.framing == frame.framing {
+            let offset = motion.offset(at:frame.time)
+            mask = mask.cropped(to:extent).transformed(by:.init(translationX:offset.x*extent.width,y:-offset.y*extent.height))
+                .composited(over:CIImage(color:.black).cropped(to:extent))
+        }
         mask = mask.cropped(to:extent)
         if m.inverted { mask = mask.applyingFilter("CIColorInvert") }
         if m.amount<1 { mask = mask.applyingFilter("CIColorMatrix",parameters:["inputRVector":CIVector(x:m.amount,y:0,z:0,w:0),"inputGVector":CIVector(x:0,y:m.amount,z:0,w:0),"inputBVector":CIVector(x:0,y:0,z:m.amount,w:0)]) }

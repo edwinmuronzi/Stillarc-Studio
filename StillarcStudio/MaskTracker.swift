@@ -1,0 +1,87 @@
+import AVFoundation
+import CoreImage
+import Vision
+
+struct TrackingSeed:Sendable {
+    var x = 0.5
+    var y = 0.5
+    var width = 0.25
+    var height = 0.25
+    var rect:CGRect { CGRect(x:min(1-width,max(0,x-width/2)),y:min(1-height,max(0,1-y-height/2)),width:width,height:height) }
+}
+enum MaskTracker {
+    static func settings(_ descriptor:VideoDescriptor) -> [String:Any] {
+        let swapped = abs(descriptor.affine.a)<0.5 && abs(descriptor.affine.d)<0.5
+        let w = Double(swapped ? descriptor.height : descriptor.width),h = Double(swapped ? descriptor.width : descriptor.height),scale = min(1,640/max(w,h))
+        return [kCVPixelBufferPixelFormatTypeKey as String:kCVPixelFormatType_32BGRA,kCVPixelBufferWidthKey as String:max(2,Int(w*scale)/2*2),kCVPixelBufferHeightKey as String:max(2,Int(h*scale)/2*2),kCVPixelBufferIOSurfacePropertiesKey as String:[:]]
+    }
+    static func failure(_ message:String) -> NSError { NSError(domain:"MaskTracking",code:2,userInfo:[NSLocalizedDescriptionKey:message]) }
+    static func frame(_ buffer:CVPixelBuffer,descriptor:VideoDescriptor,recipe:Recipe,context:CIContext) throws -> CGImage {
+        let pair = VideoEngine.images(buffer,descriptor:descriptor,maxDimension:800)
+        var input = recipe.input;input.softHighlights = true
+        var decoded = LogConversion.apply(input.profile == .standard ? pair.managed : pair.signal,input:input)
+        if descriptor.hdrTransfer != nil { decoded = decoded.applyingFilter("CIExposureAdjust",parameters:[kCIInputEVKey:-2]) }
+        var image = PhotoFraming.apply(decoded,recipe:recipe)
+        let scale = min(1,640/max(image.extent.width,image.extent.height));image = image.transformed(by:.init(scaleX:scale,y:scale))
+        image = image.transformed(by:.init(translationX:-image.extent.minX,y:-image.extent.minY))
+        guard let cg = context.createCGImage(image,from:image.extent,format:.RGBA8,colorSpace:ImageEngine.output) else { throw StudioError.render };return cg
+    }
+    static func seedFrame(url:URL,descriptor:VideoDescriptor,recipe:Recipe) async throws -> CGImage {
+        let asset = AVURLAsset(url:url),reader = try AVAssetReader(asset:asset)
+        guard let track = try await asset.loadTracks(withMediaType:.video).first else { throw StudioError.unreadable }
+        let output = AVAssetReaderTrackOutput(track:track,outputSettings:settings(descriptor));guard reader.canAdd(output) else { throw StudioError.unreadable };reader.add(output)
+        let range = recipe.video.range(duration:descriptor.duration)
+        reader.timeRange = CMTimeRange(start:CMTime(seconds:range.lowerBound,preferredTimescale:60000),end:CMTime(seconds:range.upperBound,preferredTimescale:60000))
+        guard reader.startReading() else { throw StudioError.unreadable };defer { reader.cancelReading() }
+        guard let sample = output.copyNextSampleBuffer(),let buffer = CMSampleBufferGetImageBuffer(sample) else { throw StudioError.unreadable }
+        try Task.checkCancellation();return try frame(buffer,descriptor:descriptor,recipe:recipe,context:ImageEngine.context())
+    }
+    static func analyze(url:URL,descriptor:VideoDescriptor,recipe:Recipe,seed:TrackingSeed,progress:@escaping @Sendable (Double) async -> Void) async throws -> MaskMotion {
+        try Task.checkCancellation();try LogConversion.prepare()
+        guard seed.x.isFinite,seed.y.isFinite,seed.width.isFinite,seed.height.isFinite,(0...1).contains(seed.x),(0...1).contains(seed.y),(0.08...0.7).contains(seed.width),(0.08...0.7).contains(seed.height) else { throw failure("Choose a valid target box inside the picture.") }
+        let range = recipe.video.range(duration:descriptor.duration)
+        guard range.upperBound-range.lowerBound<=120 else { throw failure("Trim the kept clip to two minutes or less before tracking.") }
+        let asset = AVURLAsset(url:url)
+        guard let track = try await asset.loadTracks(withMediaType:.video).first else { throw StudioError.unreadable }
+        let reader = try AVAssetReader(asset:asset),output = AVAssetReaderTrackOutput(track:track,outputSettings:settings(descriptor))
+        output.alwaysCopiesSampleData = false;guard reader.canAdd(output) else { throw StudioError.unreadable };reader.add(output)
+        reader.timeRange = CMTimeRange(start:CMTime(seconds:range.lowerBound,preferredTimescale:60000),end:CMTime(seconds:range.upperBound,preferredTimescale:60000))
+        guard reader.startReading() else { throw StudioError.unreadable };defer { reader.cancelReading() }
+        let context = ImageEngine.context(),handler = VNSequenceRequestHandler(),initial = seed.rect
+        let request = VNTrackObjectRequest(detectedObjectObservation:VNDetectedObjectObservation(boundingBox:initial));request.trackingLevel = .fast
+        var points = [MaskMotionPoint](),lastTime = -Double.infinity
+        var anchor:CGPoint?
+        while let sample = output.copyNextSampleBuffer() {
+            try Task.checkCancellation()
+            guard ProcessInfo.processInfo.thermalState.rawValue<ProcessInfo.ThermalState.serious.rawValue else { throw failure("The phone needs to cool before tracking. Your previous edits are unchanged.") }
+            let time = CMSampleBufferGetPresentationTimeStamp(sample).seconds
+            if time<range.lowerBound || time>=range.upperBound || time-lastTime<1.0/15-0.001 { continue }
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") && points.count%15 == 0 { VerificationProgress.record("Tracking frame \(points.count) before Vision") }
+            #endif
+            try autoreleasepool {
+                guard let buffer = CMSampleBufferGetImageBuffer(sample) else { throw StudioError.unreadable }
+                let cg = try frame(buffer,descriptor:descriptor,recipe:recipe,context:context)
+                try handler.perform([request],on:cg,orientation:.up)
+                guard let observation = request.results?.first as? VNDetectedObjectObservation,observation.confidence>=0.35 else { throw failure("Tracking lost the target. Choose a smaller, textured region that stays visible and try again. The previous track is unchanged.") }
+                let box = observation.boundingBox
+                guard box.minX>=0,box.maxX<=1,box.minY>=0,box.maxY<=1 else { throw failure("The target left the picture. Trim the clip or choose another region.") }
+                if anchor == nil { anchor = CGPoint(x:box.midX,y:box.midY) }
+                let dx = box.midX-anchor!.x,dy = anchor!.y-box.midY
+                if let previous = points.last,abs(dx-previous.x)+abs(dy-previous.y)>0.2 { throw failure("The target moved too far between tracked frames. Try a shorter clip or a steadier target.") }
+                guard abs(dx)<=1,abs(dy)<=1 else { throw StudioError.render }
+                points.append(MaskMotionPoint(time:time,x:dx,y:dy));lastTime = time
+                request.inputObservation = observation
+            }
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") && points.count%15 == 1 { VerificationProgress.record("Tracking frame \(points.count) completed") }
+            #endif
+            await progress((time-range.lowerBound)/(range.upperBound-range.lowerBound))
+            try await Task.sleep(for:.milliseconds(ProcessInfo.processInfo.thermalState == .fair ? 20 : 3))
+        }
+        try Task.checkCancellation()
+        guard reader.status == .completed,points.count>=2 else { throw failure("The kept clip is too short to track.") }
+        let motion = MaskMotion(framing:MaskMotion.signature(recipe),start:range.lowerBound,end:range.upperBound,points:points)
+        guard motion.isValid else { throw StudioError.render };return motion
+    }
+}

@@ -63,6 +63,13 @@ import ImageIO
             resetSession.change { $0.masks.append(LocalMask(kind:.luminance));$0.masks[1].combination = .intersect }
             resetSession.undo();try require(resetSession.recipe.masks.count == 1,"Combine action undo")
             resetSession.redo();try require(resetSession.recipe.masks.last?.combination == .intersect,"Combine action redo")
+            let trackingSession = EditSession(versionProject)
+            var tracked = LocalMask(kind:.radial);tracked.motion = MaskMotion(framing:MaskMotion.signature(Recipe()),start:0,end:2,points:[.init(time:0,x:0,y:0),.init(time:2,x:0.2,y:0)])
+            trackingSession.change { $0.masks = [tracked] }
+            trackingSession.change { $0.masks[0].motion = nil };trackingSession.undo()
+            try require(trackingSession.recipe.masks[0].motion == tracked.motion,"Clear tracking Undo")
+            trackingSession.redo();try require(trackingSession.recipe.masks[0].motion == nil,"Clear tracking Redo")
+            report["trackingUndoRedo"] = true
             report["sliderResetAndCombinationUndoRedo"] = true
             report["brushStrokeUndoRedoAndVersion"] = true
             let fixture = Project(id: UUID(),name: "History",sourceName: "test.jpg",created: Date(),modified: Date(),recipe: Recipe(),width: 1,height: 1,isRAW: false)
@@ -229,7 +236,7 @@ import ImageIO
                 guard context.createCGImage(image,from: image.extent) != nil else { throw StudioError.render }
             }
         }
-        return ["maskCombinations":try MaskCombinationVerification.run(),"rangeMasks":try RangeMaskVerification.run(),"brush":try await BrushVerification.run(),"masks":try MaskVerification.run(),"adjustmentTransfer":try await AdjustmentTransferVerification.run(),"versionsComparison":try await VersionComparisonVerification.run(),"scopesGeometry":try ScopeGeometryVerification.run(),"logInput":logReport,"lutTools":lutReport,"gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
+        return ["maskTracking":try TrackingVerification.math(),"maskCombinations":try MaskCombinationVerification.run(),"rangeMasks":try RangeMaskVerification.run(),"brush":try await BrushVerification.run(),"masks":try MaskVerification.run(),"adjustmentTransfer":try await AdjustmentTransferVerification.run(),"versionsComparison":try await VersionComparisonVerification.run(),"scopesGeometry":try ScopeGeometryVerification.run(),"logInput":logReport,"lutTools":lutReport,"gradingTools":gradingReport,"colorTools":colorReport,"passed":true,"legacyProjectMigration":true,"sectionIndicators":true,"cropRepositioning":true,"geometryEdgeFixtures":edgeChecks,"presetFraming":true,"numericValidation":true,"largeImageFixtures":largeFixtures,"testedControls":controls,"looks":5,"exportFormats":["JPEG","PNG"],"originalPreserved":true,"recipePersistence":true,"presetPersistence":true,"deletion":true,"stressRenders":120,"stressSeconds":Date().timeIntervalSince(began),"thermalState":ProcessInfo.processInfo.thermalState.rawValue]
     }
 }
 #endif

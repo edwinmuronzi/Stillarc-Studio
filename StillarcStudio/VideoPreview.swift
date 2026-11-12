@@ -17,6 +17,7 @@ import CoreImage
     var error:String?
     var frame:CVPixelBuffer?
     var frameNumber = 0
+    var frameTime = 0.0
     var selection:ClosedRange<Double> { edit.range(duration:descriptor.duration) }
     var edit = VideoEdit()
     var active = true
@@ -72,7 +73,9 @@ import CoreImage
             if looping { seek(selection.lowerBound);player.play() }
             else { pause();time = selection.upperBound }
         }
-        if now.isNumeric, output.hasNewPixelBuffer(forItemTime:now),let buffer = output.copyPixelBuffer(forItemTime:now,itemTimeForDisplay:nil) {
+        var displayTime = CMTime.invalid
+        if now.isNumeric, output.hasNewPixelBuffer(forItemTime:now),let buffer = output.copyPixelBuffer(forItemTime:now,itemTimeForDisplay:&displayTime) {
+            frameTime = displayTime.isNumeric ? displayTime.seconds : now.seconds
             frame = buffer;frameNumber += 1;initialTicks = 0
             if now.seconds.isFinite && abs(time-now.seconds)>0.1 && !seeking { time = min(selection.upperBound,max(selection.lowerBound,now.seconds)) }
             if !playing && !seeking { stopLink() }
@@ -192,13 +195,14 @@ struct VideoMetalView:UIViewRepresentable {
         _ = playback.frameNumber
         (view.layer as? CAMetalLayer)?.colorspace = recipe.video.hdr ? ImageEngine.working : ImageEngine.output
         (view.layer as? CAMetalLayer)?.wantsExtendedDynamicRangeContent = recipe.video.hdr
-        context.coordinator.update(buffer:playback.frame,descriptor:playback.descriptor,recipe:recipe,original:original,range:rangePreview,active:active,scopes:scopes,split:split,maskPreview:maskPreview,view:view)
+        context.coordinator.update(buffer:playback.frame,frameTime:playback.frameTime,descriptor:playback.descriptor,recipe:recipe,original:original,range:rangePreview,active:active,scopes:scopes,split:split,maskPreview:maskPreview,view:view)
     }
     static func dismantleUIView(_ view:MTKView,coordinator:Renderer) { view.delegate = nil;coordinator.clear() }
     @MainActor final class Renderer:NSObject,MTKViewDelegate {
         let device = MTLCreateSystemDefaultDevice()
         lazy var commands = device?.makeCommandQueue()
         lazy var context = device.map { CIContext(mtlDevice:$0,options:[.workingColorSpace:ImageEngine.working,.cacheIntermediates:false]) }
+        private var frameTime = 0.0
         private var buffer:CVPixelBuffer?
         private var descriptor:VideoDescriptor?
         private var recipe = Recipe(), original = false, active = true, dirty = true, drawing = false
@@ -216,9 +220,9 @@ struct VideoMetalView:UIViewRepresentable {
             }
         }
         func clear() { if let brushObserver { NotificationCenter.default.removeObserver(brushObserver) };brushObserver = nil;buffer = nil;context?.clearCaches() }
-        func update(buffer:CVPixelBuffer?,descriptor:VideoDescriptor,recipe:Recipe,original:Bool,range:ColorRange?,active:Bool,scopes:ScopeSampler?,split:Double?,maskPreview:LocalMask?,view:MTKView) {
-            guard self.buffer !== buffer || self.recipe != recipe || self.original != original || self.range != range || self.active != active || self.scopes !== scopes || self.split != split || self.maskPreview != maskPreview else { return }
-            self.buffer = buffer;self.descriptor = descriptor;self.recipe = recipe;self.original = original;self.range = range;self.active = active;self.scopes = scopes;self.split = split;self.maskPreview = maskPreview;dirty = true
+        func update(buffer:CVPixelBuffer?,frameTime:Double,descriptor:VideoDescriptor,recipe:Recipe,original:Bool,range:ColorRange?,active:Bool,scopes:ScopeSampler?,split:Double?,maskPreview:LocalMask?,view:MTKView) {
+            guard self.frameTime != frameTime || self.buffer !== buffer || self.recipe != recipe || self.original != original || self.range != range || self.active != active || self.scopes !== scopes || self.split != split || self.maskPreview != maskPreview else { return }
+            self.frameTime = frameTime;self.buffer = buffer;self.descriptor = descriptor;self.recipe = recipe;self.original = original;self.range = range;self.active = active;self.scopes = scopes;self.split = split;self.maskPreview = maskPreview;dirty = true
             if active && !drawing { view.setNeedsDisplay() }
         }
         func mtkView(_ view:MTKView,drawableSizeWillChange size:CGSize) { dirty = true;if active && !drawing { view.setNeedsDisplay() } }
@@ -228,22 +232,25 @@ struct VideoMetalView:UIViewRepresentable {
             drawing = true;dirty = false
             let began = CACurrentMediaTime()
             let pair = VideoEngine.images(buffer,descriptor:descriptor,maxDimension:1280)
-            var comparison = Recipe();comparison.copyFraming(from:recipe)
-            let selected = original ? comparison : recipe
-            let source = selected.input.profile == .standard ? pair.managed : pair.signal
-            var image = HDRPipeline.grade(source,recipe:selected,hdr:recipe.video.hdr,rangePreview:original ? nil : range,preview:true)
-            if !original,let split {
-                let before = HDRPipeline.grade(pair.managed,recipe:comparison,hdr:recipe.video.hdr)
-                image = ComparisonRender.combine(original:before,edited:image,fraction:split)
-            }
-            if !recipe.video.hdr { image = image.applyingFilter("CIColorClamp",parameters:["inputMinComponents":CIVector(x:0,y:0,z:0,w:0),"inputMaxComponents":CIVector(x:1,y:1,z:1,w:1)]) }
-            scopes?.offer(image,hdr:recipe.video.hdr)
-            if !original {
-                var reference:CIImage? = nil
-                if maskPreview != nil && recipe.masks.contains(where:{ $0.isRange }) {
-                    reference = HDRPipeline.maskReference(source,recipe:recipe,hdr:recipe.video.hdr)
+            let image = MaskMotion.$frame.withValue(MaskMotion.Frame(time:frameTime,framing:MaskMotion.signature(recipe))) {
+                var comparison = Recipe();comparison.copyFraming(from:recipe)
+                let selected = original ? comparison : recipe
+                let source = selected.input.profile == .standard ? pair.managed : pair.signal
+                var image = HDRPipeline.grade(source,recipe:selected,hdr:recipe.video.hdr,rangePreview:original ? nil : range,preview:true)
+                if !original,let split {
+                    let before = HDRPipeline.grade(pair.managed,recipe:comparison,hdr:recipe.video.hdr)
+                    image = ComparisonRender.combine(original:before,edited:image,fraction:split)
                 }
-                image = MaskEngine.overlay(image,layer:maskPreview,reference:reference,layers:recipe.masks)
+                if !recipe.video.hdr { image = image.applyingFilter("CIColorClamp",parameters:["inputMinComponents":CIVector(x:0,y:0,z:0,w:0),"inputMaxComponents":CIVector(x:1,y:1,z:1,w:1)]) }
+                scopes?.offer(image,hdr:recipe.video.hdr)
+                if !original {
+                    var reference:CIImage? = nil
+                    if maskPreview != nil && recipe.masks.contains(where:{ $0.isRange }) {
+                        reference = HDRPipeline.maskReference(source,recipe:recipe,hdr:recipe.video.hdr)
+                    }
+                    image = MaskEngine.overlay(image,layer:maskPreview,reference:reference,layers:recipe.masks)
+                }
+                return image
             }
             let scale = min(size.width/image.extent.width,size.height/image.extent.height)
             let placed = image.transformed(by:.init(scaleX:scale,y:scale)).transformed(by:.init(translationX:(size.width-image.extent.width*scale)/2,y:(size.height-image.extent.height*scale)/2))

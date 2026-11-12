@@ -11,6 +11,7 @@ struct LocalMask:Identifiable,Codable,Equatable,Sendable {
     var brush:BrushDrawing? = nil
     var selection:MaskSelection? = nil
     var combination:MaskCombination? = nil
+    var motion:MaskMotion? = nil
     var isRange:Bool { kind == .color || kind == .luminance }
     var enabled = true
     var inverted = false

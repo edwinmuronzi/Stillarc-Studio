@@ -40,7 +40,9 @@ Implemented in 0.13: GPU color and luminance masks with soft transitions, hue sw
 
 Implemented in 0.14: previous-mask intersection/addition/subtraction with soft GPU coverage, source-specific persistence and full-resolution export; undoable double-tap reset across slider controls with per-control defaults.
 
-Next: object tracking. Then on-device subject/sky selection, healing and carefully bounded advanced noise reduction. Multiple versions, favorites/ratings, project recovery, batch copy/paste, batch export and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
+Implemented in 0.15: cancellable forward region tracking for Radial/Brush masks, with normalized timestamped translation, background analysis, persistent/undoable tracks and full-resolution export. No deformation, scale/rotation tracking or manual motion-keyframe editor.
+
+Next: more robust tracking/recovery and on-device subject/sky selection, healing and carefully bounded advanced noise reduction. Multiple versions, favorites/ratings, project recovery, batch copy/paste, batch export and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
 
 ## 5 — Video grading
 

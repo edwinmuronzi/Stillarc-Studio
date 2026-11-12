@@ -100,10 +100,24 @@ enum StudioStyle {
             .toolbar(.hidden,for: .navigationBar)
             .safeAreaInset(edge: .bottom) { importBar }
             .task {
+                #if DEBUG
+                let qa = ProcessInfo.processInfo.arguments.contains("--verify-video-suite") || ProcessInfo.processInfo.arguments.contains("--verify-studio") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-only")
+                let oldIdle = UIApplication.shared.isIdleTimerDisabled
+                if qa { UIApplication.shared.isIdleTimerDisabled = true }
+                defer { if qa { UIApplication.shared.isIdleTimerDisabled = oldIdle } }
+                #endif
                 await library.load()
                 #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") {
+                    let reportURL = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("tracking-verification.json")
+                    do { let report = try await Task.detached { try await TrackingVerification.video() }.value;try JSONSerialization.data(withJSONObject:report,options:.prettyPrinted).write(to:reportURL,options:.atomic) }
+                    catch { try? JSONSerialization.data(withJSONObject:["passed":false,"error":error.localizedDescription],options:.prettyPrinted).write(to:reportURL,options:.atomic) }
+                }
                 if ProcessInfo.processInfo.arguments.contains("--verify-video-suite") { await VideoVerification.writeReport() }
                 if ProcessInfo.processInfo.arguments.contains("--verify-studio") { await StudioVerification.run(library: library) }
+                if ProcessInfo.processInfo.arguments.contains("--tracking-demo"),let url = try? await TrackingVerification.fixture() {
+                    selected = await library.add(url);try? FileManager.default.removeItem(at:url.deletingLastPathComponent())
+                }
                 if ProcessInfo.processInfo.arguments.contains("--verify-trim-ui") || ProcessInfo.processInfo.arguments.contains("--verify-versions-ui") || ProcessInfo.processInfo.arguments.contains("--verify-transfer-ui") || ProcessInfo.processInfo.arguments.contains("--verify-mask-ui") || ProcessInfo.processInfo.arguments.contains("--verify-brush-ui") {
                     if let project = library.projects.first(where: { $0.isVideo }) { selected = project }
                     else if let url = try? await VideoFixtures.make(profile:.standard,frames:90) { selected = await library.add(url);try? FileManager.default.removeItem(at:url.deletingLastPathComponent()) }
@@ -196,13 +210,13 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Mask combinations & quick reset · 0.14.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Video mask tracking · 0.15.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
                     Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export JPEG/PNG photographs or trimmed HEVC video with audio in SDR or 10-bit HLG HDR.")
                     Text("Use Scopes to inspect brightness and color. Free crop, flips and perspective help refine your composition; every change stays reversible.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Drag the split divider to compare original and edit. Save complete versions under Looks to try different grades and return to a favorite.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Copy selected adjustments under Looks, then paste them onto another photo or clip. Its framing, camera input and trim stay intact; undo reverses the paste.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Use Masks to brighten a face or darken part of a sky. Linear and radial shapes have soft edges, inversion and strength; the red guide is only a preview. Masks stay with this frame and do not track moving subjects.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
-                    Text("Double-tap any slider to reset its default. Combine a mask with the previous selection using Intersect, Add or Subtract. Use Color masks to change similar colors or Luminance masks to adjust dark, middle or bright areas. Soft transitions blend the selection; the guide shows what is selected. Paint a brush mask to adjust a specific area. Eraser removes it, View restores playback controls, and undo removes a whole stroke. Brush size and softness apply to new strokes; full-resolution exports keep the detailed mask.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
+                    Text("Track radial or painted masks through a video clip using a chosen target region. Analysis runs separately; saved motion drives playback and export. Tracks position only, with no deformation or scale/rotation tracking. Double-tap any slider to reset its default. Combine a mask with the previous selection using Intersect, Add or Subtract. Use Color masks to change similar colors or Luminance masks to adjust dark, middle or bright areas. Soft transitions blend the selection; the guide shows what is selected. Paint a brush mask to adjust a specific area. Eraser removes it, View restores playback controls, and undo removes a whole stroke. Brush size and softness apply to new strokes; full-resolution exports keep the detailed mask.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Label("Originals stay untouched",systemImage: "lock.shield")
                     Label("No account or upload required",systemImage: "wifi.slash")
                     Label("Preview draws only when needed",systemImage: "leaf")

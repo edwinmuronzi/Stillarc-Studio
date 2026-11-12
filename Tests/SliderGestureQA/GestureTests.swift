@@ -31,4 +31,32 @@ final class GestureTests:XCTestCase {
         let attachment = XCTAttachment(screenshot:app.screenshot());attachment.name = "Actual editor slider reset and undo";attachment.lifetime = .keepAlways;add(attachment)
     }
 
+    func testTrackingSheetAnalyzeAndClear() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = ["--tracking-demo"];app.launch()
+        let target = app.sliders["Target horizontal position"]
+        XCTAssertTrue(target.waitForExistence(timeout:30))
+        let value = target.value as? String
+        target.adjust(toNormalizedSliderPosition:0.7)
+        XCTAssertNotEqual(target.value as? String,value)
+        target.doubleTap()
+        XCTAssertEqual(target.value as? String,value)
+        let targetFrame = app.otherElements["trackingFrame"].firstMatch
+        XCTAssertTrue(targetFrame.exists)
+        let begin = targetFrame.coordinate(withNormalizedOffset:CGVector(dx:0.3,dy:0.5)),end = targetFrame.coordinate(withNormalizedOffset:CGVector(dx:0.4,dy:0.5))
+        begin.press(forDuration:0.05,thenDragTo:end)
+        XCTAssertNotEqual(target.value as? String,value)
+        target.doubleTap();XCTAssertEqual(target.value as? String,value)
+        let seedImage = XCTAttachment(screenshot:app.screenshot());seedImage.name = "Tracking target sheet";seedImage.lifetime = .keepAlways;add(seedImage)
+        let button = app.buttons["trackingAnalyze"]
+        if !button.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        XCTAssertTrue(button.isEnabled);button.tap()
+        let clear = app.buttons["Clear tracking"]
+        XCTAssertTrue(clear.waitForExistence(timeout:45))
+        if !clear.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        let attachment = XCTAttachment(screenshot:app.screenshot());attachment.name = "Tracked radial mask editor";attachment.lifetime = .keepAlways;add(attachment)
+        clear.tap()
+        XCTAssertTrue(app.buttons["Track mask"].exists)
+    }
+
 }

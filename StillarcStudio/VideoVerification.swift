@@ -7,6 +7,7 @@ import CryptoKit
 enum VideoVerification {
     static func run() async throws -> [String:Any] {
         func require(_ value:Bool,_ text:String) throws { if !value { throw NSError(domain:"StudioVideoVerification",code:1,userInfo:[NSLocalizedDescriptionKey:text]) } }
+        VerificationProgress.record("Video suite start")
         let context = ImageEngine.context()
         func mean(_ image:CIImage) -> [Float] {
             let reduced = image.applyingFilter("CIAreaAverage",parameters:["inputExtent":CIVector(cgRect:image.extent.insetBy(dx:4,dy:4))])
@@ -54,6 +55,7 @@ enum VideoVerification {
         let tenBit = true
         #endif
         for profile in profiles {
+            VerificationProgress.record("Video profile \(profile.rawValue)")
             let url = try await VideoFixtures.make(profile:profile,portrait:profile == .appleLog,audioTracks:profile == .standard ? 2 : 1)
             defer { try? FileManager.default.removeItem(at:url.deletingLastPathComponent()) }
             let before = try Data(contentsOf:url),descriptor = try await VideoEngine.describe(url)
@@ -135,12 +137,15 @@ enum VideoVerification {
         defer { try? FileManager.default.removeItem(at:largeURL.deletingLastPathComponent()) }
         let largeDescriptor = try await VideoEngine.describe(largeURL)
         var crop = Recipe();crop.input.profile = .appleLog2;crop.crop = .square
+        VerificationProgress.record("4K Log tracking preview")
+        let trackingPoster = try await MaskTracker.seedFrame(url:largeURL,descriptor:largeDescriptor,recipe:crop)
+        try require(max(trackingPoster.width,trackingPoster.height)<=640 && trackingPoster.width == trackingPoster.height,"4K Log tracking decode/framing exceeded bound")
         let largeResult = try await VideoEngine.export(source:largeURL,descriptor:largeDescriptor,recipe:crop,progress:{ _ in })
         defer { try? FileManager.default.removeItem(at:largeResult.url) }
         try require(largeResult.width == 2160 && largeResult.height == 2160,"4K source crop geometry changed")
         try require(try await frameTimes(largeResult.url).count == 3,"4K export dropped frames")
         #endif
-        return ["passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","clips":checks,"photoInput":try LogVerification.run(),"encodedCombinedBrushRangeMask":true,"encodedColorLuminanceMasks":true,"trimHDR":try await HDRTrimVerification.run()]
+        return ["maskTracking":try await TrackingVerification.video(),"passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","clips":checks,"photoInput":try LogVerification.run(),"boundedTrackingDecode":true,"encodedCombinedBrushRangeMask":true,"encodedColorLuminanceMasks":true,"trimHDR":try await HDRTrimVerification.run()]
     }
     @MainActor static func writeReport() async {
         let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("video-verification.json")

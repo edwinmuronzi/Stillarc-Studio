@@ -1,0 +1,15 @@
+{
+  "encodedTracking" : true,
+  "passed" : true,
+  "movingTargetErrors" : [
+    0.0033422505339212594,
+    0.0051411703706012168
+  ],
+  "exportFramesPerClip" : 60,
+  "portraitLandscape" : true,
+  "pointCounts" : [
+    30,
+    30
+  ],
+  "cancellation" : true
+}

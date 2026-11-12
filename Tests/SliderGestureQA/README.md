@@ -7,3 +7,5 @@ xcodebuild -project Tests/SliderGestureQA/StudioGestureQA.xcodeproj -scheme Gest
 ```
 
 The isolated Debug-only screen checks actual double taps and dragging on the shared reset modifier. A second test opens the actual photo editor with the owned sample, changes Exposure, double-taps it to zero, then verifies Undo restores the changed value. Tests create sample projects only in the simulator app; they do not touch Photos. The harness is unsigned and intended for simulator use, not installation on a physical phone. Release builds exclude the diagnostic screen.
+
+The tracking test imports a generated moving target into the simulator, opens the real tracking sheet, drags and resets the target, analyzes the clip and clears its track. These generated scenes are test fixtures, not example camera footage.
