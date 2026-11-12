@@ -2,7 +2,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.16 subject and sky selection milestone**, not a finished PeekLUT/Lightroom replacement. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.21 batch workflow and recovery milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -147,7 +147,7 @@ Debug verification instructions are in [Docs/VALIDATION.md](Docs/VALIDATION.md).
 
 ## Important boundaries
 
-Per-frame/deforming video segmentation, deformation/scale/rotation tracking, healing, HDR photo export, batch work, metadata controls, multi-clip video timelines and Camera/Studio preset exchange are **planned**, not available in this build. Studio presets are not yet compatible with Camera presets. A LUT can encode compatible color transformations, but cannot encode grain, bloom, sharpening, masks or geometry.
+Per-frame/deforming video segmentation, deformation/scale/rotation tracking, healing, HDR photo export, batch adjustment paste, metadata controls, multi-clip video timelines and Camera/Studio preset exchange are **planned**, not available in this build. Studio presets are not yet compatible with Camera presets. A LUT can encode compatible color transformations, but cannot encode grain, bloom, sharpening, masks or geometry.
 
 ### Direct crop handles (0.17)
 
@@ -191,3 +191,12 @@ This release bundles six additions:
 - **Sorting:** choose recently edited, newest/oldest imported, name or highest rating. Filters and sort choice survive restarts.
 
 Favorites and ratings belong to Studio projects; they do not change the original in Photos/Files or travel in exported media. Changing them preserves the edit timestamp, so thumbnails are not re-decoded just to update a heart or star. The project actor preserves current organization when an older editor snapshot saves, and caches it to avoid re-parsing the full index on every normal autosave. Levels uses one GPU color operation and bypasses it entirely at neutral settings.
+
+### Batch workflow and recovery (0.21)
+
+- **Open photo or video** or **Files** now accepts up to **20 items**. Studio imports them one at a time to limit memory use, preserves their filenames, and reports partial failures. **Cancel remaining** lets the current item finish safely. A single import opens the editor; multiple imports stay in the workspace.
+- Tap **Select**, choose up to 20 projects, then **Export**. Each photo or clip keeps its own saved adjustments, framing, masks, trim and audio settings. Photos use full remaining source resolution as JPEG/PNG; clips use the existing HEVC SDR/HDR export pipeline. Share the completed files or save all to Photos. Failures are listed individually. Leaving the app cancels an unfinished export batch and removes its temporary files.
+- Deletes move Studio copies into **Recently Deleted** for up to **30 days**. Restore brings back media, edits, versions, ratings and favorites. Permanent deletion requires confirmation; original items in Photos/Files are untouched. Expiry is checked when the workspace or Recently Deleted opens, not by a background timer. Uninstalling Studio still removes its local storage.
+- Local metadata recovery keeps a separate atomic copy of project settings and saved looks. Healthy saves refresh the settings backup at most every 30 seconds; organization changes force a refresh. If a project index is damaged, Studio tries the backup and shows a notice; up to 30 seconds of recent saved edits may be absent. Unreadable media/index files are retained rather than silently deleted. This is metadata recovery, not a second media copy or cloud backup. Export important work separately.
+- **Curves** scrolls normally by default. Tap **Edit curve points** to drag points, then **Done editing points** to return to scrolling. A scroll gutter remains beside the graph; exact-value controls and VoiceOver adjustment remain available.
+- Tap outside the workspace search to hide the keyboard; the import controls now sit in a floating, rounded glass panel.

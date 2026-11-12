@@ -25,6 +25,7 @@ import UniformTypeIdentifiers
     @State private var showRange = false
     @State private var curveChannel: CurveChannel = .master
     @State private var curvePoint: CurvePoint = .middle
+    @State private var curveEditing = false
     @State private var comparing = false
     @State private var splitComparison = false
     @State private var splitPosition = 0.5
@@ -160,11 +161,11 @@ import UniformTypeIdentifiers
         }
         .task(id:cropSettleKey) { await settleCropAndMasks() }
         .onChange(of:MaskMotion.signature(session.recipe)) { _,_ in cropAwaitingAdjustment = false;cropDisplayFinal = false;cropFocused = false }
-        .onChange(of:tool) { _,_ in cropAwaitingAdjustment = false;cropDisplayFinal = false;cropFocused = false }
+        .onChange(of:tool) { _,_ in curveEditing = false; cropAwaitingAdjustment = false;cropDisplayFinal = false;cropFocused = false }
         .onChange(of:scopesActive) { _,value in scopeSampler.setEnabled(value) }
         .onDisappear { scopeSampler.setEnabled(false) }
         .onChange(of: session.recipe) { _, _ in if !diagnosticsRunning { session.scheduleSave(library) } }
-        .onChange(of: phase) { _, phase in if phase != .active { Task { await session.persist(library) } } }
+        .onChange(of: phase) { _, phase in if phase != .active { curveEditing = false;session.end();Task { await session.persist(library) } } }
         .onDisappear { Task { await session.persist(library) } }
         .sheet(isPresented: $export) { ExportSheet(session: session) }
         .sheet(item:$transferSheet) { mode in AdjustmentTransferSheet(mode:mode,session:session,library:library) }
@@ -319,7 +320,7 @@ import UniformTypeIdentifiers
     private func resumeCrop() { cropAwaitingAdjustment = true;cropDisplayFinal = false;withAnimation(reduceMotion ? nil : .easeOut(duration:0.3)) { cropFocused = false };cropResumeID += 1 }
     private var header: some View {
         HStack(spacing: 8) {
-            Button { Task { await session.persist(library); dismiss() } } label: { Image(systemName: "chevron.left").frame(width: 44,height: 44) }.accessibilityLabel("Back to workspace")
+            Button { Task { if await session.persist(library) { dismiss() } else { session.error = library.error ?? "Your edit could not be saved. Keep this screen open and try again." } } } label: { Image(systemName: "chevron.left").frame(width: 44,height: 44) }.accessibilityLabel("Back to workspace")
             VStack(alignment: .leading,spacing: 3) {
                 Text(session.project.name).font(.subheadline.weight(.semibold)).lineLimit(1)
                 Text(session.saved ? "ALL CHANGES SAVED" : "SAVING ADJUSTMENTS").font(.system(size: 8,weight: .medium,design: .monospaced)).tracking(1).foregroundStyle(StudioStyle.secondary)
@@ -787,7 +788,15 @@ import UniformTypeIdentifiers
                     numericText = String(format:"%.2f",session.recipe[keyPath:key]*100)
                 } label: { Text(String(format:"%.1f%%",session.recipe[keyPath:curveChannel.recipeKey(curvePoint)]*100)).font(.caption.monospacedDigit()).foregroundStyle(curveChannel.color).padding(.vertical,5) }.accessibilityLabel("Set exact curve output")
             }
-            RGBCurveGraph(session:session,channel:curveChannel,selected:$curvePoint).frame(height:170)
+            HStack {
+                Button { curveEditing.toggle() } label: { Label(curveEditing ? "Done editing points" : "Edit curve points",systemImage:curveEditing ? "checkmark" : "lock.open").font(.caption) }.buttonStyle(.bordered)
+                Spacer()
+                Text(curveEditing ? "Swipe the right edge to scroll" : "Swipe the graph to scroll").font(.caption2).foregroundStyle(StudioStyle.secondary)
+            }
+            HStack(spacing:8) {
+                RGBCurveGraph(session:session,channel:curveChannel,editable:curveEditing,selected:$curvePoint).frame(height:140)
+                Image(systemName:"arrow.up.arrow.down").font(.caption).foregroundStyle(StudioStyle.secondary).frame(width:24,height:140).contentShape(Rectangle()).accessibilityLabel("Scroll adjustments")
+            }
             Text(curveChannel.help).font(.caption).foregroundStyle(StudioStyle.secondary).lineSpacing(2)
             DisclosureGroup("Additional tone shaping") {
                 VStack(spacing:18) {

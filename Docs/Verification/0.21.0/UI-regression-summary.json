@@ -1,0 +1,52 @@
+{
+  "devicesAndConfigurations" : [
+    {
+      "device" : {
+        "architecture" : "arm64",
+        "deviceId" : "A8EC3C82-74AE-4C0A-910B-662BFD456AF8",
+        "deviceName" : "iPhone 18 Pro",
+        "modelName" : "iPhone 18 Pro",
+        "osBuildNumber" : "24B8117",
+        "osVersion" : "27.2",
+        "platform" : "iOS Simulator"
+      },
+      "expectedFailures" : 0,
+      "failedTests" : 1,
+      "passedTests" : 11,
+      "skippedTests" : 0,
+      "testPlanConfiguration" : {
+        "configurationId" : "1",
+        "configurationName" : "Test Scheme Action"
+      }
+    }
+  ],
+  "environmentDescription" : "GestureTests · Built with macOS 27.0.1",
+  "expectedFailures" : 0,
+  "failedTests" : 1,
+  "finishTime" : 1794458300.578,
+  "passedTests" : 11,
+  "result" : "Failed",
+  "runtimeWarnings" : [
+
+  ],
+  "skippedTests" : 0,
+  "startTime" : 1794458066.861,
+  "statistics" : [
+
+  ],
+  "testFailures" : [
+    {
+      "failureText" : "XCTAssertEqual failed: (\"Optional(\"Adjustments applied\")\") is not equal to (\"Optional(\"No adjustments\")\")",
+      "targetName" : "GestureTests",
+      "testIdentifier" : 5,
+      "testIdentifierString" : "GestureTests/testCurvesScrollWithoutEditingAndExplicitEdit()",
+      "testIdentifierURL" : "test://com.apple.xcode/StudioGestureQA/GestureTests/GestureTests/testCurvesScrollWithoutEditingAndExplicitEdit",
+      "testName" : "testCurvesScrollWithoutEditingAndExplicitEdit()"
+    }
+  ],
+  "title" : "Test - GestureTests",
+  "topInsights" : [
+
+  ],
+  "totalTestCount" : 12
+}

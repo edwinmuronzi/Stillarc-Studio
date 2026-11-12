@@ -1,0 +1,14 @@
+{
+  "kernelBackend" : "Metal stitchable",
+  "extraIdleFrames" : 0,
+  "interrupted" : false,
+  "elapsedSeconds" : 7.2810202916589333,
+  "version" : "0.21.0",
+  "p95Milliseconds" : 15.367666666861624,
+  "gpuFailures" : 0,
+  "rendered" : 164,
+  "cancelled" : false,
+  "thermalStart" : 0,
+  "thermalEnd" : 0,
+  "requestedUpdates" : 180
+}

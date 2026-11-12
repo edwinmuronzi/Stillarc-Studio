@@ -108,6 +108,62 @@ final class GestureTests:XCTestCase {
         if !card.isHittable { app.scrollViews.firstMatch.swipeUp() };card.tap()
         XCTAssertTrue(app.buttons["Remove favorite"].exists)
     }
+    func testCurvesScrollWithoutEditingAndExplicitEdit() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = ["--demo-editor","--neutral-demo","--tool","Curves"];app.launch()
+        let graph = app.otherElements["rgbCurveGraph"].firstMatch,panel = app.scrollViews["editorAdjustments"]
+        XCTAssertTrue(graph.waitForExistence(timeout:30))
+        panel.swipeUp()
+        XCTAssertEqual(app.buttons["Curves"].value as? String,"No adjustments")
+        let before = graph.frame.minY
+        let begin = graph.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.75))
+        begin.press(forDuration:0.05,thenDragTo:begin.withOffset(CGVector(dx:0,dy:70)))
+        XCTAssertEqual(app.buttons["Curves"].value as? String,"No adjustments")
+        XCTAssertNotEqual(graph.frame.minY,before)
+        let edit = app.buttons["Edit curve points"]
+        if !edit.isHittable { panel.swipeDown() };edit.tap()
+        if graph.frame.midY > panel.frame.maxY-40 {
+            let gutter = panel.coordinate(withNormalizedOffset:CGVector(dx:0.97,dy:0.85))
+            gutter.press(forDuration:0.05,thenDragTo:gutter.withOffset(CGVector(dx:0,dy:-160)))
+        }
+        let middle = graph.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5))
+        middle.press(forDuration:0.05,thenDragTo:middle.withOffset(CGVector(dx:0,dy:-20)))
+        XCTAssertEqual(app.buttons["Curves"].value as? String,"Adjustments applied")
+        app.buttons["Undo"].tap();XCTAssertEqual(app.buttons["Curves"].value as? String,"No adjustments")
+        let shot = XCTAttachment(screenshot:app.screenshot());shot.name = "Scroll-safe curves and edit mode";shot.lifetime = .keepAlways;add(shot)
+    }
+    func testHomeKeyboardDismissAndFloatingPanel() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = [];app.launch()
+        let search = app.textFields["workspaceSearch"]
+        XCTAssertTrue(search.waitForExistence(timeout:30));search.tap();search.typeText("Studio")
+        XCTAssertTrue(app.keyboards.firstMatch.exists)
+        app.staticTexts["Your workspace"].tap()
+        let hidden = XCTNSPredicateExpectation(predicate:NSPredicate(format:"exists == false"),object:app.keyboards.firstMatch)
+        XCTAssertEqual(XCTWaiter.wait(for:[hidden],timeout:5),.completed)
+        let shot = XCTAttachment(screenshot:app.screenshot());shot.name = "Floating import panel and dismissed keyboard";shot.lifetime = .keepAlways;add(shot)
+        search.tap();search.typeText(" sample");XCTAssertTrue(app.keyboards.firstMatch.exists)
+    }
+    func testBatchImportExportAndRecentlyDeleted() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = ["--batch-demo"];app.launch()
+        XCTAssertTrue(app.staticTexts["Added 2 of 2."].waitForExistence(timeout:30))
+        let search = app.textFields["workspaceSearch"];search.tap();search.typeText("Studio batch QA");app.keyboards.buttons["Search"].tap()
+        app.buttons["Select"].tap();app.buttons["Select shown"].tap();app.buttons["Export 2"].tap()
+        let create = app.buttons["createBatchExport"];XCTAssertTrue(create.waitForExistence(timeout:10));create.tap()
+        XCTAssertTrue(app.buttons["Share or save files"].waitForExistence(timeout:30))
+        let exported = XCTAttachment(screenshot:app.screenshot());exported.name = "Batch export completed";exported.lifetime = .keepAlways;add(exported)
+        app.navigationBars["Batch export"].buttons["Done"].tap();app.buttons["Done"].tap()
+        let manage = app.buttons["Manage Studio batch QA 1"]
+        app.scrollViews.firstMatch.swipeUp();manage.tap();app.buttons["Delete Studio copy"].tap()
+        app.buttons["Delete Studio copy"].tap()
+        let deleted = app.buttons["Recently Deleted"]
+        if !deleted.isHittable { app.scrollViews.firstMatch.swipeDown() };deleted.tap()
+        let restore = app.buttons["Restore"].firstMatch;XCTAssertTrue(restore.waitForExistence(timeout:10));restore.tap()
+        XCTAssertTrue(app.staticTexts["No recently deleted projects"].waitForExistence(timeout:10))
+        app.navigationBars["Recently Deleted"].buttons["Done"].tap()
+        XCTAssertTrue(app.buttons["Manage Studio batch QA 1"].exists)
+    }
     func testDoubleTapAndDrag() throws {
         let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments = ["--verify-slider-gestures"];app.launch()

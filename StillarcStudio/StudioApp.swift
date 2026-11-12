@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import CoreImage
 
 @main struct StillarcStudioApp: App {
     #if DEBUG
@@ -45,8 +46,16 @@ enum StudioStyle {
 }
 @MainActor struct StudioHome: View {
     @Bindable var library: StudioLibrary
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selected: Project?
-    @State private var picker: PhotosPickerItem?
+    @State private var picker:[PhotosPickerItem] = []
+    @State private var importingBatch = false
+    @State private var importStatus:String?
+    @State private var importTask:Task<Void,Never>?
+    @State private var selecting = false
+    @State private var selection = Set<UUID>()
+    @State private var batchExport = false
+    @State private var recovery = false
     @State private var files = false
     @State private var info = false
     @State private var deletion: Project?
@@ -75,10 +84,22 @@ enum StudioStyle {
                     hero
                     HStack {
                         Text("Your workspace").font(.title3.weight(.semibold))
+                        Button(selecting ? "Done" : "Select") { searchFocused = false;selecting.toggle();if !selecting { selection = [] } }.font(.caption).disabled(importingBatch || library.importing)
                         Spacer()
                         Text("\(items.count) of \(library.projects.count)").font(.caption.monospaced()).foregroundStyle(StudioStyle.secondary)
                     }
                     workspaceControls
+                    if let status = importStatus {
+                        HStack { if importingBatch { ProgressView() };Text(status).font(.caption);Spacer();if importingBatch { Button("Cancel remaining") { importTask?.cancel() }.font(.caption) } }
+                    }
+                    if let notice = library.recoveryMessage { HStack(alignment:.top) { Text(notice).font(.caption).foregroundStyle(StudioStyle.secondary);Spacer();Button { library.recoveryMessage = nil } label: { Image(systemName:"xmark.circle") }.accessibilityLabel("Dismiss recovery notice") } }
+                    if selecting {
+                        HStack {
+                            Button(items.count>20 ? "Select first 20 shown" : "Select shown") { selection = Set(items.prefix(20).map(\.id)) }
+                            Spacer()
+                            Button("Export \(selection.count)") { batchExport = true }.disabled(selection.isEmpty || importingBatch)
+                        }.font(.caption).buttonStyle(.bordered)
+                    }
                     if library.loading { ProgressView().frame(maxWidth: .infinity) }
                     else if library.projects.isEmpty {
                         VStack(alignment: .leading, spacing: 9) {
@@ -95,9 +116,10 @@ enum StudioStyle {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150),spacing: 14)],spacing: 20) {
                             ForEach(items) { project in
                                 VStack(alignment:.leading,spacing:9) {
-                                    Button { selected = project } label: {
+                                    Button { openOrSelect(project) } label: {
                                         ProjectThumbnail(project:project,vault:library.vault).aspectRatio(0.9,contentMode:.fit).clipShape(RoundedRectangle(cornerRadius:18)).contentShape(RoundedRectangle(cornerRadius:18)).accessibilityHidden(true)
-                                    }.buttonStyle(.plain).contentShape(RoundedRectangle(cornerRadius:18)).accessibilityElement(children:.ignore).accessibilityLabel("Open \(project.name)")
+                                    }.buttonStyle(.plain).disabled(importingBatch).contentShape(RoundedRectangle(cornerRadius:18)).accessibilityElement(children:.ignore).accessibilityLabel(selecting ? "Select \(project.name)" : "Open \(project.name)").accessibilityValue(selecting && selection.contains(project.id) ? "Selected" : "")
+                                    .overlay(alignment:.topLeading) { if selecting { Image(systemName:selection.contains(project.id) ? "checkmark.circle.fill" : "circle").font(.title2).foregroundStyle(selection.contains(project.id) ? StudioStyle.blue : .white).padding(10).allowsHitTesting(false).accessibilityHidden(true) } }
                                     HStack(alignment:.top,spacing:6) {
                                         VStack(alignment:.leading,spacing:5) {
                                             HStack(spacing:4) {
@@ -106,7 +128,7 @@ enum StudioStyle {
                                                 if let rating = project.organization?.rating,rating>0 { Text("\(rating)★").font(.caption.monospacedDigit()).foregroundStyle(StudioStyle.blue) }
                                             }
                                             Text("\(project.isVideo ? "VIDEO" : (project.isRAW ? "RAW" : "PHOTO")) · \(project.width) × \(project.height)").font(.system(size:10,design:.monospaced)).foregroundStyle(StudioStyle.secondary)
-                                        }.frame(maxWidth:.infinity,alignment:.leading).contentShape(Rectangle()).onTapGesture { selected = project }
+                                        }.frame(maxWidth:.infinity,alignment:.leading).contentShape(Rectangle()).onTapGesture { openOrSelect(project) }
                                         Menu {
                                             Button(project.organization?.favorite == true ? "Remove favorite" : "Mark favorite",systemImage:"heart") { Task { await library.organize(project,favorite:project.organization?.favorite != true) } }
                                             Menu("Rate",systemImage:"star") {
@@ -114,7 +136,7 @@ enum StudioStyle {
                                                 ForEach(1...5,id:\.self) { value in Button("\(value) \(value == 1 ? "star" : "stars")") { Task { await library.organize(project,rating:value) } } }
                                             }
                                             Button("Delete Studio copy",systemImage:"trash",role:.destructive) { deletion = project }
-                                        } label: { Image(systemName:"ellipsis").frame(width:32,height:32) }.accessibilityLabel("Manage \(project.name)")
+                                        } label: { Image(systemName:"ellipsis").frame(width:32,height:32) }.accessibilityLabel("Manage \(project.name)").disabled(selecting)
                                     }
                                 }.foregroundStyle(.white)
                             }
@@ -124,7 +146,9 @@ enum StudioStyle {
                         .font(.caption).foregroundStyle(StudioStyle.secondary).frame(maxWidth: .infinity).padding(.vertical,12)
                 }.padding(22).frame(maxWidth: 980).frame(maxWidth: .infinity)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(StudioStyle.ink)
+            .background { HomeKeyboardDismiss(active:searchFocused && selected == nil && !info && !recovery && !batchExport) { searchFocused = false }.allowsHitTesting(false) }
             .toolbar(.hidden,for: .navigationBar)
             .safeAreaInset(edge: .bottom) { importBar }
             .task {
@@ -160,34 +184,51 @@ enum StudioStyle {
                     if let project = library.projects.first(where: { $0.isVideo }) { selected = project }
                     else if let url = try? await VideoFixtures.make(profile:.standard,frames:90) { selected = await library.add(url);try? FileManager.default.removeItem(at:url.deletingLastPathComponent()) }
                 }
+                if ProcessInfo.processInfo.arguments.contains("--batch-demo") {
+                    let previous = Set(UserDefaults.standard.stringArray(forKey:"qa.batch.ids") ?? [])
+                    for p in library.projects where previous.contains(p.id.uuidString) { await library.remove(p) }
+                    if let trash = try? await library.vault.deletedProjects() { for entry in trash where previous.contains(entry.project.id.uuidString) { try? await library.vault.eraseDeleted(entry) } }
+                    let before = Set(library.projects.map(\.id))
+                    let folder = FileManager.default.temporaryDirectory.appendingPathComponent("BatchUI-\(UUID())")
+                    if let urls = try? await Task.detached(priority:.utility,operation:{ () -> [URL] in
+                        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+                        let context = ImageEngine.context()
+                        return try (1...2).map { i in
+                            let url = folder.appendingPathComponent("Studio batch QA \(i).png")
+                            let image = CIImage(color:CIColor(red:0.1*Double(i),green:0.2,blue:0.3)).cropped(to:CGRect(x:0,y:0,width:128,height:96))
+                            try context.writePNGRepresentation(of:image,to:url,format:.RGBA8,colorSpace:ImageEngine.output);return url
+                        }
+                    }).value {
+                        filterRaw = LibraryFilter.all.rawValue;beginImport(urls.map { .file($0) });await importTask?.value
+                        UserDefaults.standard.set(library.projects.filter { !before.contains($0.id) }.map { $0.id.uuidString },forKey:"qa.batch.ids")
+                        try? FileManager.default.removeItem(at:folder)
+                    }
+                }
                 if ProcessInfo.processInfo.arguments.contains("--video-demo"),let url = try? await VideoFixtures.make(profile:.standard,frames:90) { selected = await library.add(url);try? FileManager.default.removeItem(at:url.deletingLastPathComponent()) }
                 if ProcessInfo.processInfo.arguments.contains("--demo-editor"), let project = await addDemo() { selected = project }
                 #endif
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in Task { await ThumbnailCache.shared.clear() } }
-            .onChange(of: picker) { _, item in
-                guard let item else { return }
-                Task {
-                    do {
-                        guard let transfer = try await item.loadTransferable(type: PhotoTransfer.self) else { throw StudioError.unreadable }
-                        selected = await library.add(transfer.url)
-                        await Task.detached(priority:.utility) { try? FileManager.default.removeItem(at:transfer.url) }.value
-                    } catch { library.error = error.localizedDescription }
-                    picker = nil
-                }
+            .onChange(of:picker) { _,items in
+                if !items.isEmpty { beginImport(items.map { .photo($0) }) }
             }
-            .fileImporter(isPresented: $files, allowedContentTypes:[.image,.rawImage,.movie,.video]) { result in
+            .fileImporter(isPresented:$files,allowedContentTypes:[.image,.rawImage,.movie,.video],allowsMultipleSelection:true) { result in
                 switch result {
-                case .success(let url): Task { selected = await library.add(url) }
-                case .failure(let error): library.error = error.localizedDescription
+                case .success(let urls):beginImport(urls.map { .file($0) })
+                case .failure(let error):library.error = error.localizedDescription
                 }
             }
             .fullScreenCover(item: $selected) { project in PhotoEditor(project: project, library: library) }
-            .sheet(isPresented: $info) { StudioAbout() }
+            .sheet(isPresented:$info) { StudioAbout() }
+            .sheet(isPresented:$recovery) { RecentlyDeletedSheet(library:library) }
+            .sheet(isPresented:$batchExport) { BatchExportSheet(projects:library.projects.filter { selection.contains($0.id) },vault:library.vault) }
+            .onChange(of:library.projects.map(\.id)) { _,ids in selection.formIntersection(ids) }
+            .onChange(of:scenePhase) { _,phase in if phase != .active { importTask?.cancel() } }
+
             .alert("Unable to complete",isPresented: Binding(get: { library.error != nil },set: { if !$0 { library.error = nil } })) { Button("OK") { library.error = nil } } message: { Text(library.error ?? "") }
-            .confirmationDialog("Delete this Studio project?",isPresented: Binding(get: { deletion != nil },set: { if !$0 { deletion = nil } }),titleVisibility: .visible) {
+            .confirmationDialog("Move this project to Recently Deleted?",isPresented: Binding(get: { deletion != nil },set: { if !$0 { deletion = nil } }),titleVisibility: .visible) {
                 Button("Delete Studio copy",role: .destructive) { if let deletion { Task { await library.remove(deletion) } }; deletion = nil }
-            } message: { Text("Your original in Photos or Files will remain. The imported Studio copy and its adjustments will be removed.") }
+            } message: { Text("Your original in Photos or Files will remain. The Studio copy and its edits can be restored for 30 days.") }
         }
     }
     private var workspaceControls:some View {
@@ -201,6 +242,7 @@ enum StudioStyle {
                 Menu {
                     ForEach(LibraryFilter.allCases) { item in Button { filterRaw = item.rawValue } label: { HStack { Text(item.rawValue);if filter == item { Image(systemName:"checkmark") } } } }
                 } label: { Label(filter.rawValue,systemImage:"line.3.horizontal.decrease").font(.caption).padding(.vertical,8) }.accessibilityLabel("Filter workspace").accessibilityValue(filter.rawValue)
+                Button { searchFocused = false;recovery = true } label: { Image(systemName:"trash.arrow.up").frame(width:36,height:36) }.accessibilityLabel("Recently Deleted")
                 Spacer()
                 Menu {
                     ForEach(LibrarySort.allCases) { item in Button { sortRaw = item.rawValue } label: { HStack { Text(item.rawValue);if sort == item { Image(systemName:"checkmark") } } } }
@@ -222,19 +264,64 @@ enum StudioStyle {
                 } label: {
                     HStack(spacing: 8) { if demoBusy { ProgressView() } else { Image(systemName: "slider.horizontal.3") }; Text("Explore the editor"); Image(systemName: "arrow.up.right") }
                         .font(.subheadline.weight(.semibold)).padding(.horizontal,16).padding(.vertical,12).background(.ultraThinMaterial,in: Capsule()).overlay(Capsule().stroke(.white.opacity(0.16)))
-                }.disabled(demoBusy || library.importing).buttonStyle(.plain)
+                }.disabled(demoBusy || library.importing || importingBatch).buttonStyle(.plain)
                 Text("Illustrative sample · not a camera capture").font(.system(size: 9)).foregroundStyle(.white.opacity(0.55))
             }.padding(24)
         }.frame(height: 360).clipShape(RoundedRectangle(cornerRadius: 28)).overlay(RoundedRectangle(cornerRadius: 28).stroke(.white.opacity(0.09)))
     }
     private var importBar: some View {
-        let isImporting = library.importing
+        let isImporting = library.importing || importingBatch
         return HStack(spacing: 12) {
-            PhotosPicker(selection: $picker,matching:.any(of:[.images,.videos]),preferredItemEncoding: .current) {
-                HStack(spacing: 9) { Image(systemName: "plus"); Text(isImporting ? "Opening media…" : "Open photo or video").fontWeight(.semibold) }.frame(maxWidth: .infinity).frame(height: 54).background(StudioStyle.blue,in: Capsule()).foregroundStyle(.white)
-            }.disabled(library.importing)
-            Button { files = true } label: { Image(systemName: "folder").font(.title3).frame(width: 54,height: 54).background(.white.opacity(0.08),in: Circle()) }.disabled(library.importing).accessibilityLabel("Import photo or video from Files")
-        }.padding(.horizontal,22).padding(.vertical,14).background(.ultraThinMaterial)
+            PhotosPicker(selection: $picker,maxSelectionCount:20,matching:.any(of:[.images,.videos]),preferredItemEncoding: .current) {
+                HStack(spacing: 9) { Image(systemName: "plus"); Text(isImporting ? "Importing…" : "Open photo or video").fontWeight(.semibold) }.frame(maxWidth: .infinity).frame(height: 54).background(StudioStyle.blue,in: Capsule()).foregroundStyle(.white)
+            }.disabled(isImporting)
+            Button { searchFocused = false;files = true } label: { Image(systemName: "folder").font(.title3).frame(width: 54,height: 54).background(.white.opacity(0.08),in: Circle()) }.disabled(isImporting).accessibilityLabel("Import photo or video from Files")
+        }.padding(12)
+            .background(.ultraThinMaterial,in:RoundedRectangle(cornerRadius:32,style:.continuous))
+            .overlay(RoundedRectangle(cornerRadius:32,style:.continuous).stroke(.white.opacity(0.12),lineWidth:1))
+            .shadow(color:.black.opacity(0.25),radius:18,y:8)
+            .padding(.horizontal,16).padding(.vertical,8)
+            .accessibilityIdentifier("floatingImportPanel")
+    }
+    private enum ImportSource { case photo(PhotosPickerItem),file(URL) }
+    private func openOrSelect(_ project:Project) {
+        guard !importingBatch else { return }
+        searchFocused = false
+        if selecting {
+            if selection.contains(project.id) { selection.remove(project.id) }
+            else if selection.count<20 { selection.insert(project.id) }
+            else { library.error = "Select up to 20 projects in one batch." }
+        } else { selected = project }
+    }
+    private func beginImport(_ sources:[ImportSource]) {
+        guard !importingBatch,!sources.isEmpty else { return }
+        guard sources.count<=20 else { library.error = "Choose up to 20 items at a time.";return }
+        importingBatch = true;searchFocused = false
+        if sources.count>1 { workspaceSearch = "";filterRaw = LibraryFilter.all.rawValue;sortRaw = LibrarySort.newest.rawValue }
+        importTask = Task { @MainActor in
+            defer { importingBatch = false;importTask = nil;picker = [] }
+            var added:[Project] = [],failures:[String] = []
+            for (i,source) in sources.enumerated() {
+                if Task.isCancelled { break }
+                while ProcessInfo.processInfo.thermalState.rawValue>=ProcessInfo.ThermalState.serious.rawValue && !Task.isCancelled {
+                    importStatus = "Waiting for the phone to cool before importing…";try? await Task.sleep(for:.seconds(1))
+                }
+                if Task.isCancelled { break }
+                importStatus = "Opening \(i+1) of \(sources.count)…"
+                var temporary:URL?
+                do {
+                    let url:URL
+                    switch source {
+                    case .file(let file):url = file
+                    case .photo(let item):guard let transfer = try await item.loadTransferable(type:PhotoTransfer.self) else { throw StudioError.unreadable };url = transfer.url;temporary = url
+                    }
+                    if !Task.isCancelled { if let p = await library.add(url) { added.append(p) } else { failures.append(library.error ?? "Could not open an item");library.error = nil } }
+                } catch { failures.append(error.localizedDescription) }
+                if let temporary { await Task.detached(priority:.utility) { try? FileManager.default.removeItem(at:temporary.deletingLastPathComponent()) }.value }
+            }
+            importStatus = "Added \(added.count) of \(sources.count)."+(Task.isCancelled ? " Remaining imports cancelled." : "")+(failures.isEmpty ? "" : " \(failures.count) could not open: \(failures.first!)")
+            if sources.count == 1,let first = added.first { selected = first }
+        }
     }
     private func addDemo() async -> Project? {
         if let existing = library.projects.first(where: { $0.name == "Studio sample" }) { return existing }
@@ -267,9 +354,10 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Levels · Favorites & ratings · 0.20.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Batch workflow & recovery · 0.21.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
                     Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export JPEG/PNG photographs or trimmed HEVC video with audio in SDR or 10-bit HLG HDR.")
                     Text("Levels sets black, white and midtones. Mark favorites, rate projects and search or filter your workspace. Dehaze reduces a washed-out veil or adds soft haze. Texture brings out fine surfaces or softens them; Clarity changes broader definition. The preview stays large, and Expand preview hides adjustments. Tap video to show playback controls. Use Scopes to inspect brightness and color. Drag crop corners to resize and drag inside to reposition. Fixed ratios stay locked; Free lets each edge change. Flips and perspective help refine your composition; every change stays reversible.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
+                    Text("Open up to 20 photos or clips together. Select projects in the workspace to export their saved edits in one batch. Recently Deleted keeps Studio copies restorable for 30 days. Local settings recovery can repair a damaged project index, but does not replace a backup of your media. In Curves, tap Edit curve points to adjust the graph; otherwise swipe it to scroll.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Drag the split divider to compare original and edit. Save complete versions under Looks to try different grades and return to a favorite.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Copy selected adjustments under Looks, then paste them onto another photo or clip. Its framing, camera input and trim stay intact; undo reverses the paste.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Use Masks to brighten a face or darken part of a sky. Linear and radial shapes have soft edges, inversion and strength; the red guide is only a preview. Masks stay with this source; Radial, Brush and Subject masks can use position tracking.").font(.subheadline).foregroundStyle(StudioStyle.secondary)

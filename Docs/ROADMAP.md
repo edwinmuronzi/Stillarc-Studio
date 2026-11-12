@@ -1,6 +1,6 @@
 # Studio roadmap
 
-The destination is a coherent photo/video development and grading app informed by PeekLUT, Lightroom and selected specialist tools. The current source implements milestone 1 and the first part of milestone 2. Later items are not exposed as nonfunctional buttons.
+The destination is a coherent photo/video development and grading app informed by PeekLUT, Lightroom and selected specialist tools. The current source spans the photo, selective-edit and single-clip video milestones below. Later items are not exposed as nonfunctional buttons.
 
 ## 1 — Working photo foundation (0.1)
 
@@ -52,7 +52,9 @@ Implemented in 0.15: cancellable forward region tracking for Radial/Brush masks,
 
 Implemented in 0.16: on-request foreground Subject and Sky selection, saved 16-bit mattes, GPU edge refinement, first-kept-frame video masks and Subject position tracking. No per-frame semantic video segmentation.
 
-Next: more robust tracking/recovery, changing-pose segmentation, healing and carefully bounded advanced noise reduction. Project recovery, batch copy/paste, batch export and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
+Implemented in 0.21: serial multi-item import, per-project batch export, 30-day Recently Deleted with restore, and local project/settings and saved-look recovery. Curves requires an explicit edit mode so scrolling does not alter points; workspace keyboard dismissal and a floating import dock improve navigation.
+
+Next: more robust tracking, changing-pose segmentation, healing and carefully bounded advanced noise reduction. Batch copy/paste and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
 
 ## 5 — Video grading
 

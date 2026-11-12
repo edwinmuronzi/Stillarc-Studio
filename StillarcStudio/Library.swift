@@ -5,10 +5,13 @@ import CoreImage
 
 struct PhotoTransfer: Transferable {
     let url: URL
-    private static func copied(_ file:URL) throws -> PhotoTransfer {
-        let target = FileManager.default.temporaryDirectory.appendingPathComponent("StudioImport-"+UUID().uuidString).appendingPathExtension(file.pathExtension)
-        try FileManager.default.copyItem(at:file,to:target)
-        return PhotoTransfer(url:target)
+    static func copied(_ file:URL) throws -> PhotoTransfer {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("StudioImport-"+UUID().uuidString,isDirectory:true)
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+        let name = file.lastPathComponent
+        let target = directory.appendingPathComponent(name.isEmpty || name == "." || name == ".." ? "Imported media" : name)
+        do { try FileManager.default.copyItem(at:file,to:target);return PhotoTransfer(url:target) }
+        catch { try? FileManager.default.removeItem(at:directory);throw error }
     }
     static var transferRepresentation: some TransferRepresentation {
         FileRepresentation(importedContentType:.image) { try copied($0.file) }
@@ -21,16 +24,18 @@ actor ProjectVault {
     #if DEBUG
     private(set) var organizationSaveReads = 0
     #endif
+    var recoveryMessages:[String] = []
     let root: URL
     init(root: URL? = nil) {
         self.root = root ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("StillarcStudio", isDirectory: true)
     }
     func load() throws -> ([Project], [SavedLook]) {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        let projects = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil))?.filter { $0.pathExtension == "json" && $0.lastPathComponent != "looks.json" && $0.lastPathComponent != "adjustments-clipboard.json" }.compactMap { try? JSONDecoder().decode(Project.self, from: Data(contentsOf: $0)) } ?? []
-        organizations = Dictionary(uniqueKeysWithValues:projects.map { ($0.id,OrganizationSnapshot(value:$0.organization)) })
-        let lookURL = root.appendingPathComponent("looks.json")
-        let looks = FileManager.default.fileExists(atPath: lookURL.path) ? try JSONDecoder().decode([SavedLook].self, from: Data(contentsOf: lookURL)) : []
+        recoveryMessages = []
+        do { _ = try deletedProjects() } catch { recoveryMessages.append("Recently Deleted could not be checked: "+error.localizedDescription) }
+        let projects = (try? FileManager.default.contentsOfDirectory(at:root,includingPropertiesForKeys:nil))?.filter { $0.pathExtension == "json" && $0.lastPathComponent != "looks.json" && $0.lastPathComponent != "adjustments-clipboard.json" }.compactMap { recoverableProject($0) } ?? []
+        organizations = Dictionary(projects.map { ($0.id,OrganizationSnapshot(value:$0.organization)) },uniquingKeysWith:{ a,_ in a })
+        let looks = recoveredLooks()
         return (projects.sorted { $0.modified > $1.modified }, looks)
     }
     func source(_ project: Project) -> URL { root.appendingPathComponent(project.id.uuidString, isDirectory: true).appendingPathComponent(project.sourceName) }
@@ -47,7 +52,7 @@ actor ProjectVault {
             }
         }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        try JSONEncoder().encode(project).write(to: root.appendingPathComponent(project.id.uuidString + ".json"), options: .atomic)
+        try writeRecoverableIndex(project)
         organizations[project.id] = OrganizationSnapshot(value:project.organization)
         return project
     }
@@ -57,7 +62,7 @@ actor ProjectVault {
         var metadata = project.organization ?? ProjectOrganization()
         if let favorite { metadata.favorite = favorite };if let rating { metadata.rating = min(5,max(0,rating)) }
         project.organization = metadata
-        try JSONEncoder().encode(project).write(to:url,options:.atomic)
+        try writeRecoverableIndex(project,forceBackup:true)
         organizations[project.id] = OrganizationSnapshot(value:project.organization)
         return project
     }
@@ -76,7 +81,10 @@ actor ProjectVault {
     }
     func saveLooks(_ looks: [SavedLook]) throws {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        try JSONEncoder().encode(looks).write(to: root.appendingPathComponent("looks.json"), options: .atomic)
+        let data = try JSONEncoder().encode(looks)
+        try FileManager.default.createDirectory(at:recoveryRoot,withIntermediateDirectories:true)
+        try data.write(to:recoveryRoot.appendingPathComponent("looks.json"),options:.atomic)
+        try data.write(to:root.appendingPathComponent("looks.json"),options:.atomic)
     }
     func importPhoto(_ url: URL) async throws -> Project {
         let id = UUID(), dir = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -112,16 +120,15 @@ actor ProjectVault {
         if FileManager.default.fileExists(atPath:url.path) { try FileManager.default.removeItem(at:url) }
     }
     func remove(_ project: Project) throws {
-        // Remove the index first: a failed cleanup cannot leave a broken library item.
-        try FileManager.default.removeItem(at: root.appendingPathComponent(project.id.uuidString + ".json"))
+        try moveToDeleted(project)
         organizations.removeValue(forKey:project.id)
-        try? FileManager.default.removeItem(at: root.appendingPathComponent(project.id.uuidString))
     }
 }
 @MainActor @Observable final class StudioLibrary {
     var projects: [Project] = []
     var looks: [SavedLook] = []
     var adjustmentClipboard:AdjustmentClipboard?
+    var recoveryMessage:String?
     var loading = true
     var importing = false
     var organizationBusy = Set<UUID>()
@@ -129,7 +136,7 @@ actor ProjectVault {
     let vault:ProjectVault
     init(vault:ProjectVault = ProjectVault()) { self.vault = vault }
     func load() async {
-        do { (projects, looks) = try await vault.load();adjustmentClipboard = try await vault.loadClipboard() } catch { self.error = error.localizedDescription }
+        do { (projects, looks) = try await vault.load();adjustmentClipboard = try await vault.loadClipboard();recoveryMessage = await vault.recoveryNotice() } catch { self.error = error.localizedDescription }
         loading = false
     }
     @discardableResult func copyAdjustments(name:String,recipe:Recipe,sections:Set<AdjustmentSection>) async -> Bool {

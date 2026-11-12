@@ -29,6 +29,7 @@ enum ColorPanel: String, CaseIterable { case global = "All colors", selective = 
 @MainActor struct RGBCurveGraph: View {
     @Bindable var session: EditSession
     let channel: CurveChannel
+    var editable = false
     @Binding var selected: CurvePoint
     @State private var dragging: CurvePoint?
     @State private var initialY = 0.0
@@ -84,7 +85,9 @@ enum ColorPanel: String, CaseIterable { case global = "All colors", selective = 
                     session.begin()
                 }
                 if let dragging { session.recipe[keyPath:channel.recipeKey(dragging)] = min(1,max(0,initialValue-Double(value.location.y-initialY)/height)) }
-            }.onEnded { _ in dragging = nil; session.end() })
+            }.onEnded { _ in dragging = nil; session.end() },including:editable ? .all : .none)
+            .onDisappear { if dragging != nil { dragging = nil;session.end() } }
+            .onChange(of:editable) { _,value in if !value && dragging != nil { dragging = nil;session.end() } }
             .accessibilityRepresentation {
                 VStack {
                     ForEach(CurvePoint.allCases) { point in
@@ -99,6 +102,6 @@ enum ColorPanel: String, CaseIterable { case global = "All colors", selective = 
                     }
                 }
             }
-        }
+        }.accessibilityElement(children:.contain).accessibilityLabel("RGB curve graph").accessibilityIdentifier("rgbCurveGraph")
     }
 }

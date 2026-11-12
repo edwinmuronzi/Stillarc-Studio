@@ -36,6 +36,7 @@ enum MaskFramingRepair {
         return result
     }
     static func repair(recipe:Recipe,url:URL,video:VideoDescriptor?,prepared:PreparedPhoto?) async throws -> Recipe {
+        guard recipe.masks.contains(where:{ $0.kind.isAutomatic && $0.automatic?.matches(recipe) == false }) else { return recipe }
         var result = recipe
         let size:CGSize
         if let video { size = CGSize(width:video.width,height:video.height) }
