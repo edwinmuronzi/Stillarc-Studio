@@ -17,7 +17,10 @@ extension Recipe {
         if grain != 0 || halation != 0 || bloom != 0 || vignette != 0 { names.append("Grain, halation, bloom or vignette") }
         if !masks.isEmpty { names.append("Masks") }
         if hasAdjustments(in:.crop) { names.append("Framing") }
-        if video.hdr { names.append("HDR output") }
+        if video.hdr || photoHDR == true { names.append("HDR output") }
+        if rawDevelopment != nil {names.append("RAW development")}
+        if optics != nil || retouch?.isEmpty == false {names.append("Optics and repairs")}
+        if background != nil {names.append("Background replacement")}
         return names
     }
 }

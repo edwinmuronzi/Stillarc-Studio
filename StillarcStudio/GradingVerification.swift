@@ -115,7 +115,8 @@ enum GradingVerification {
         defer { try? FileManager.default.removeItem(at:file) }
         try context.writePNGRepresentation(of:source,to:file,format:.RGBA8,colorSpace:ImageEngine.output)
         let expected = pixel(ImageEngine.apply(try ImageEngine.open(file).image,recipe:saved.colorPreset))
-        for format in ExportFormat.allCases {
+        // SDR reference fixtures; physical HDR/HEIF validation lives in PhotoDevelopmentVerification.
+        for format in [ExportFormat.jpeg,.png] {
             let result = try ImageEngine.export(source:file,recipe:saved.colorPreset,format:format)
             defer { try? FileManager.default.removeItem(at:result.url) }
             let actual = pixel(try ImageEngine.open(result.url).image)

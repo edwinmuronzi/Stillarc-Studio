@@ -106,7 +106,8 @@ enum ColorVerification {
         try context.writePNGRepresentation(of:solid([0.35,0.45,0.55]),to:file,format:.RGBA8,colorSpace:ImageEngine.output)
         var recipe = Recipe(); recipe.rgbCurves = master; recipe.selectiveColors.blue.brightness = -0.2
         let expected = pixel(ImageEngine.apply(try ImageEngine.open(file).image,recipe:recipe))
-        for format in ExportFormat.allCases {
+        // SDR reference fixtures; physical HDR/HEIF validation lives in PhotoDevelopmentVerification.
+        for format in [ExportFormat.jpeg,.png] {
             let exported = try ImageEngine.export(source:file,recipe:recipe,format:format)
             defer { try? FileManager.default.removeItem(at:exported.url) }
             let actual = pixel(try ImageEngine.open(exported.url).image)

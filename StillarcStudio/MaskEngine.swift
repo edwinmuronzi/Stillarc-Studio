@@ -84,8 +84,11 @@ enum MaskEngine {
             let m = raw.validated()
             var adjusted = image
             if m.exposure != 0 { adjusted = adjusted.applyingFilter("CIExposureAdjust",parameters:[kCIInputEVKey:m.exposure]) }
-            if m.warmth != 0 { adjusted = adjusted.applyingFilter("CITemperatureAndTint",parameters:["inputNeutral":CIVector(x:6500,y:0),"inputTargetNeutral":CIVector(x:6500+m.warmth*2400,y:0)]) }
+            if m.warmth != 0 || m.tint != 0 { adjusted = adjusted.applyingFilter("CITemperatureAndTint",parameters:["inputNeutral":CIVector(x:6500,y:0),"inputTargetNeutral":CIVector(x:6500+m.warmth*2400,y:m.tint*100)]) }
             if m.saturation != 0 || m.contrast != 0 { adjusted = adjusted.applyingFilter("CIColorControls",parameters:[kCIInputSaturationKey:1+m.saturation,kCIInputContrastKey:1+m.contrast*0.5]) }
+            if m.highlights != 0 || m.shadows != 0 {adjusted=adjusted.applyingFilter("CIHighlightShadowAdjust",parameters:["inputHighlightAmount":1-m.highlights*0.7,"inputShadowAmount":m.shadows])}
+            if m.clarity != 0 {adjusted=DetailRendering.apply(adjusted,texture:0,clarity:m.clarity)}
+            if m.blur>0 {adjusted=adjusted.clampedToExtent().applyingFilter("CIGaussianBlur",parameters:[kCIInputRadiusKey:m.blur*max(image.extent.width,image.extent.height)/1600*20]).cropped(to:image.extent)}
             image = adjusted.applyingFilter("CIBlendWithMask",parameters:[kCIInputBackgroundImageKey:image,kCIInputMaskImageKey:combinedWeight(m,layers:layers,extent:image.extent,preview:preview,reference:source,framing:framing)])
         }
         return CutoutRendering.apply(image,layers:layers,preview:preview,framing:framing,reference:source)

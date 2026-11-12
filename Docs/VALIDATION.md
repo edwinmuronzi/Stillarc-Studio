@@ -1,3 +1,7 @@
+## 0.31.0, build 33 — Photo backgrounds and development
+
+Native iPhone 17 Pro photo/video regression, real DNG development/export, 10-bit HLG still roundtrip, replacement/cache/history/pool delivery checks and 29 distinct UI cases passed. A 1,800-update graded-cutout/background preview run recorded 23.94 ms p95, no GPU failures or idle draws, and nominal iOS thermal state throughout. Compact simulator checks also passed; no older physical-device performance claim is made. [Reports and test limits](Verification/0.31.0/README.md).
+
 # Validation
 
 ## 0.11.0, build 12 — Linear/radial local masks

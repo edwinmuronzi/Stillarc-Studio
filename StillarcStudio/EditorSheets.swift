@@ -5,6 +5,9 @@ import UniformTypeIdentifiers
 @MainActor struct ExportSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var session: EditSession
+    var library:StudioLibrary? = nil
+    var pool:EditingPool? = nil
+    @State private var poolDelivery=false
     @State private var privacy = ExportPrivacy.load()
     @State private var format: ExportFormat = .jpeg
     @State private var result: ExportResult?
@@ -23,16 +26,20 @@ import UniformTypeIdentifiers
                 VStack(alignment: .leading,spacing: 26) {
                     Image(systemName: "square.and.arrow.up.circle").font(.system(size: 46,weight: .light)).foregroundStyle(StudioStyle.blue)
                     Text("Ready for\nthe world.").font(.system(size: 36,weight: .semibold,design: .serif))
+                    if let pool,let library,pool.state.ids.count>1 {
+                        Button("Export pool items",systemImage:"rectangle.stack") {poolDelivery=true}.buttonStyle(.borderedProminent).accessibilityIdentifier("exportPoolItems")
+                        Text("Export this item below, or choose all/selected items from the pool.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                    }
                     Text("A finished copy. Your original stays yours.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
-                    if !session.project.isVideo && !session.recipe.hasCutout { Picker("File format",selection: $format) { ForEach(ExportFormat.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).disabled(busy || result != nil) }
-                    if !session.project.isVideo && session.recipe.hasCutout {Label("PNG · Transparent background",systemImage:"square.dashed").font(.subheadline).accessibilityIdentifier("transparentPNGFormat")}
+                    if !session.project.isVideo && !session.recipe.hasTransparentCutout { Picker("File format",selection: $format) { ForEach(ExportFormat.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).disabled(busy || result != nil) }
+                    if !session.project.isVideo && session.recipe.hasTransparentCutout {Label("PNG · Transparent background",systemImage:"square.dashed").font(.subheadline).accessibilityIdentifier("transparentPNGFormat")}
                     if session.project.isVideo { Toggle("HDR video · HLG",isOn:Binding(get:{ session.recipe.video.hdr },set:{ value in session.change { $0.video.hdr = value } })).disabled(busy || result != nil);Text("HDR keeps brighter highlights on supported screens. SDR is the safest choice for universal sharing. HDR uses 10-bit HEVC; SDR looks/LUTs can change highlight detail.").font(.caption).foregroundStyle(StudioStyle.secondary) }
                     if session.project.isVideo { Picker("Video depth",selection:$tenBitVideo) { Text("10-bit HEVC").tag(true);Text("8-bit HEVC").tag(false) }.pickerStyle(.segmented).disabled(busy || result != nil || session.recipe.video.hdr) }
                     ExportPrivacyControls(policy:$privacy,video:session.project.isVideo).disabled(busy || result != nil)
                     VStack(alignment: .leading,spacing: 14) {
                         exportDetail("Resolution",value: "Full original · crop applied")
-                        exportDetail("Color",value:session.project.isVideo ? (session.recipe.video.hdr ? "Rec.2020 · HLG HDR" : "sRGB · SDR") : "sRGB · SDR")
-                        exportDetail("Quality",value:session.project.isVideo ? "HEVC · \((tenBitVideo || session.recipe.video.hdr) ? 10 : 8)-bit · source frame timing" : (format == .jpeg ? "96% JPEG" : "Lossless PNG · 8-bit"))
+                        exportDetail("Color",value:session.project.isVideo ? (session.recipe.video.hdr ? "Rec.2020 · HLG HDR":"sRGB · SDR") : (format == .hdrHEIF ? "Rec.2020 · HLG HDR":"sRGB · SDR"))
+                        exportDetail("Quality",value:session.project.isVideo ? "HEVC · \((tenBitVideo || session.recipe.video.hdr) ? 10 : 8)-bit · source frame timing" : (format == .jpeg ? "96% JPEG" : (format == .png ? "Lossless PNG · 8-bit":"10-bit HLG HEIF")))
                         if let video = session.project.video { let r = session.recipe.video.range(duration:video.duration);exportDetail("Duration",value:String(format:"%.2f seconds",r.upperBound-r.lowerBound)) }
                         if session.project.isVideo { exportDetail("Audio",value:privacy.audio ? "Original tracks preserved" : "Sound removed") }
                         exportDetail("Location",value:privacy.location ? "Included when present" : "Omitted")
@@ -59,7 +66,9 @@ import UniformTypeIdentifiers
                 .toolbar { Button("Done") { dismiss() }.disabled(saving || busy) }
                 .interactiveDismissDisabled(saving || busy)
         }.tint(StudioStyle.blue)
-        .onAppear {if session.recipe.hasCutout {format = .png}}
+        .sheet(isPresented:$poolDelivery) {if let pool,let library {PoolDeliverySheet(pool:pool,library:library,session:session)}}
+        .onChange(of:format) {_,value in if value == .hdrHEIF {session.change {$0.photoHDR=true}}}
+        .onAppear {if session.recipe.hasTransparentCutout {format = .png}}
         .onDisappear { exportTask?.cancel();discardExport() }
         .onChange(of:phase) { _,value in if value != .active { exportTask?.cancel() } }
         .onChange(of:session.recipe.video.hdr) { _,value in if value { tenBitVideo = true } }
@@ -79,7 +88,7 @@ import UniformTypeIdentifiers
             await MainActor.run { if session.recipe == recipe { session.recipe.masks = repaired.masks } }
             let recipe = repaired
             if let video { return try await VideoEngine.export(source:source,descriptor:video,recipe:recipe,tenBit:tenBit,privacy:privacy,progress:{ value in await MainActor.run { videoProgress = value } },cooling:{ value in await MainActor.run { coolingVideo = value } }) }
-            return try ImageEngine.export(source:source,recipe:recipe,format:recipe.hasCutout ? .png:format,privacy:privacy)
+            return try ImageEngine.export(source:source,recipe:recipe,format:recipe.hasTransparentCutout ? .png:format,privacy:privacy)
         }
         exportTask = task
         do { result = try await task.value }

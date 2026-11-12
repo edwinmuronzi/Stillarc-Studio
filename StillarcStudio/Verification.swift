@@ -203,7 +203,8 @@ import ImageIO
         recipe.crop = .square; recipe.rotation = 1; recipe.straighten = 3.7; recipe.cropX = 0.2; recipe.cropY = 0.8
         let cropped = ImageEngine.apply(decoded.image,recipe:recipe)
         try require(abs(cropped.extent.width-cropped.extent.height) <= 1,"Square crop failed")
-        for format in ExportFormat.allCases {
+        // SDR reference fixtures; physical HDR/HEIF validation lives in PhotoDevelopmentVerification.
+        for format in [ExportFormat.jpeg,.png] {
             let result = try ImageEngine.export(source: sourceURL,recipe:recipe,format:format)
             defer { try? FileManager.default.removeItem(at: result.url) }
             let reopened = try ImageEngine.open(result.url)

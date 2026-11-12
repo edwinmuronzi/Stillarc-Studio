@@ -224,12 +224,14 @@ actor ProjectVault {
     init(_ project: Project) { self.project = project; recipe = project.recipe }
     func open(library: StudioLibrary) async {
         let url = await library.vault.source(project); sourceURL = url
+        BackgroundRendering.pin(recipe.background?.mode == .image ? recipe.background?.asset?.id:nil)
         do {
-            let video = project.video,maskLayers = recipe.masks
+            let video = project.video,maskLayers = recipe.masks,settings=recipe.rawDevelopment,hdr=recipe.photoHDR == true,background=recipe.background?.asset
             let worker = Task.detached(priority:.userInitiated) {
                 AutomaticMaskBitmap.warm(maskLayers)
                 if let video { return try await VideoEngine.poster(url,descriptor:video) }
-                return try ImageEngine.open(url,maxDimension:1600)
+                if let background {_ = try BackgroundRendering.load(background,source:url,preview:true)}
+                return try ImageEngine.open(url,maxDimension:1600,raw:settings,hdr:hdr)
             }
             let loaded = try await withTaskCancellationHandler(operation:{try await worker.value},onCancel:{worker.cancel()})
             guard !Task.isCancelled,!retired else {return}
@@ -238,6 +240,31 @@ actor ProjectVault {
         }
         catch { self.error = error.localizedDescription }
         busy = false
+    }
+    var developmentKey:String {String(describing:recipe.rawDevelopment)+":"+String(recipe.photoHDR == true)}
+    func refreshDevelopment() async {
+        guard !project.isVideo,source != nil,let url=sourceURL,!retired else {return}
+        let key=developmentKey,settings=recipe.rawDevelopment,hdr=recipe.photoHDR == true
+        guard source?.rawApplied != settings || source?.hdrApplied != hdr else {return}
+        do {
+            try await Task.sleep(for:.milliseconds(220))
+            // Do not develop RAW in the middle of a drag. Cheap WB/exposure feedback is GPU-only.
+            while transaction != nil {try await Task.sleep(for:.milliseconds(80))}
+            try Task.checkCancellation()
+            let worker=Task.detached(priority:.utility) {try Task.checkCancellation();return try ImageEngine.open(url,maxDimension:1600,raw:settings,hdr:hdr)}
+            let loaded=try await withTaskCancellationHandler(operation:{try await worker.value},onCancel:{worker.cancel()})
+            guard !Task.isCancelled,!retired,developmentKey==key else {return}
+            source=loaded
+        } catch is CancellationError {} catch {if !Task.isCancelled {self.error=error.localizedDescription}}
+    }
+    var backgroundKey:String {String(describing:recipe.background?.mode)+":"+String(describing:recipe.background?.asset?.id)}
+    func warmBackground() async {
+        BackgroundRendering.pin(recipe.background?.mode == .image ? recipe.background?.asset?.id:nil)
+        guard let url=sourceURL,recipe.background?.mode == .image,let asset=recipe.background?.asset else {return}
+        do {_ = try await Task.detached(priority:.utility) {try BackgroundRendering.load(asset,source:url,preview:true)}.value
+            if !Task.isCancelled {NotificationCenter.default.post(name:.studioBrushReady,object:asset.id)}
+        }
+        catch {if !Task.isCancelled {self.error=error.localizedDescription}}
     }
     func begin() { if transaction == nil { transaction = recipe } }
     func end() {
@@ -288,7 +315,7 @@ actor ProjectVault {
     func retire(_ library:StudioLibrary) async -> Bool {
         saveTask?.cancel();saveTask=nil;end()
         guard await persist(library) else {return false}
-        retired=true;source=nil;return true
+        retired=true;source=nil;BackgroundRendering.pin(nil);return true
     }
     @discardableResult func persist(_ library: StudioLibrary) async -> Bool {
         guard !retired else {return true}
@@ -315,10 +342,12 @@ actor ThumbnailCache {
         if let cached = cache.object(forKey: key) { return cached }
         let prepared:PreparedPhoto?
         if let video = project.video { prepared = try? await VideoEngine.poster(url,descriptor:video,maxDimension:dimension) }
-        else { prepared = try? ImageEngine.open(url,maxDimension:dimension) }
+        else { prepared = try? ImageEngine.open(url,maxDimension:dimension,raw:project.recipe.rawDevelopment,hdr:project.recipe.photoHDR == true) }
         return autoreleasepool {
             guard let source = prepared,!Task.isCancelled else { return nil }
-            let adjusted = ImageEngine.apply(source.source(for:project.recipe),recipe:project.recipe)
+            if project.recipe.background?.mode == .image,let asset=project.recipe.background?.asset {_ = try? BackgroundRendering.load(asset,source:url,preview:true)}
+            let graded = HDRPipeline.grade(source.source(for:project.recipe),recipe:project.recipe,hdr:project.recipe.photoHDR == true)
+            let adjusted = project.recipe.photoHDR == true ? PhotoRendering.sdr(graded):graded
             guard let cg = context.createCGImage(adjusted, from: adjusted.extent) else { return nil }
             let image = UIImage(cgImage: cg)
             cache.setObject(image, forKey: key, cost: cg.bytesPerRow * cg.height)

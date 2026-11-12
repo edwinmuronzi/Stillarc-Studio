@@ -54,7 +54,7 @@ struct LivePreview: UIViewRepresentable {
             brushObserver = NotificationCenter.default.addObserver(forName:.studioBrushReady,object:nil,queue:.main) { [weak self,weak view] note in
                 guard let id = note.object as? UUID else { return }
                 Task { @MainActor [weak self,weak view] in
-                    guard let self,let view,self.active,self.recipe.masks.contains(where:{ $0.brush?.id == id || $0.automatic?.id == id }) else { return };self.dirty = true;if !self.drawing { view.setNeedsDisplay() }
+                    guard let self,let view,self.active,(self.recipe.background?.asset?.id == id || self.recipe.masks.contains(where:{ $0.brush?.id == id || $0.automatic?.id == id })) else { return };self.dirty = true;if !self.drawing { view.setNeedsDisplay() }
                 }
             }
         }
@@ -72,11 +72,12 @@ struct LivePreview: UIViewRepresentable {
             drawing = true; dirty = false
             let began = CACurrentMediaTime()
             var originalRecipe = Recipe(); originalRecipe.copyFraming(from: recipe)
-            var image = HDRPipeline.grade(!original && recipe.input.profile != .standard ? (signalSource ?? source) : source, recipe: original ? originalRecipe : recipe, hdr:hdr, rangePreview: original ? nil : rangePreview,preview:true)
+            var image = HDRPipeline.grade(!original && recipe.input.profile != .standard ? (signalSource ?? source) : source, recipe: original ? originalRecipe : recipe, hdr:hdr || recipe.photoHDR == true, rangePreview: original ? nil : rangePreview,preview:true)
             if !original,let split {
                 let before = HDRPipeline.grade(source,recipe:originalRecipe,hdr:hdr)
                 image = ComparisonRender.combine(original:before,edited:image,fraction:split)
             }
+            if recipe.photoHDR == true && !hdr {image=PhotoRendering.sdr(image)}
             scopes?.offer(image,hdr:hdr)
             if !original {
                 var reference:CIImage? = nil
@@ -88,7 +89,7 @@ struct LivePreview: UIViewRepresentable {
             let scale = min(size.width / image.extent.width, size.height / image.extent.height)
             let placed = image.transformed(by: .init(scaleX: scale,y: scale)).transformed(by: .init(translationX: (size.width-image.extent.width*scale)/2, y: (size.height-image.extent.height*scale)/2))
             var background = CIImage(color: CIColor(red: 0.025, green: 0.03, blue: 0.04)).cropped(to: CGRect(origin: .zero,size: size))
-            if (recipe.hasCutout && !original) || !source.isOpaque {background=CutoutRendering.checkerboard(placed.extent).composited(over:background)}
+            if (recipe.hasTransparentCutout && !original) || !source.isOpaque {background=CutoutRendering.checkerboard(placed.extent).composited(over:background)}
             context.render(placed.composited(over: background), to: drawable.texture, commandBuffer: command, bounds: CGRect(origin: .zero,size: size), colorSpace: hdr ? ImageEngine.working : ImageEngine.output)
             command.addCompletedHandler { [weak self, weak view] buffer in
                 let ms = (CACurrentMediaTime() - began) * 1000

@@ -26,7 +26,7 @@ enum HDRPipeline {
     static func prepare() throws { guard kernels.scale != nil,kernels.divide != nil,kernels.multiply != nil else { throw StudioError.render } }
     /// Same globally graded, framed selection input used inside MaskEngine, without local layers.
     static func maskReference(_ source:CIImage,recipe:Recipe,hdr:Bool) -> CIImage {
-        var base = recipe;base.masks = []
+        var base = recipe;base.masks = [];base.background=nil
         guard hdr else { return ImageEngine.apply(source,recipe:base,preview:true) }
         var input = recipe.input;input.softHighlights = false
         let decoded = LogConversion.apply(source,input:input)
@@ -39,9 +39,15 @@ enum HDRPipeline {
         var input = recipe.input;input.softHighlights = false
         let decoded = LogConversion.apply(source,input:input)
         guard let scale = kernels.scale?.apply(extent:decoded.extent,arguments:[decoded,decoded]),let normalized = kernels.divide?.apply(extent:decoded.extent,arguments:[decoded,scale]) else { return decoded }
-        var grade = recipe;grade.input = InputConversion()
+        var grade = recipe;grade.input = InputConversion();grade.background=nil
         let adjusted = ImageEngine.apply(normalized,recipe:grade,rangePreview:rangePreview,preview:preview)
-        let framedScale = PhotoFraming.apply(scale,recipe:grade)
-        return kernels.multiply?.apply(extent:adjusted.extent,arguments:[adjusted,framedScale]) ?? adjusted
+        let framedScale = PhotoFraming.apply(RetouchRendering.apply(scale,spots:grade.retouch),recipe:grade)
+        let result=kernels.multiply?.apply(extent:adjusted.extent,arguments:[adjusted,framedScale]) ?? adjusted
+        guard recipe.hasCutout,let background=recipe.background,background.mode != .transparent else {return result}
+        if background.mode != .blur {return BackgroundRendering.composite(result,original:result,recipe:recipe)}
+        var clean=grade;clean.masks=[];clean.background=nil
+        let original=ImageEngine.apply(normalized,recipe:clean,preview:preview)
+        let restored=kernels.multiply?.apply(extent:original.extent,arguments:[original,framedScale]) ?? original
+        return BackgroundRendering.composite(result,original:restored,recipe:recipe)
     }
 }

@@ -109,3 +109,7 @@ Next: background cutout/removal and clean alpha export; richer local controls an
 Implemented: photo background removal reusing an existing foreground selection or one requested analysis; checkerboard preview; reversible cutout selection, edge refinement/strength/invert; alpha-preserving full-size PNG and mixed-batch export. Sync is one pool-wide Undo/Redo step, ordered with normal edits and retained across navigation during the open pool. Saved sync checkpoints remain available after closing it. Crop repair merges repaired geometry without losing live controls; history operations pause deferred/stale saves.
 
 Next: background replacement/compositing and richer local photo tools. Video background removal needs separate temporal matting work. An inherited master-grade model, persistent cross-launch Undo, timeline editing and public distribution remain separate scope.
+
+
+### 0.31 checkpoint
+Static-photo backgrounds and development from proposed batches 2–3 are implemented: solid/image/blurred-original replacement, richer local controls and duplicate, supported RAW decoder settings, manual color-fringe corrections, spot heal/clone, full-resolution tile inspection, HDR still preview/SDR proof and 10-bit HLG HEIF. Pool delivery supports all/selected items. Face/skin masks, advanced denoise and temporally stable video matting remain deferred; native RAW lens profiles appear only when the decoder reports support. See PRODUCT-DIRECTION.md for the next proposed color-workflow batch.

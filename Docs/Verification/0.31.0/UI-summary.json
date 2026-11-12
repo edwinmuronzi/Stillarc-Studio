@@ -1,0 +1,13 @@
+{
+  "uniqueTestsPassed": 29,
+  "initialSuite": {
+    "passed": 27,
+    "failed": 1,
+    "reason": "Ambiguous automation selector for nested Done buttons; corrected to the hittable button."
+  },
+  "finalFocusedSuite": {
+    "passed": 4,
+    "failed": 0
+  },
+  "scope": "Initial full 28-case regression plus final four-case workflow rerun/new Heal and detail case. Simulator, not physical performance."
+}

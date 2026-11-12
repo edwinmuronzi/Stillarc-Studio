@@ -1,5 +1,50 @@
 import XCTest
 final class GestureTests:XCTestCase {
+    func testHealCloneAndFullResolutionInspection() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--demo-editor","--neutral-demo","--tool","Detail"];app.launch()
+        XCTAssertTrue(app.buttons["Photo tools"].waitForExistence(timeout:30));app.buttons["Photo tools"].tap();app.buttons["Heal & Clone"].tap()
+        XCTAssertTrue(app.buttons["Choose source"].waitForExistence(timeout:10))
+        let first=app.coordinate(withNormalizedOffset:CGVector(dx:0.35,dy:0.3)),second=app.coordinate(withNormalizedOffset:CGVector(dx:0.6,dy:0.32));first.tap();second.tap()
+        XCTAssertTrue(app.buttons["Remove last spot"].isEnabled);app.buttons["Remove last spot"].tap();XCTAssertFalse(app.buttons["Remove last spot"].isEnabled)
+        app.buttons["Done"].tap();app.buttons["Photo tools"].tap();app.buttons["Inspect full-resolution detail"].tap()
+        XCTAssertTrue(app.sliders["Inspect horizontal"].waitForExistence(timeout:10));app.sliders["Inspect horizontal"].adjust(toNormalizedSliderPosition:0.7)
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Full-resolution detail inspection";shot.lifetime = .keepAlways;add(shot)
+    }
+    func testPoolDeliveryAllAndSelected() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--pool-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Export photo"].waitForExistence(timeout:30));app.buttons["Export photo"].tap()
+        app.buttons["exportPoolItems"].tap();XCTAssertTrue(app.buttons["exportEntirePool"].waitForExistence(timeout:10))
+        app.buttons["Clear selection"].tap();XCTAssertFalse(app.buttons["exportChosenPoolItems"].isEnabled)
+        app.buttons["Export item Pool sample 2"].tap();XCTAssertTrue(app.buttons["exportChosenPoolItems"].isEnabled)
+        app.buttons["exportChosenPoolItems"].tap();XCTAssertTrue(app.buttons["createBatchExport"].waitForExistence(timeout:10))
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Pool selected delivery";shot.lifetime = .keepAlways;add(shot)
+        let close=app.buttons.matching(identifier:"Done").allElementsBoundByIndex.first(where:{$0.isHittable})!;close.tap();app.buttons["exportEntirePool"].tap();XCTAssertTrue(app.buttons["createBatchExport"].waitForExistence(timeout:10))
+        app.buttons["createBatchExport"].tap();XCTAssertTrue(app.buttons["Share or save files"].waitForExistence(timeout:40))
+    }
+    func testReplacementBackgroundAndDuplicate() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--pool-demo","--paired-fixture","--tool","Masks"];app.launch()
+        XCTAssertTrue(app.buttons["Remove background"].waitForExistence(timeout:30));app.buttons["Remove background"].tap()
+        app.buttons["replaceBackground"].tap();XCTAssertTrue(app.buttons["backgroundMode"].waitForExistence(timeout:10))
+        app.buttons["backgroundMode"].tap();app.buttons["Solid"].tap()
+        let slider=app.sliders["Background red"];XCTAssertTrue(slider.waitForExistence(timeout:10));slider.adjust(toNormalizedSliderPosition:0.8);slider.doubleTap()
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Replacement background";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Done"].tap();XCTAssertTrue(app.buttons["Duplicate mask"].waitForExistence(timeout:10));app.buttons["Duplicate mask"].tap()
+        app.buttons["Export photo"].tap();XCTAssertTrue(app.buttons["JPEG"].waitForExistence(timeout:10))
+    }
+    func testPhotoDevelopmentHDRProofAndDetail() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--demo-editor","--neutral-demo","--tool","Detail"];app.launch()
+        XCTAssertTrue(app.buttons["Photo development"].waitForExistence(timeout:30));app.buttons["Photo development"].tap()
+        XCTAssertTrue(app.sliders["Chromatic aberration"].waitForExistence(timeout:10));app.swipeUp()
+        let hdr=app.switches["Develop in HDR"];XCTAssertTrue(hdr.waitForExistence(timeout:10));hdr.tap()
+        let proof=app.switches["SDR proof"];XCTAssertTrue(proof.waitForExistence(timeout:10));proof.tap()
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Photo development";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Done"].tap()
+    }
+
     func testPoolSyncUndoRedoWholeTransaction() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments=["--pool-demo"];app.launch()

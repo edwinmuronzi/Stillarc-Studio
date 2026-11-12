@@ -32,7 +32,8 @@ enum AutomaticSelectionEngine {
             let framed = PhotoFraming.apply(decoded,recipe:recipe)
             guard let cg = ImageEngine.context().createCGImage(framed,from:framed.extent,format:.RGBA8,colorSpace:ImageEngine.output) else { throw StudioError.render };return cg
         } else {
-            let opened = try prepared ?? ImageEngine.open(url,maxDimension:1536)
+            let opened:PreparedPhoto
+            if let prepared,prepared.rawApplied == recipe.rawDevelopment {opened=prepared} else {opened=try ImageEngine.open(url,maxDimension:1536,raw:recipe.rawDevelopment,hdr:recipe.photoHDR == true)}
             source = PhotoFraming.apply(LogConversion.apply(recipe.input.profile == .standard ? opened.image : (opened.signalImage ?? opened.image),input:recipe.input),recipe:recipe)
         }
         try Task.checkCancellation()

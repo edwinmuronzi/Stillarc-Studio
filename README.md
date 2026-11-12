@@ -1,8 +1,10 @@
 # Stillarc Studio
 
+<img src="StillarcStudio/Assets.xcassets/AppIcon.appiconset/AppIcon.png" width="90" alt="Stillarc Studio light app icon"> <img src="StillarcStudio/Assets.xcassets/AppIcon.appiconset/AppIcon-Dark.png" width="90" alt="Stillarc Studio dark app icon">
+
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.30 photo cutouts and pool Undo/Redo milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.31 background replacement and photo-development milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -289,3 +291,18 @@ Active photo cutouts export as **full-size transparent PNG**, including in mixed
 After a sync changes several pool items, **Undo reverses that sync across all changed destinations as one action**. Redo reapplies it. The source item keeps edits made before the sync. Ordinary edits and syncs share chronological pool history across item navigation: an edit made after a sync is undone first, then the sync. A new edit clears Redo. An unchanged sync creates no action. A canceled/partially successful sync groups only completed changes.
 
 History holds up to 40 actions while the pool stays open. Closing/reopening the pool or restarting the app starts a fresh Undo history; the saved **Before batch paste** versions remain available under Looks → Versions. Sync Undo/Redo changes only the chosen adjustment sections, preserving individual crop, input, masks/cutouts, clip and organization settings. No source media is re-encoded for history. Cutout creation/toggling also supports Undo/Redo.
+
+
+## 0.31 — Backgrounds, photo development and pool delivery
+
+- **Masks → Remove background → Replace background:** choose a solid color, import your own replacement from Photos/Files, or blur the original scene. Fit/fill, position, scale, blur, brightness and color strength are independent of foreground edits. Background images are copied into the project so saved edits and Undo can reopen them. Preview backgrounds are bounded; exports use their original files. A missing replacement is reported rather than silently exported.
+- **Duplicate mask** shares the saved selection but gives it independent adjustments. Invert switches sides. **More local adjustments** adds tint, highlights, shadows, clarity and blur. Existing threshold, grow/shrink, edge transition, softness and brush combinations refine the border. Four local layers remain the limit. Photo cutout/replacement is not per-frame video matting.
+- **Detail → Photo development:** supported RAW originals get decoder white balance (color of the light), exposure, rendering boost and supported native noise controls. Supported Apple decoder lens profiles and highlight recovery are exposed only when available. Recovery cannot restore completely clipped data. RAW preview work is debounced; dragging exposure/WB has lightweight feedback, followed by a settled decoder render.
+- **Optics:** manual chromatic aberration correction aligns red/blue edges; Defringe reduces purple/green edge color. These are manual aids, not a database of calibrated profiles for untested cameras.
+- **Detail → … → Heal & Clone:** choose a clean source patch, then tap small spots to repair. Heal matches local color; Clone copies the source directly. Up to 32 reversible spots, stored before the crop. It is practical spot repair, not generative object removal.
+- **Detail → … → Inspect full-resolution detail:** inspect a movable 1024-pixel tile from the original without retaining a second full-resolution display texture. Close it to keep editing. The inspection uses an SDR display proof for consistent detail viewing.
+- **Develop in HDR / SDR proof:** supported RAW/HDR originals retain available highlight headroom. SDR proof shows the tone mapping used by SDR JPEG/PNG. Choose **HDR HEIF** for 10-bit HLG still output. This is HLG HEIF, not an advertised adaptive SDR/HDR gain-map format. SDR originals cannot gain detail that was never recorded. Compatible HDR screens and software are needed for HDR viewing.
+- **Editing pool → Export → Export pool items:** export all members or select a subset on the delivery page. The active edit saves before delivery. Files render one at a time from originals using individual recipes and metadata/privacy choices. Transparent cutouts remain PNG; opaque replacements use your chosen photo format. Mixed clips retain the existing video export path.
+- **Light/dark app icons:** matching blue arc/S artwork follows the Home Screen icon appearance (dark appearance on iOS 18+). Earlier iOS uses the default light artwork. The editing interface keeps its black-and-blue theme.
+
+All new photo settings, replacement assets and repairs remain source-specific, reversible and saved with project versions. Reusable color presets and pool color sync do not copy another image's replacement, RAW decode, HDR choice or repairs. Face/skin segmentation and advanced denoise are still deferred pending quality/energy validation; no timeline app or external beta/App Store preparation is included.

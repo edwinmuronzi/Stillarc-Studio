@@ -35,6 +35,11 @@ import UniformTypeIdentifiers
     @State private var splitPosition = 0.5
     @State private var versionsSheet = false
     @State private var transferSheet:AdjustmentTransferMode?
+    @State private var photoDevelopment=false
+    @State private var backgroundSheet=false
+    @State private var retouchSheet=false
+    @State private var detailSheet=false
+    @State private var sdrProof=false
     @State private var export = false
     @State private var presets = false
     @State private var inputSheet = false
@@ -166,6 +171,12 @@ import UniformTypeIdentifiers
             }
             #endif
         }
+        .task(id:developmentTaskKey) {await refreshPhotoSource()}
+        .task(id:session.backgroundKey) {await session.warmBackground()}
+        .sheet(isPresented:$photoDevelopment) {PhotoDevelopmentSheet(session:session,sdrProof:$sdrProof)}
+        .sheet(isPresented:$backgroundSheet) {BackgroundSheet(session:session,library:library)}
+        .sheet(isPresented:$retouchSheet) {RetouchSheet(session:session)}
+        .sheet(isPresented:$detailSheet) {DetailInspectionSheet(session:session)}
         .task(id:cropSettleKey) { await settleCropAndMasks() }
         .onChange(of:MaskMotion.signature(session.recipe)) { _,_ in cropAwaitingAdjustment = false;cropDisplayFinal = false;cropFocused = false }
         .onChange(of:tool) { _,_ in curveEditing = false; pool?.tool=tool; cropAwaitingAdjustment = false;cropDisplayFinal = false;cropFocused = false }
@@ -173,9 +184,9 @@ import UniformTypeIdentifiers
         .onDisappear { scopeSampler.setEnabled(false) }
         .onChange(of: session.recipe) { _, _ in if !diagnosticsRunning && pool?.historyBusy != true { session.scheduleSave(library) } }
         .onChange(of: phase) { _, phase in if phase != .active { curveEditing = false;session.end();if pool?.historyBusy != true {Task { await session.persist(library) }} } }
-        .onDisappear { if pool?.historyBusy != true {Task { await session.persist(library) }} }
+        .onDisappear {saveOnExit()}
         .sheet(isPresented:$poolSync) {if let pool,let clipboard=poolClipboard {BatchPasteSheet(library:library,projects:pool.projects(library),clipboard:clipboard,pool:pool)}}
-        .sheet(isPresented: $export) { ExportSheet(session: session) }
+        .sheet(isPresented: $export) { ExportSheet(session: session,library:library,pool:pool) }
         .sheet(item:$transferSheet) { mode in AdjustmentTransferSheet(mode:mode,session:session,library:library) }
         .sheet(isPresented:$versionsSheet) { VersionsSheet(session:session,library:library) }
         .sheet(item:$automaticTarget) { target in AutomaticSelectionSheet(session:session,target:target) { id in selectedMaskID = id;showMask = !target.removeBackground } }
@@ -307,6 +318,9 @@ import UniformTypeIdentifiers
         if let data = try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted) { try? data.write(to:url,options:.atomic) }
     }
     #endif
+    private var developmentTaskKey:String {session.developmentKey+":"+String(export)+":"+String(describing:phase)}
+    private func refreshPhotoSource() async {if !export && phase == .active {await session.refreshDevelopment()}}
+    private func saveOnExit() {guard pool?.historyBusy != true else {return};Task {_ = await session.persist(library)}}
     private var cropSettleKey:String { "\(MaskMotion.signature(session.recipe))|\(session.recipe.video.start)|\(tool.rawValue)|\(cropEditing)|\(cropAwaitingAdjustment)|\(cropResumeID)|\(phase)|\(export)|\(session.source != nil)|\(pool?.historyBusy == true)|\(poolChanging)" }
     private func settleCropAndMasks() async {
         guard !cropEditing,!cropAwaitingAdjustment,!poolChanging,pool?.historyBusy != true,phase == .active,!export,let url = session.sourceURL,let prepared = session.source else { return }
@@ -428,7 +442,7 @@ import UniformTypeIdentifiers
                         if let video = session.project.video,let url = session.sourceURL {
                             VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
                         } else {
-                            LivePreview(source:source.image,recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !export && !presets && !versionsSheet && transferSheet == nil && trackingMask == nil && automaticTarget == nil,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
+                            LivePreview(source:PhotoRendering.rawPreview(source,recipe:session.recipe),recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !export && !presets && !versionsSheet && !retouchSheet && !detailSheet && !backgroundSheet && !photoDevelopment && transferSheet == nil && trackingMask == nil && automaticTarget == nil,hdr:session.recipe.photoHDR == true && !sdrProof,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
                         }
                     }
                         .padding(tool == .crop ? (cropDisplayFinal ? 8 : 22) : 0)
@@ -580,6 +594,12 @@ import UniformTypeIdentifiers
                 case .masks:
                     maskControls
                 case .detail:
+                    if !session.project.isVideo {
+                        HStack {Button("Photo development",systemImage:"camera.aperture"){photoDevelopment=true};Menu {
+                            Button("Heal & Clone",systemImage:"bandage"){retouchSheet=true}
+                            Button("Inspect full-resolution detail",systemImage:"viewfinder"){detailSheet=true}
+                        } label:{Image(systemName:"ellipsis.circle").font(.title3)}.accessibilityLabel("Photo tools")}.buttonStyle(.bordered)
+                    }
                     adjustment("Texture",key:\.texture)
                     adjustment("Clarity",key:\.clarity)
                     adjustment("Dehaze",key:\.dehaze)
@@ -652,8 +672,13 @@ import UniformTypeIdentifiers
             if !session.project.isVideo {
                 Button("Remove background",systemImage:"person.crop.rectangle") {removeBackground()}.buttonStyle(.bordered).disabled(session.source == nil || (session.recipe.masks.count>=4 && !session.recipe.masks.contains(where:{$0.kind == .subject && !$0.inverted && $0.automatic?.matches(session.recipe)==true})))
             }
+            if !session.project.isVideo && session.recipe.hasCutout {Button("Replace background",systemImage:"photo.on.rectangle"){showMask=false;backgroundSheet=true}.buttonStyle(.bordered).accessibilityIdentifier("replaceBackground")}
             if session.recipe.masks.count>2 {Text("Subject & Background needs two free mask slots. Remove a mask to create both regions.").font(.caption).foregroundStyle(StudioStyle.secondary)}
             if let layer = selectedMask {
+                Button("Duplicate mask",systemImage:"plus.square.on.square") {
+                    var copy=layer;copy.id=UUID();copy.cutout=nil;copy.combination=nil
+                    session.change {$0.masks.append(copy)};selectedMaskID=copy.id
+                }.font(.caption).disabled(session.recipe.masks.count>=4)
                 ScrollView(.horizontal) {
                     HStack { ForEach(Array(session.recipe.masks.enumerated()),id:\.element.id) { index,mask in Button("\(index+1) · \(mask.title)") { selectedMaskID = mask.id }.buttonStyle(.bordered).tint(mask.id == layer.id ? StudioStyle.blue : .gray) } }
                 }
@@ -723,6 +748,13 @@ import UniformTypeIdentifiers
                 maskSlider("Warmth",key:\.warmth,range:-1...1)
                 maskSlider("Saturation",key:\.saturation,range:-1...1)
                 maskSlider("Contrast",key:\.contrast,range:-1...1)
+                DisclosureGroup("More local adjustments") {
+                    maskSlider("Local tint",key:\.tint,range:-1...1)
+                    maskSlider("Local highlights",key:\.highlights,range:-1...1)
+                    maskSlider("Local shadows",key:\.shadows,range:-1...1)
+                    maskSlider("Local clarity",key:\.clarity,range:-1...1)
+                    maskSlider("Local blur",key:\.blur,range:0...1)
+                }.font(.subheadline)
                 maskSlider("Strength",key:\.amount,range:0...1)
                 if layer.kind == .brush {
                     DisclosureGroup("Brush size & soft edge") {
@@ -958,7 +990,8 @@ import UniformTypeIdentifiers
         session.recipe.look = .daylight; session.recipe.grain = 0.15; session.recipe.bloom = 0.1
         session.recipe.straighten = 3; session.recipe.crop = .portrait
         if releaseCheck { session.recipe.halation = 0.15;session.recipe.grainModel = 2;session.recipe.grainSize = 0.4;session.recipe.geometry.lensDistortion = 0.08 }
-        let cutoutCheck=ProcessInfo.processInfo.arguments.contains("--cutout-performance-check")
+        let backgroundCheck=ProcessInfo.processInfo.arguments.contains("--background-performance-check")
+        let cutoutCheck=backgroundCheck || ProcessInfo.processInfo.arguments.contains("--cutout-performance-check")
         let inferenceStart=AutomaticSelectionEngine.analysisCount
         if cutoutCheck,let url=session.sourceURL {
             let recipe=session.recipe,prepared=session.source
@@ -968,6 +1001,7 @@ import UniformTypeIdentifiers
                     return try await AutomaticSelectionEngine.analyze(input,kind:.subject,recipe:recipe,videoStart:nil)
                 }.value
                 var layer=LocalMask(kind:.subject);layer.automatic=stored;layer.cutout=true;session.recipe.masks=[layer]
+                if backgroundCheck {var bg=PhotoBackground();bg.mode = .blur;bg.blur=0.5;session.recipe.background=bg;session.recipe.masks[0].tint=0.1}
                 try? await Task.sleep(for:.milliseconds(300));PreviewMetrics.shared.times=[];PreviewMetrics.shared.failures=0
             } catch {writeProgress(["stage":"cutout setup failed","error":error.localizedDescription]);return}
         }
@@ -1006,7 +1040,7 @@ import UniformTypeIdentifiers
             try? await Task.sleep(for:.seconds(1))
         }
         let times = PreviewMetrics.shared.times.sorted()
-        let report: [String: Any] = ["cutoutCheck":cutoutCheck,"inferenceCalls":AutomaticSelectionEngine.analysisCount-inferenceStart,"cutoutActive":session.recipe.hasCutout,"releaseCheck":releaseCheck,"thermalPeak":peakThermal,"thermalSamples":thermalSamples,"idleCheckSeconds":cutoutCheck ? 15:(releaseCheck ? 30 : 3),"interrupted":interrupted,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","elapsedSeconds":CACurrentMediaTime()-began,"cancelled":Task.isCancelled,"requestedUpdates": steps,"rendered": count,"kernelBackend":ColorPipeline.backend,"p95Milliseconds": times.isEmpty ? 0 : times[Int(Double(times.count-1)*0.95)],"extraIdleFrames": times.count-count,"gpuFailures": PreviewMetrics.shared.failures,"thermalStart": start,"thermalEnd": ProcessInfo.processInfo.thermalState.rawValue]
+        let report: [String: Any] = ["backgroundCheck":backgroundCheck,"cutoutCheck":cutoutCheck,"inferenceCalls":AutomaticSelectionEngine.analysisCount-inferenceStart,"cutoutActive":session.recipe.hasCutout,"releaseCheck":releaseCheck,"thermalPeak":peakThermal,"thermalSamples":thermalSamples,"idleCheckSeconds":cutoutCheck ? 15:(releaseCheck ? 30 : 3),"interrupted":interrupted,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","elapsedSeconds":CACurrentMediaTime()-began,"cancelled":Task.isCancelled,"requestedUpdates": steps,"rendered": count,"kernelBackend":ColorPipeline.backend,"p95Milliseconds": times.isEmpty ? 0 : times[Int(Double(times.count-1)*0.95)],"extraIdleFrames": times.count-count,"gpuFailures": PreviewMetrics.shared.failures,"thermalStart": start,"thermalEnd": ProcessInfo.processInfo.thermalState.rawValue]
         if let data = try? JSONSerialization.data(withJSONObject: report,options: .prettyPrinted) {
             try? data.write(to: documents.appendingPathComponent("preview-verification.json"),options: .atomic)
             writeProgress(["stage":"finished","rendered":count])

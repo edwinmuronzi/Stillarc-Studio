@@ -10,6 +10,9 @@ struct PreparedPhoto: @unchecked Sendable {
     let height: Int
     let isRAW: Bool
     var signalImage: CIImage? = nil
+    var rawCapabilities:RawCapabilities? = nil
+    var rawApplied:RawDevelopment? = nil
+    var hdrApplied=false
     func source(for recipe:Recipe) -> CIImage { recipe.input.profile == .standard ? image : (signalImage ?? image) }
 }
 struct ExportResult: Sendable { let url: URL; let width: Int; let height: Int }
@@ -36,7 +39,8 @@ enum ImageEngine {
         }
         return CIContext(options: [.workingColorSpace: working, .cacheIntermediates: false, .priorityRequestLow: true])
     }
-    static func open(_ url: URL, maxDimension: Double? = nil) throws -> PreparedPhoto {
+    static func open(_ url: URL, maxDimension: Double? = nil,raw:RawDevelopment? = nil,hdr:Bool = false) throws -> PreparedPhoto {
+        try PhotoRendering.prepare();try RetouchRendering.prepare()
         try LensRendering.prepare();try FilmRendering.prepare()
         try LevelsRendering.prepare()
         try DehazeRendering.prepare()
@@ -46,12 +50,15 @@ enum ImageEngine {
         try MaskEngine.prepare()
         let source = CGImageSourceCreateWithURL(url as CFURL, nil)
         let type = source.flatMap { CGImageSourceGetType($0) }.flatMap { UTType($0 as String) }
-        let raw = type?.conforms(to: .rawImage) == true || ["dng","nef","arw","cr2","cr3","raf","orf","rw2"].contains(url.pathExtension.lowercased())
+        let rawFile = type?.conforms(to: .rawImage) == true || ["dng","nef","arw","cr2","cr3","raf","orf","rw2"].contains(url.pathExtension.lowercased())
         var image: CIImage
         var signal: CIImage?
         var nativeWidth = 0, nativeHeight = 0
-        if raw {
-            guard let filter = CIRAWFilter(imageURL: url), let fullGraph = filter.outputImage else { throw StudioError.unreadable }
+        var capabilities:RawCapabilities?
+        if rawFile {
+            guard let filter = CIRAWFilter(imageURL:url) else {throw StudioError.unreadable}
+            capabilities=RawCapabilities(filter);(raw ?? RawDevelopment()).apply(filter,hdr:hdr)
+            guard let fullGraph=filter.outputImage else {throw StudioError.unreadable}
             nativeWidth = Int(fullGraph.extent.width); nativeHeight = Int(fullGraph.extent.height)
             if let maxDimension {
                 // Tell the RAW decoder the intended size, rather than demosaicing at full resolution.
@@ -64,6 +71,10 @@ enum ImageEngine {
                 guard let raster = context().createCGImage(image, from: image.extent, format: .RGBAh, colorSpace: working) else { throw StudioError.render }
                 image = CIImage(cgImage: raster)
             }
+        } else if hdr,let loaded=CIImage(contentsOf:url,options:[.applyOrientationProperty:true,.expandToHDR:true]) {
+            image=loaded;nativeWidth=Int(image.extent.width);nativeHeight=Int(image.extent.height)
+            if let maxDimension {let scale=min(1,maxDimension/max(image.extent.width,image.extent.height));image=image.transformed(by:.init(scaleX:scale,y:scale))}
+            if maxDimension != nil {guard let raster=context().createCGImage(image,from:image.extent,format:.RGBAh,colorSpace:working) else {throw StudioError.render};image=CIImage(cgImage:raster)}
         } else if let source, let maxDimension {
             let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
             nativeWidth = properties?[kCGImagePropertyPixelWidth] as? Int ?? 0
@@ -81,10 +92,10 @@ enum ImageEngine {
         }
         guard image.extent.width > 0, image.extent.height > 0, !image.extent.isInfinite else { throw StudioError.unreadable }
         image = image.transformed(by: .init(translationX: -image.extent.minX, y: -image.extent.minY))
-        return PreparedPhoto(image: image, width: nativeWidth, height: nativeHeight, isRAW: raw,signalImage:signal.map { $0.transformed(by:.init(translationX:-$0.extent.minX,y:-$0.extent.minY)) })
+        return PreparedPhoto(image:image,width:nativeWidth,height:nativeHeight,isRAW:rawFile,signalImage:signal.map {$0.transformed(by:.init(translationX:-$0.extent.minX,y:-$0.extent.minY))},rawCapabilities:capabilities,rawApplied:raw,hdrApplied:hdr)
     }
     static func apply(_ source: CIImage, recipe r: Recipe, rangePreview: ColorRange? = nil,preview:Bool = false) -> CIImage {
-        var image = LogConversion.apply(source,input:r.input)
+        var image = LogConversion.apply(PhotoRendering.optics(source,r.optics),input:r.input)
         func filter(_ name: String, _ values: [String: Any]) { image = image.applyingFilter(name, parameters: values) }
         if r.exposure != 0 { filter("CIExposureAdjust", [kCIInputEVKey: r.exposure]) }
         if r.warmth != 0 || r.tint != 0 {
@@ -139,22 +150,35 @@ enum ImageEngine {
         }
         image = FilmRendering.apply(image,recipe:r)
         if r.vignette > 0 { filter("CIVignette", [kCIInputIntensityKey: r.vignette * 1.6, kCIInputRadiusKey: max(image.extent.width,image.extent.height) * 0.6]) }
-        return MaskEngine.apply(PhotoFraming.apply(image,recipe:r),layers:r.masks,preview:preview,framing:MaskMotion.signature(r))
+        let framed=PhotoFraming.apply(RetouchRendering.apply(image,spots:r.retouch),recipe:r)
+        return BackgroundRendering.composite(MaskEngine.apply(framed,layers:r.masks,preview:preview,framing:MaskMotion.signature(r)),original:framed,recipe:r)
     }
 
     static func export(source: URL, recipe: Recipe, format: ExportFormat, privacy:ExportPrivacy = ExportPrivacy()) throws -> ExportResult {
         try autoreleasepool {
-            if recipe.hasCutout && format != .png {throw NSError(domain:"Cutout",code:1,userInfo:[NSLocalizedDescriptionKey:"Choose PNG to preserve the transparent background."])}
+            if recipe.hasTransparentCutout && format != .png {throw NSError(domain:"Cutout",code:1,userInfo:[NSLocalizedDescriptionKey:"Choose PNG to preserve the transparent background."])}
             let automatic = try AutomaticMaskBitmap.prepare(recipe)
-            let original = try open(source)
+            let original = try open(source,raw:recipe.rawDevelopment,hdr:recipe.photoHDR == true || format == .hdrHEIF)
             let framed = PhotoFraming.window(in:PhotoFraming.orientedSize(original.image.extent.size,recipe:recipe),recipe:recipe)
             let brushes = try BrushMaskRasterizer.prepareExport(layers:recipe.masks,extent:framed)
-            let image = AutomaticMaskBitmap.$prepared.withValue(automatic) { BrushMaskRasterizer.$preparedExport.withValue(brushes) { apply(original.source(for:recipe),recipe:recipe) } }
+            if recipe.hasCutout,recipe.background?.mode == .image,recipe.background?.asset == nil {throw NSError(domain:"Background",code:1,userInfo:[NSLocalizedDescriptionKey:"Choose a replacement image, or change the background mode before exporting."])}
+            let bg=try (recipe.background?.mode == .image ? recipe.background?.asset:nil).map {try BackgroundRendering.load($0,source:source,preview:false)}
+            try HDRPipeline.prepare()
+            let graded = BackgroundRendering.$fullImage.withValue(bg) {AutomaticMaskBitmap.$prepared.withValue(automatic) {BrushMaskRasterizer.$preparedExport.withValue(brushes) {
+                recipe.photoHDR == true || format == .hdrHEIF ? HDRPipeline.grade(original.source(for:recipe),recipe:recipe,hdr:true):apply(original.source(for:recipe),recipe:recipe)
+            }}}
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("Stillarc-\(UUID().uuidString.prefix(8)).\(format.ext)")
+            let image = format == .hdrHEIF ? graded : (recipe.photoHDR == true ? PhotoRendering.sdr(graded):graded)
             let context = context()
             var completed = false
             defer { if !completed { try? FileManager.default.removeItem(at:url) } }
             try Task.checkCancellation()
+            if format == .hdrHEIF {
+                try HDRPipeline.prepare()
+                let tagged=image.settingProperties(privacy.photoProperties(source:source))
+                try context.writeHEIF10Representation(of:tagged,to:url,colorSpace:HDRPipeline.hlg,options:[CIImageRepresentationOption(rawValue:kCGImageDestinationLossyCompressionQuality as String):0.96])
+                try Task.checkCancellation();completed=true;return ExportResult(url:url,width:Int(image.extent.width),height:Int(image.extent.height))
+            }
             guard let rendered = context.createCGImage(image,from:image.extent,format:.RGBA8,colorSpace:output),let destination = CGImageDestinationCreateWithURL(url as CFURL,(format == .jpeg ? UTType.jpeg.identifier : UTType.png.identifier) as CFString,1,nil) else { throw StudioError.render }
             try Task.checkCancellation()
             var properties = privacy.photoProperties(source:source)
@@ -166,4 +190,4 @@ enum ImageEngine {
         }
     }
 }
-enum ExportFormat: String, CaseIterable, Identifiable { case jpeg = "JPEG", png = "PNG"; var id: String { rawValue }; var ext: String { self == .jpeg ? "jpg" : "png" } }
+enum ExportFormat: String, CaseIterable, Identifiable { case jpeg = "JPEG", png = "PNG",hdrHEIF = "HDR HEIF"; var id: String { rawValue }; var ext: String { self == .jpeg ? "jpg" : (self == .png ? "png":"heic") } }

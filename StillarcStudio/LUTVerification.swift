@@ -67,7 +67,8 @@ enum LUTVerification {
         try context.writePNGRepresentation(of:source,to:fixture,format:.RGBA8,colorSpace:ImageEngine.output)
         let reopenedSource = try ImageEngine.open(fixture)
         let wanted = pixel(ImageEngine.apply(reopenedSource.image,recipe:active))
-        for format in ExportFormat.allCases {
+        // SDR reference fixtures; physical HDR/HEIF validation lives in PhotoDevelopmentVerification.
+        for format in [ExportFormat.jpeg,.png] {
             let result = try ImageEngine.export(source:fixture,recipe:active,format:format)
             defer { try? FileManager.default.removeItem(at:result.url) }
             let reopened = try ImageEngine.open(result.url)

@@ -19,7 +19,8 @@ enum ExportPrivacyVerification {
         CGImageDestinationAddImage(destination,cg,[kCGImagePropertyOrientation:6,kCGImagePropertyExifDictionary:[kCGImagePropertyExifDateTimeOriginal:"2020:01:02 03:04:05",kCGImagePropertyExifLensModel:"QA Lens",kCGImagePropertyExifBodySerialNumber:"PRIVATE-SERIAL",kCGImagePropertyExifUserComment:"PRIVATE-COMMENT"],kCGImagePropertyTIFFDictionary:[kCGImagePropertyTIFFMake:"QA Camera",kCGImagePropertyTIFFModel:"QA Model",kCGImagePropertyTIFFArtist:"PRIVATE-OWNER"],kCGImagePropertyGPSDictionary:[kCGImagePropertyGPSLatitude:36.8,kCGImagePropertyGPSLatitudeRef:"S",kCGImagePropertyGPSLongitude:174.7,kCGImagePropertyGPSLongitudeRef:"E",kCGImagePropertyGPSDateStamp:"PRIVATE-GPS-TIME"]] as CFDictionary)
         try check(CGImageDestinationFinalize(destination),"Fixture encode")
         let bytes = try Data(contentsOf:source),all = ExportPrivacy(captureDate:true,camera:true,location:true,audio:false,projectNames:true)
-        for format in ExportFormat.allCases {
+        // SDR reference fixtures; physical HDR/HEIF validation lives in PhotoDevelopmentVerification.
+        for format in [ExportFormat.jpeg,.png] {
             let stripped = try ImageEngine.export(source:source,recipe:Recipe(),format:format)
             let included = try ImageEngine.export(source:source,recipe:Recipe(),format:format,privacy:all)
             defer { try? FileManager.default.removeItem(at:stripped.url);try? FileManager.default.removeItem(at:included.url) }

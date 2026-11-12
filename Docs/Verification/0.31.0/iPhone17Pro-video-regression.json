@@ -1,0 +1,91 @@
+{
+  "maskTracking" : {
+    "movingTargetErrors" : [
+      0.0051411703706012168,
+      0.0033422505339212594
+    ],
+    "encodedTracking" : true,
+    "pointCounts" : [
+      30,
+      30
+    ],
+    "exportFramesPerClip" : 60,
+    "portraitLandscape" : true,
+    "cancellation" : true,
+    "passed" : true
+  },
+  "encodedColorLuminanceMasks" : true,
+  "encodedAutomaticMask" : true,
+  "encodedAutomaticCropRepair" : true,
+  "dehazeVideoExport" : true,
+  "levelsVideoExport" : true,
+  "encodedCombinedBrushRangeMask" : true,
+  "trimHDR" : {
+    "audioTracks" : 2,
+    "presetIsolation" : true,
+    "zeroBasedTiming" : true,
+    "headroomVectors" : 5,
+    "HDRToSDRPreviewClamp" : true,
+    "passed" : true,
+    "persistence" : true,
+    "trimSeconds" : 1.1000000000000001,
+    "trimFrames" : 33
+  },
+  "passed" : true,
+  "clips" : [
+    {
+      "originalPreserved" : true,
+      "projectRoundTrip" : true,
+      "color" : true,
+      "audioTracks" : 2,
+      "height" : 360,
+      "cancellation" : true,
+      "frames" : 18,
+      "profile" : "standard",
+      "width" : 640,
+      "metadata" : true
+    },
+    {
+      "audioTracks" : 1,
+      "originalPreserved" : true,
+      "profile" : "appleLog",
+      "frames" : 18,
+      "projectRoundTrip" : true,
+      "metadata" : true,
+      "color" : true,
+      "cancellation" : true,
+      "width" : 360,
+      "height" : 640
+    },
+    {
+      "cancellation" : true,
+      "originalPreserved" : true,
+      "metadata" : true,
+      "profile" : "appleLog2",
+      "frames" : 18,
+      "color" : true,
+      "width" : 640,
+      "projectRoundTrip" : true,
+      "audioTracks" : 1,
+      "height" : 360
+    },
+    {
+      "height" : 1860,
+      "cornerResized4KLog" : true,
+      "width" : 1860,
+      "frames" : 3
+    }
+  ],
+  "boundedTrackingDecode" : true,
+  "version" : "0.31.0",
+  "photoInput" : {
+    "bothGamuts" : true,
+    "presetInputIsolation" : true,
+    "exposureAlpha" : true,
+    "standardBypass" : true,
+    "curveVectors" : 32,
+    "persistence" : true,
+    "highlightShoulder" : true,
+    "passed" : true
+  }
+}

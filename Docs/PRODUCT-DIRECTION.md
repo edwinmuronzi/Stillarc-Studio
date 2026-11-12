@@ -43,3 +43,6 @@ The editing pool comes first, then paired subject/background controls. This dire
 
 
 0.30 adds reversible photo cutouts, transparent PNG (including mixed batches), and grouped pool Undo/Redo. Subject/background selection still uses an estimated matte; it is not changing-pose video matting. Background replacement and the timeline companion remain future work. No beta or App Store work is included.
+
+
+0.31 completes the scoped static-photo work in batches 2–3: replacement solid/image/original-blur backgrounds; duplicate/invert and richer local light/color/detail controls; supported native RAW decode/WB/recovery/lens/noise settings; manual chromatic/defringe; spot heal/clone; on-demand full-resolution detail tile; HDR still preview, SDR proof and 10-bit HLG HEIF delivery. Editing-pool delivery supports all or selected items. Camera-profile support is decoder-reported, not a claim of multi-camera calibration. Face/skin selections, advanced denoise and temporally stable video removal remain conditional future work. No timeline or beta/store work is included.
