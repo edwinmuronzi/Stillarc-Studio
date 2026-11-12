@@ -67,6 +67,22 @@ enum AutomaticSelectionVerification {
         let person = sample(subject,0.35,0.25),background = sample(subject,0.5,0.8)
         try check(person>0.5 && background<0.3,"Subject fixture coverage: \(person), \(background)")
         VerificationProgress.record("Automatic subject completed")
+        VerificationProgress.record("Tapped subject inference")
+        let picked=try await AutomaticSelectionEngine.analyze(input,kind:.subject,recipe:recipe,videoStart:nil,subjectMode:.picked,point:CGPoint(x:0.35,y:0.75))
+        try check(sample(picked,0.35,0.25)>0.5 && sample(picked,0.5,0.8)<0.3,"Tapped subject coverage or vertical orientation")
+        VerificationProgress.record("Refined people inference")
+        let privateFixture=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("MaskPersonQA.png")
+        if FileManager.default.fileExists(atPath:privateFixture.path) {
+            // Optional user-supplied portrait reference, used locally for QA and never bundled or archived.
+            let portrait=try ImageEngine.open(privateFixture,maxDimension:1536).image
+            let bounds=portrait.extent,crop=CGRect(x:bounds.width*0.05,y:bounds.height*0.40,width:bounds.width*0.90,height:bounds.height*0.41)
+            let personInput=context.createCGImage(portrait,from:crop)!
+            let people=try await AutomaticSelectionEngine.analyze(personInput,kind:.subject,recipe:recipe,videoStart:nil,subjectMode:.people)
+            let personMatte=AutomaticMaskBitmap.image(people,extent:CGRect(x:0,y:0,width:personInput.width,height:personInput.height),preview:false)!
+            try check(AutomaticSelectionEngine.hasCoverage(personMatte),"Refined people coverage")
+            report["refinedPeople"]=true
+        } else {report["refinedPeopleRequiresPortraitFixture"]=true}
+        report["tappedSubject"]=true
         report["subjectSeconds"] = Date().timeIntervalSince(subjectStart)
         report["subjectPerson"] = person;report["subjectSky"] = background;report["subjectWidth"] = subject.width;report["subjectHeight"] = subject.height
         #else

@@ -1,3 +1,7 @@
+## 0.38.0, build 42 — Precision masks
+
+Native zoom-coordinate/export alignment, tapped-subject and People inference, detailed portrait/landscape tracking and animated delivery regressions passed. Three UI workflows passed with a compact repeat, including a fixed high-zoom photo touch interaction. The sustained zoom run rendered 1,891 frames with 24.65 ms p95 GPU completion, zero failures/idle frames and nominal sampled thermal state throughout. [Reports and limits](Verification/0.38.0/README.md).
+
 ## 0.37.0, build 41 — Tracking corrections
 
 Native corrected portrait/landscape video exports, animation/HDR/audio, versions, backups and queued/direct exports passed. Three UI workflows and a compact-screen repeat passed, including a repaired slider Undo defect. The sustained native run rendered 1,885 frames with 24.67 ms p95 GPU completion, zero failures/idle frames and nominal sampled thermal state throughout. [Reports and limits](Verification/0.37.0/README.md).

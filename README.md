@@ -4,7 +4,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.37 tracking-correction milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.38 precision-masking milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -368,3 +368,13 @@ After **Masks → Track mask**, choose **Correct tracking**. Pause or scrub to a
 Each change makes a source-time correction point. The first edit after the tracking start adds a zero anchor there, changes blend linearly between points, and the last correction holds. There are up to 32 points including the anchor. Tap a point to review it; delete it or **Clear corrections** to restore the original measured path. Undo/Redo work for sliders, whole drags and clearing, including editing pools. Double-tap either slider to zero that axis at the current time.
 
 Corrections survive saved projects/versions, backups and direct/queued video exports; cropping automatic Subject masks scales both paths together where compatible. Other crop changes or extending the trim still require new tracking. This is position correction, not shape/scale/rotation tracking or changing-pose video matting. Masks and their motion stay source-specific and out of reusable grades/LUTs. New backups require build 41 or later; earlier backups and queue records remain readable.
+
+
+### Precise, easier masks (0.38)
+
+- **Zoom / Fit in Masks:** tap Zoom for 2×/4× or pinch up to 6× in View/Move mode, then pan to inspect small details. Paint at that magnification; saved strokes stay aligned with the original pixels. Preview zoom never crops or reduces the export. For shapes, choose Place mask to move the handle, or Move view to navigate.
+- **Done brushing:** the button stays visible above the preview while painting. It turns painting off and reveals the video scrubber again. Brush turns it back on. Playback controls stay at normal size while the image is zoomed; leaving a brush does not discard its strokes.
+- **Subject choices:** All subjects keeps the foreground; Tap a subject selects the detected object you touch; People · fine edges uses Apple's accurate person matting with edge refinement. A tap must fall inside a recognized subject. People selects people rather than arbitrary objects; small, dark, hidden or transparent details may still need All subjects, a closer crop or manual refinement.
+- **Detailed tracking:** higher-accuracy position analysis is now the default, with an Efficient option. A Subject mask suggests a target box from its saved selection. Review the box before analyzing; poor texture, occlusion or shape changes still need review and Correct tracking.
+
+All selection/tracking analysis remains request-only, local and cancelable. Playback reuses saved masks and motion; it does not continuously run segmentation. Video still uses a selection made from the first kept frame plus position tracking/corrections, not changing-pose frame-by-frame matting. Source data remains compatible with build 41.

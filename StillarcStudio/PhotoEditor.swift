@@ -60,6 +60,9 @@ import UniformTypeIdentifiers
     @State private var cropAwaitingAdjustment = false
     @State private var controlsHidden = false
     @State private var automaticRefineExpanded = false
+    @State private var maskZoom=1.0
+    @State private var maskOffset=CGSize.zero
+    @State private var maskNavigating=true
     @State private var zoom = 1.0
     @GestureState private var pinch = 1.0
     @State private var offset = CGSize.zero
@@ -112,7 +115,7 @@ import UniformTypeIdentifiers
                 if let ref=try? await library.vault.importReference(url,project:session.project) {session.change {$0=Recipe();$0.reference=ref;$0.exposure = -0.6}}
             }
             if arguments.contains("--neutral-demo") { session.change { $0 = Recipe() } }
-            if arguments.contains("--brush-demo") { var layer = LocalMask(kind:.brush);var drawing = BrushDrawing();let id = drawing.begin(point:BrushPoint(x:0.3,y:0.3),radius:0.08,feather:0.6,erase:false)!;drawing.append(BrushPoint(x:0.7,y:0.6),stroke:id);layer.brush = drawing;layer.exposure = 0.5;session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks }
+            if arguments.contains("--brush-demo") {maskNavigating=false; var layer = LocalMask(kind:.brush);var drawing = BrushDrawing();let id = drawing.begin(point:BrushPoint(x:0.3,y:0.3),radius:0.08,feather:0.6,erase:false)!;drawing.append(BrushPoint(x:0.7,y:0.6),stroke:id);layer.brush = drawing;layer.exposure = 0.5;session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks }
             if arguments.contains("--mask-demo") { var layer = LocalMask(kind:.radial);layer.exposure = 0.5;session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks }
             if arguments.contains("--crop-mask-demo"),let prepared = session.source {
                 let recipe = session.recipe,size = prepared.image.extent.size
@@ -197,10 +200,11 @@ import UniformTypeIdentifiers
         .sheet(isPresented:$detailSheet) {DetailInspectionSheet(session:session)}
         .task(id:cropSettleKey) { await settleCropAndMasks() }
         .onChange(of:MaskMotion.signature(session.recipe)) { _,_ in cropAwaitingAdjustment = false;cropDisplayFinal = false;cropFocused = false }
-        .onChange(of:tool) { _,_ in curveEditing = false; pool?.tool=tool; cropAwaitingAdjustment = false;cropDisplayFinal = false;cropFocused = false }
+        .onChange(of:tool) { _,_ in session.end();zoom=1;offset = .zero;maskNavigating = selectedMask?.kind != .brush || brushMode == .view;curveEditing = false; pool?.tool=tool; cropAwaitingAdjustment = false;cropDisplayFinal = false;cropFocused = false }
         .onChange(of:scopesActive) { _,value in scopeSampler.setEnabled(value) }
         .onDisappear { scopeSampler.setEnabled(false) }
-        .onChange(of:session.project.id){_,_ in videoPosition.seek(0)}
+        .onChange(of:session.project.id){_,_ in videoPosition.seek(0);maskZoom=1;maskOffset = .zero}
+        .onChange(of:selectedMaskID){_,_ in session.end();maskNavigating = selectedMask?.kind != .brush || brushMode == .view}
         .onChange(of: session.recipe) { _, _ in if !diagnosticsRunning && pool?.historyBusy != true { session.scheduleSave(library) } }
         .onChange(of: phase) { _, phase in if phase != .active { curveEditing = false;session.end();if pool?.historyBusy != true {Task { await session.persist(library) }} } }
         .onDisappear {saveOnExit()}
@@ -446,6 +450,7 @@ import UniformTypeIdentifiers
             Button { export = true } label: { Image(systemName: "square.and.arrow.up").frame(width: 44,height: 44).background(StudioStyle.blue.opacity(0.16),in: Circle()) }.disabled(session.source == nil).accessibilityLabel(session.project.isVideo ? "Export video" : "Export photo").keyboardShortcut("e",modifiers:.command)
         }.foregroundStyle(.white).padding(.horizontal,10).padding(.vertical,8)
     }
+    private var maskViewport:MaskViewport {MaskViewport(scale:min(6,max(1,maskZoom*(tool == .masks ? pinch:1))),offset:CGSize(width:maskOffset.width+(tool == .masks ? drag.width:0),height:maskOffset.height+(tool == .masks ? drag.height:0)))}
     private var previewRecipe:Recipe { tool == .crop && !cropDisplayFinal ? CropEditingGeometry.workspace(session.recipe) : session.recipe }
     private var preview: some View {
         GeometryReader { geometry in
@@ -460,16 +465,17 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,position:videoPosition)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,viewport:tool == .masks ? maskViewport:MaskViewport(),position:videoPosition)
                         } else {
-                            LivePreview(source:PhotoRendering.rawPreview(source,recipe:session.recipe),recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && !retouchSheet && !detailSheet && !backgroundSheet && !photoDevelopment && transferSheet == nil && trackingMask == nil && correctionMask == nil && automaticTarget == nil,hdr:session.recipe.photoHDR == true && !sdrProof,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
+                            LivePreview(source:PhotoRendering.rawPreview(source,recipe:session.recipe),recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && !retouchSheet && !detailSheet && !backgroundSheet && !photoDevelopment && transferSheet == nil && trackingMask == nil && correctionMask == nil && automaticTarget == nil,hdr:session.recipe.photoHDR == true && !sdrProof,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview).modifier(MaskViewportModifier(viewport:tool == .masks ? maskViewport:MaskViewport()))
                         }
                     }
                         .padding(tool == .crop ? (cropDisplayFinal ? 8 : 22) : 0)
-                        .scaleEffect(focusing && !cropDisplayFinal ? focusScale : zoom * pinch).offset(x: focusing && !cropDisplayFinal ? (geometry.size.width/2-frame.midX)*focusScale : offset.width+drag.width,y: focusing && !cropDisplayFinal ? (geometry.size.height/2-frame.midY)*focusScale : offset.height+drag.height)
-                        .gesture(MagnifyGesture().updating($pinch) { value,state,_ in if !splitComparison && tool != .masks && tool != .crop { state = value.magnification } }.onEnded { value in guard !splitComparison && tool != .masks && tool != .crop else { return };zoom = min(4,max(1,zoom * value.magnification)); if zoom == 1 { offset = .zero } })
-                        .simultaneousGesture(DragGesture(minimumDistance: 4).updating($drag) { value,state,_ in if zoom > 1 && tool != .crop { state = value.translation } }.onEnded { value in
-                            if zoom > 1 && tool != .crop { offset.width += value.translation.width; offset.height += value.translation.height }
+                        .scaleEffect(focusing && !cropDisplayFinal ? focusScale : (tool == .masks ? 1:zoom * pinch)).offset(x: focusing && !cropDisplayFinal ? (geometry.size.width/2-frame.midX)*focusScale : (tool == .masks ? 0:offset.width+drag.width),y: focusing && !cropDisplayFinal ? (geometry.size.height/2-frame.midY)*focusScale : (tool == .masks ? 0:offset.height+drag.height))
+                        .gesture(MagnifyGesture().updating($pinch) { value,state,_ in if !splitComparison && tool != .crop && (tool != .masks || maskNavigating) { state = value.magnification } }.onEnded { value in guard !splitComparison && tool != .crop else {return};if tool == .masks {if maskNavigating {maskZoom=min(6,max(1,maskZoom*value.magnification));maskOffset=MaskViewport.bounded(maskOffset,scale:maskZoom,container:geometry.size)};return};zoom = min(4,max(1,zoom * value.magnification)); if zoom == 1 { offset = .zero } })
+                        .simultaneousGesture(DragGesture(minimumDistance: 4).updating($drag) { value,state,_ in if tool == .masks {if maskNavigating && maskZoom>1 {state=value.translation}} else if zoom > 1 && tool != .crop { state = value.translation } }.onEnded { value in
+                            if tool == .masks {if maskNavigating {maskOffset=MaskViewport.bounded(CGSize(width:maskOffset.width+value.translation.width,height:maskOffset.height+value.translation.height),scale:maskZoom,container:geometry.size)}}
+                            else if zoom > 1 && tool != .crop { offset.width += value.translation.width; offset.height += value.translation.height }
                             else if pool != nil && tool != .crop && tool != .masks && !splitComparison && abs(value.translation.width)>70 && abs(value.translation.width)>abs(value.translation.height)*2 {browsePool(value.translation.width<0 ? 1:-1)}
                         })
                         .onTapGesture(count: 2) { guard !splitComparison && tool != .masks && tool != .crop else { return };withAnimation(.easeOut(duration: 0.2)) { zoom = zoom > 1 ? 1 : 2; offset = .zero } }
@@ -478,8 +484,8 @@ import UniformTypeIdentifiers
                 } else if session.busy { ProgressView("Preparing your media…").font(.caption) }
                 else { ContentUnavailableView("Could not open media",systemImage: "photo.badge.exclamationmark",description: Text(session.error ?? "Return to the workspace and try another file.")) }
                 if tool == .masks,!comparing,let layer = selectedMask,let source = session.source {
-                    if layer.kind == .brush { if isPaintingBrush { BrushMaskCanvas(session:session,id:layer.id,sourceSize:source.image.extent.size,erase:brushMode == .erase) } }
-                    else if !layer.isRange && !layer.kind.isAutomatic && layer.motion == nil { MaskPositionHandle(session:session,id:layer.id,sourceSize:source.image.extent.size) }
+                    if layer.kind == .brush { if isPaintingBrush { BrushMaskCanvas(session:session,id:layer.id,sourceSize:source.image.extent.size,viewport:maskViewport,erase:brushMode == .erase) } }
+                    else if !layer.isRange && !layer.kind.isAutomatic && layer.motion == nil { MaskPositionHandle(session:session,id:layer.id,sourceSize:source.image.extent.size,viewport:maskViewport).allowsHitTesting(!maskNavigating) }
                 }
                 if splitComparison,!comparing,let source = session.source {
                     SplitComparisonDivider(sourceSize:source.image.extent.size,recipe:session.recipe,fraction:$splitPosition)
@@ -494,11 +500,23 @@ import UniformTypeIdentifiers
                 }
                 VStack {
                     HStack {
-                        Button { inputSheet = true } label: {
+                        if tool != .masks {Button { inputSheet = true } label: {
                             Text(comparing ? "ORIGINAL" : (session.project.isRAW ? "RAW DEVELOP" : (session.recipe.input.profile == .standard ? (session.recipe.video.hdr ? "INPUT · HDR" : "INPUT · STANDARD") : session.recipe.input.profile.shortTitle+(session.recipe.video.hdr ? " → HDR" : " → SDR"))))
                                 .font(.system(size:9,weight:.semibold,design:.monospaced)).tracking(1).padding(.horizontal,10).padding(.vertical,7).background(.black.opacity(0.65),in:Capsule())
-                        }.disabled(session.project.isRAW).accessibilityLabel("Input conversion")
+                        }.disabled(session.project.isRAW).accessibilityLabel("Input conversion")}
                         Spacer()
+                        if tool == .masks {
+                            HStack(spacing:6) {
+                                Button {maskZoom=maskZoom<1.9 ? 2:(maskZoom<3.9 ? 4:1);maskOffset = .zero} label:{Text(maskZoom == 1 ? "Zoom":String(format:"%.0f×",maskZoom))}.accessibilityLabel("Mask preview zoom").accessibilityValue(String(format:"%.0f times",maskZoom)).accessibilityIdentifier("maskPreviewZoom")
+                                if maskZoom>1 {Button("Fit"){maskZoom=1;maskOffset = .zero}.accessibilityIdentifier("fitMaskPreview")}
+                                if selectedMask?.kind == .brush && selectedMask?.motion == nil || selectedMask.map {!$0.kind.isAutomatic && !$0.isRange && $0.motion==nil} == true {Button(isPaintingBrush ? "Done brushing":(maskNavigating && selectedMask?.kind == .brush && selectedMask?.motion == nil ? "Brush":(maskNavigating ? "Place mask":"Move view"))) {
+                                    session.end()
+                                    if isPaintingBrush {brushMode = .view;maskNavigating=true}
+                                    else if maskNavigating && selectedMask?.kind == .brush && selectedMask?.motion == nil {brushMode = .paint;maskNavigating=false}
+                                    else {maskNavigating.toggle()}
+                                }.accessibilityIdentifier("maskPreviewInteraction")}
+                            }.font(.caption2).padding(8).background(.black.opacity(0.7),in:Capsule())
+                        }
                         Button { scopesVisible.toggle() } label: { Label("Scopes",systemImage:"chart.bar.xaxis").foregroundStyle(scopesVisible ? Color.white : StudioStyle.blue).font(.caption2).padding(8).background(scopesVisible ? StudioStyle.blue : Color.black.opacity(0.65),in:Capsule()) }
                     }
                     Spacer()
@@ -518,9 +536,9 @@ import UniformTypeIdentifiers
                         Text("Hold to compare").font(.caption).padding(.horizontal,13).padding(.vertical,10).background(.ultraThinMaterial,in: Capsule())
                             .onLongPressGesture(minimumDuration: .infinity,pressing: { comparing = $0 },perform: {})
                             .accessibilityAddTraits(.isButton).accessibilityAction { comparing.toggle() }
-                    }
-                }.padding(15).opacity(isPaintingBrush || tool == .crop ? 0 : 1).allowsHitTesting(!isPaintingBrush && tool != .crop)
-            }.coordinateSpace(name:"comparisonPreview").frame(width: geometry.size.width,height: geometry.size.height).clipped()
+                    }.opacity(isPaintingBrush ? 0:1).allowsHitTesting(!isPaintingBrush)
+                }.padding(15).opacity(tool == .crop ? 0:1).allowsHitTesting(tool != .crop)
+            }.coordinateSpace(name:"comparisonPreview").frame(width: geometry.size.width,height: geometry.size.height).clipped().contentShape(Rectangle())
         }
     }
     private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil && !inputSheet }
@@ -672,7 +690,7 @@ import UniformTypeIdentifiers
         }
         }
     }
-    private var isPaintingBrush:Bool { tool == .masks && selectedMask?.kind == .brush && selectedMask?.motion == nil && brushMode != .view }
+    private var isPaintingBrush:Bool { tool == .masks && selectedMask?.kind == .brush && selectedMask?.motion == nil && brushMode != .view && !maskNavigating }
     private var selectedMask:LocalMask? { session.recipe.masks.first(where:{ $0.id == selectedMaskID }) ?? session.recipe.masks.first }
     private var maskPreview:LocalMask? { tool == .masks && showMask ? selectedMask : nil }
     private func updateMask(_ change:(inout LocalMask)->Void) {
@@ -688,7 +706,7 @@ import UniformTypeIdentifiers
                         guard session.recipe.masks.count<4 else { return }
                         if kind.isAutomatic { automaticTarget = AutomaticSelectionTarget(kind:kind,maskID:nil);return }
                         var layer = LocalMask(kind:kind);layer = layer.validated();session.change { $0.masks.append(layer) };selectedMaskID = layer.id
-                        if kind == .brush { brushMode = .paint };showMask = true
+                        if kind == .brush {brushMode = .paint;maskNavigating=false};showMask = true
                     }
                 }
             } label: { Label("Add mask",systemImage:"plus.circle") }.buttonStyle(.bordered).font(.caption).disabled(session.recipe.masks.count>=4)
@@ -731,7 +749,7 @@ import UniformTypeIdentifiers
                         Text(motion.matches(session.recipe,duration:session.project.video?.duration ?? 0) ? "Tracked position · \(motion.points.count) motion points. Play the clip to review." : "Crop or kept clip changed. Track again or clear tracking before exporting.").font(.caption).foregroundStyle(StudioStyle.secondary)
                     }
                 }
-                if layer.kind == .brush { Picker("Brush tool",selection:$brushMode) { ForEach(BrushInteractionMode.allCases) { mode in Text(mode.rawValue).tag(mode) } }.pickerStyle(.segmented).disabled(layer.motion != nil)
+                if layer.kind == .brush { Picker("Brush tool",selection:$brushMode) { ForEach(BrushInteractionMode.allCases) { mode in Text(mode.rawValue).tag(mode) } }.pickerStyle(.segmented).disabled(layer.motion != nil).onChange(of:brushMode){_,mode in maskNavigating = mode == .view}
                     if layer.motion != nil { Text("Clear tracking before painting more strokes. Strength and local adjustments remain editable.").font(.caption).foregroundStyle(StudioStyle.secondary) }
                 }
                 HStack {

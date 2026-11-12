@@ -1,0 +1,46 @@
+{
+  "passed": true,
+  "workflows": [
+    {
+      "name": "MaskZoomBrushAndPlayback",
+      "device": "iPhone 18 Pro simulator",
+      "checks": [
+        "zoomed stroke",
+        "Done brushing",
+        "restored scrubbing",
+        "actual pinch/pan",
+        "Fit",
+        "video export"
+      ],
+      "passed": true
+    },
+    {
+      "name": "SubjectSelectionMethods",
+      "device": "iPhone 18 Pro simulator",
+      "checks": [
+        "single-subject pick enables Create",
+        "People menu",
+        "cancel safely"
+      ],
+      "passed": true
+    },
+    {
+      "name": "MaskZoomBrushAndPlayback",
+      "device": "iPhone 13 mini simulator",
+      "passed": true
+    },
+    {
+      "name": "PhotoMaskZoomStrokeUndo",
+      "device": "iPhone 13 mini simulator",
+      "checks": [
+        "4x zoom",
+        "actual stroke count increase",
+        "Undo/Redo",
+        "Fit",
+        "photo export"
+      ],
+      "passed": true
+    }
+  ],
+  "retestNote": "Initial compact photo Undo interaction failed. Constrained preview touch bounds to its visible frame and repeated with stroke-count and asynchronous Redo assertions; final test passed."
+}

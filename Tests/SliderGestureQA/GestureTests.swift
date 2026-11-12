@@ -1,5 +1,53 @@
 import XCTest
 final class GestureTests:XCTestCase {
+    func testPhotoMaskZoomStrokeUndo() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        XCUIDevice.shared.orientation = .portrait
+        app.launchArguments=["--demo-editor","--brush-demo","--tool","Masks"];app.launch()
+        let interaction=app.buttons["maskPreviewInteraction"],zoom=app.buttons["maskPreviewZoom"]
+        XCTAssertTrue(zoom.waitForExistence(timeout:30));zoom.tap();zoom.tap();XCTAssertEqual(zoom.value as? String,"4 times")
+        let canvas=app.descendants(matching:.any).matching(identifier:"brushMaskCanvas").firstMatch;XCTAssertTrue(canvas.waitForExistence(timeout:10))
+        canvas.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.45)).press(forDuration:0.1,thenDragTo:canvas.coordinate(withNormalizedOffset:CGVector(dx:0.53,dy:0.48)))
+        XCTAssertEqual(canvas.value as? String,"2 strokes")
+        interaction.tap();XCTAssertTrue(app.buttons["Undo"].isEnabled);app.buttons["Undo"].tap()
+        let redoReady=expectation(for:NSPredicate {_,_ in app.buttons["Redo"].isEnabled},evaluatedWith:nil);wait(for:[redoReady],timeout:5);app.buttons["Redo"].tap()
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Precision photo masks at four times zoom";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["fitMaskPreview"].tap();app.buttons["Export photo"].tap();app.buttons["Create export"].tap();XCTAssertTrue(app.buttons["Change export options"].waitForExistence(timeout:30))
+    }
+    func testMaskZoomBrushAndPlayback() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        XCUIDevice.shared.orientation = .portrait
+        app.launchArguments=["--video-demo","--brush-demo","--tool","Masks"];app.launch()
+        let interaction=app.buttons["maskPreviewInteraction"],zoom=app.buttons["maskPreviewZoom"]
+        XCTAssertTrue(interaction.waitForExistence(timeout:30));XCTAssertEqual(interaction.label,"Done brushing")
+        zoom.tap();XCTAssertEqual(zoom.value as? String,"2 times")
+        let canvas=app.descendants(matching:.any).matching(identifier:"brushMaskCanvas").firstMatch
+        XCTAssertTrue(canvas.waitForExistence(timeout:10))
+        canvas.coordinate(withNormalizedOffset:CGVector(dx:0.45,dy:0.48)).press(forDuration:0.1,thenDragTo:canvas.coordinate(withNormalizedOffset:CGVector(dx:0.55,dy:0.52)))
+        interaction.tap();XCTAssertEqual(interaction.label,"Brush")
+        let transport=app.sliders["Video position"];XCTAssertTrue(transport.waitForExistence(timeout:5));transport.adjust(toNormalizedSliderPosition:0.5)
+        XCTAssertFalse(canvas.exists)
+        let preview=app.descendants(matching:.any).matching(identifier:"playbackReveal").firstMatch
+        preview.pinch(withScale:1.5,velocity:1.2)
+        XCTAssertNotEqual(zoom.value as? String,"2 times")
+        preview.coordinate(withNormalizedOffset:CGVector(dx:0.4,dy:0.4)).press(forDuration:0.1,thenDragTo:preview.coordinate(withNormalizedOffset:CGVector(dx:0.6,dy:0.5)))
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Zoomed masking with playback restored";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["fitMaskPreview"].tap();XCTAssertEqual(zoom.value as? String,"1 times")
+        interaction.tap();XCTAssertTrue(canvas.waitForExistence(timeout:5));interaction.tap()
+        app.buttons["Export video"].tap();app.buttons["Create export"].tap();XCTAssertTrue(app.buttons["Change export options"].waitForExistence(timeout:40))
+    }
+    func testSubjectSelectionMethods() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--demo-editor","--neutral-demo","--tool","Masks"];app.launch()
+        XCTAssertTrue(app.buttons["Add mask"].waitForExistence(timeout:30));app.buttons["Add mask"].tap();app.buttons["Subject"].tap()
+        let method=app.buttons["subjectSelectionMethod"];XCTAssertTrue(method.waitForExistence(timeout:15));method.tap();app.buttons["Tap a subject"].tap()
+        let create=app.buttons["createAutomaticMask"];XCTAssertFalse(create.isEnabled)
+        let pick=app.descendants(matching:.any).matching(identifier:"subjectPickPreview").firstMatch;XCTAssertTrue(pick.waitForExistence(timeout:10))
+        pick.coordinate(withNormalizedOffset:CGVector(dx:0.35,dy:0.75)).tap();XCTAssertTrue(create.isEnabled)
+        method.tap();app.buttons["People · fine edges"].tap();XCTAssertTrue(create.isEnabled)
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Intelligent subject selection methods";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Done"].tap()
+    }
     func testTrackingCorrectionsUndoExport() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         XCUIDevice.shared.orientation = .portrait

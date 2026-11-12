@@ -137,3 +137,7 @@ Source-time video animation now covers exposure offsets and look/LUT/local-mask 
 
 ### 0.37 checkpoint
 Tracked video masks gain up to 32 manual source-time position corrections, a live preview handle, horizontal/vertical sliders, point deletion/clear and source/pool Undo/Redo. Linear correction offsets preserve the original measured path and travel with versions, backups and direct/queued exports. Compatible automatic-mask crop repair scales corrections with the base track. Adaptive portrait/landscape preview pauses behind sheets and when inactive. New archives require reader build 41; queue schema 3 still reads schemas 1–2. Shape/scale/rotation tracking, video matting, source relinking and shared Camera/Studio look interchange remain later scope. No timeline, beta or App Store work.
+
+
+### 0.38 checkpoint
+Masks gains preview-only 1–6× zoom/pan, fitted source-coordinate painting/shape positioning, fixed-size video transport and a visible Done brushing return to View/playback. Subject analysis adds one tapped instance and accurate People matting; stored masks remain the existing format. Detailed Vision tracking is the default, with Efficient available and a subject-matte suggested target box. Inference remains request-only; no new per-frame model runs or image grading pass. Position tracking does not deform a changing subject. Shape/scale tracking, temporally stable video matting, source relinking and shared Camera/Studio look interchange remain later work.

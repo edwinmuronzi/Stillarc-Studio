@@ -1,0 +1,42 @@
+{
+  "inference" : {
+    "skyBytes" : 47775,
+    "skyTop" : 1,
+    "subjectWidth" : 576,
+    "street" : 0,
+    "subjectPerson" : 1,
+    "skySeconds" : 0.92820405960083008,
+    "skyWidth" : 384,
+    "passed" : true,
+    "refinedPeople" : true,
+    "subjectHeight" : 1024,
+    "tappedSubject" : true,
+    "subjectSeconds" : 0.53253293037414551,
+    "cancellation" : true,
+    "subjectSky" : 0,
+    "skyHeight" : 384
+  },
+  "zoomedBrushExportAlignment" : true,
+  "subjectSeedBounds" : true,
+  "thermal" : 0,
+  "detailedTracking" : {
+    "encodedCorrections" : true,
+    "pointCounts" : [
+      30,
+      30
+    ],
+    "passed" : true,
+    "movingTargetErrors" : [
+      0.0051411703706012168,
+      0.0033422505339212594
+    ],
+    "cancellation" : true,
+    "encodedTracking" : true,
+    "portraitLandscape" : true,
+    "exportFramesPerClip" : 60
+  },
+  "version" : "0.38.0",
+  "viewportCoordinateCases" : 24,
+  "passed" : true,
+  "instanceRowStrideAndOrientation" : true
+}

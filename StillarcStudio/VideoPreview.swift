@@ -141,12 +141,13 @@ struct VideoPreview:View {
     var hideTransport = false
     var automaticReferenceIDs:[UUID]? = nil
     var rangePreview:ColorRange?
+    var viewport=MaskViewport()
     var position:ClipPosition? = nil
     @State private var playback:VideoPlayback?
     var body:some View {
         Group {
-            if let playback { VideoPreviewContent(playback:playback,poster:poster,recipe:recipe,original:original,active:active,onTrim:onTrim,showTrimButton:showTrimButton,scopes:scopes,split:split,maskPreview:maskPreview,hideTransport:hideTransport,rangePreview:rangePreview,automaticReferenceIDs:automaticReferenceIDs ?? recipe.masks.compactMap { $0.automatic?.id },position:position) }
-            else { LivePreview(source:poster.image,recipe:recipe,signalSource:poster.signalImage,original:original,active:active,hdr:recipe.video.hdr,split:split,maskPreview:maskPreview) }
+            if let playback { VideoPreviewContent(playback:playback,poster:poster,recipe:recipe,original:original,active:active,onTrim:onTrim,showTrimButton:showTrimButton,scopes:scopes,split:split,maskPreview:maskPreview,hideTransport:hideTransport,rangePreview:rangePreview,automaticReferenceIDs:automaticReferenceIDs ?? recipe.masks.compactMap { $0.automatic?.id },viewport:viewport,position:position) }
+            else { LivePreview(source:poster.image,recipe:recipe,signalSource:poster.signalImage,original:original,active:active,hdr:recipe.video.hdr,split:split,maskPreview:maskPreview).modifier(MaskViewportModifier(viewport:viewport)) }
         }
         .task { if playback == nil { let controller = VideoPlayback(url:url,descriptor:descriptor);controller.setEdit(recipe.video);if let position {controller.seek(position.time)};controller.setActive(active);playback = controller } }
         .onChange(of:active) { _,value in playback?.setActive(value) }
@@ -158,6 +159,7 @@ struct VideoPreview:View {
 private struct VideoPreviewContent:View {
     @Bindable var playback:VideoPlayback
     let poster:PreparedPhoto;let recipe:Recipe;let original:Bool;let active:Bool;let onTrim:() -> Void;let showTrimButton:Bool;let scopes:ScopeSampler?;let split:Double?;let maskPreview:LocalMask?;let hideTransport:Bool;let rangePreview:ColorRange?;let automaticReferenceIDs:[UUID]
+    var viewport=MaskViewport()
     var position:ClipPosition? = nil
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var transportVisible = false
@@ -165,8 +167,8 @@ private struct VideoPreviewContent:View {
     @State private var transportRevision = 0
     var body:some View {
         ZStack(alignment:.bottom) {
-            VideoMetalView(playback:playback,recipe:recipe,original:original,rangePreview:rangePreview,active:active,scopes:scopes,split:split,maskPreview:maskPreview)
-            if playback.frame == nil { LivePreview(source:poster.image,recipe:recipe,signalSource:poster.signalImage,original:original,active:active,hdr:recipe.video.hdr,split:split,maskPreview:maskPreview) }
+            VideoMetalView(playback:playback,recipe:recipe,original:original,rangePreview:rangePreview,active:active,scopes:scopes,split:split,maskPreview:maskPreview).modifier(MaskViewportModifier(viewport:viewport))
+            if playback.frame == nil { LivePreview(source:poster.image,recipe:recipe,signalSource:poster.signalImage,original:original,active:active,hdr:recipe.video.hdr,split:split,maskPreview:maskPreview).modifier(MaskViewportModifier(viewport:viewport)) }
             Color.clear.contentShape(Rectangle()).onTapGesture { guard !hideTransport else { return };withAnimation(.easeInOut(duration:reduceMotion ? 0.12 : 0.28)) { transportVisible.toggle() };transportRevision += 1 }.accessibilityIdentifier("playbackReveal").accessibilityLabel("Show playback controls").accessibilityAddTraits(.isButton).accessibilityAction { transportVisible = true;transportRevision += 1 }
             if !hideTransport && transportVisible {
             HStack(spacing:12) {
@@ -182,7 +184,7 @@ private struct VideoPreviewContent:View {
         .task(id:"\(transportVisible)|\(scrubbing)|\(transportRevision)") {
             guard transportVisible,!scrubbing else { return }
             do { try await Task.sleep(for:.seconds(3));withAnimation(.easeInOut(duration:reduceMotion ? 0.12 : 0.28)) { transportVisible = false } } catch {}
-        }.onChange(of:hideTransport) { _,value in if value { transportVisible = false } }
+        }.onChange(of:hideTransport) { _,value in transportVisible = !value;transportRevision += 1 }
         .onAppear {position?.time=playback.time;position?.playing=playback.playing}
         .onChange(of:playback.time){_,value in position?.time=value}
         .onChange(of:playback.frameTime){_,value in if !playback.playing {position?.time=value}}

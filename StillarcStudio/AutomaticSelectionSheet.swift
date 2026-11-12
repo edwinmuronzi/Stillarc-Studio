@@ -15,6 +15,8 @@ struct AutomaticSelectionSheet:View {
     @Environment(\.scenePhase) private var phase
     private var background:Bool {session.recipe.masks.first(where:{$0.id==target.maskID})?.region == .background}
     private var selectionTitle:String {target.removeBackground ? "Remove background" : (target.paired ? "Subject & Background" : (background ? "Background" : target.kind.rawValue))}
+    @State private var subjectMode=SubjectSelectionMode.foreground
+    @State private var picked:CGPoint?
     @State private var image:CGImage?
     @State private var busy = false
     @State private var message:String?
@@ -24,8 +26,21 @@ struct AutomaticSelectionSheet:View {
         NavigationStack {
             ScrollView {
                 VStack(alignment:.leading,spacing:20) {
-                    if let image { Image(decorative:image,scale:1).resizable().scaledToFit().frame(maxWidth:.infinity,maxHeight:330).background(.black,in:RoundedRectangle(cornerRadius:16)) }
+                    if let image {
+                        GeometryReader {g in
+                            let fit=MaskViewport().rect(size:CGSize(width:image.width,height:image.height),container:g.size)
+                            Image(decorative:image,scale:1).resizable().scaledToFit().frame(maxWidth:.infinity,maxHeight:.infinity)
+                            if subjectMode == .picked {
+                                Color.clear.contentShape(Rectangle()).gesture(SpatialTapGesture().onEnded {v in if fit.contains(v.location) {picked=CGPoint(x:(v.location.x-fit.minX)/fit.width,y:(v.location.y-fit.minY)/fit.height)}}).accessibilityLabel("Tap inside the subject to select").accessibilityIdentifier("subjectPickPreview")
+                                if let picked {Image(systemName:"scope").font(.title).foregroundStyle(.white).shadow(radius:3).position(x:fit.minX+picked.x*fit.width,y:fit.minY+picked.y*fit.height).allowsHitTesting(false)}
+                            }
+                        }.frame(height:300).background(.black,in:RoundedRectangle(cornerRadius:16))
+                    }
                     else if message == nil { ProgressView("Preparing analysis preview…").frame(maxWidth:.infinity).frame(height:240) }
+                    if target.kind == .subject {
+                        Picker("Selection method",selection:$subjectMode){ForEach(SubjectSelectionMode.allCases){Text($0.rawValue).tag($0)}}.pickerStyle(.menu).disabled(busy).accessibilityIdentifier("subjectSelectionMethod")
+                        Text(subjectMode == .picked ? "Tap inside the one object or person you want, then create the mask. The rest stays out. For fine manual detail, zoom the main Masks preview afterward." : (subjectMode == .people ? "Uses refined on-device person matting for softer hair and clothing edges. Selects all detected people, not other objects. Check the guide; low contrast and transparent details can still need refinement." : "Automatically selects the foreground objects and people. Choose Tap a subject to isolate just one.")).font(.caption).foregroundStyle(StudioStyle.secondary)
+                    }
                     Text(target.paired ? "Subject & Background" : (background ? "Select the background" : (target.kind == .subject ? "Select foreground subjects" : "Select the sky"))).font(.title2.weight(.semibold))
                     Text(target.kind == .subject ? "Finds foreground subjects and saves a soft selection. It can include more than one object. Review the red Guide, then adjust exposure, color or contrast just in that area." : "Finds likely sky and saves a soft selection, including cloudy sky where recognized. Review the red Guide; buildings, reflections or detailed clouds can confuse a small model. Refine the edge or combine it with a brush when needed.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     if background {Text("Detects the foreground once, then uses the inverse selection for the background. Existing background adjustments are preserved when recreating its selection.").font(.caption).foregroundStyle(StudioStyle.secondary)}
@@ -34,7 +49,7 @@ struct AutomaticSelectionSheet:View {
                     if busy { HStack { ProgressView();Text("Analyzing on device…").font(.subheadline) } }
                     if let message { Text(message).font(.caption).foregroundStyle(StudioStyle.secondary) }
                     if image == nil && message != nil { Button("Reload preview") { Task { await load() } }.disabled(inputJob != nil) }
-                    Button(action:analyze) { Label(target.removeBackground ? "Remove background" : (target.paired ? "Create Subject & Background" : "Create \(target.kind.rawValue.lowercased()) mask"),systemImage:target.kind == .subject ? "person.crop.rectangle" : "cloud.sun").frame(maxWidth:.infinity).padding(12) }.buttonStyle(.borderedProminent).disabled(image == nil || busy).accessibilityIdentifier("createAutomaticMask")
+                    Button(action:analyze) { Label(target.removeBackground ? "Remove background" : (target.paired ? "Create Subject & Background" : "Create \(target.kind.rawValue.lowercased()) mask"),systemImage:target.kind == .subject ? "person.crop.rectangle" : "cloud.sun").frame(maxWidth:.infinity).padding(12) }.buttonStyle(.borderedProminent).disabled(image == nil || busy || (target.kind == .subject && subjectMode == .picked && picked == nil)).accessibilityIdentifier("createAutomaticMask")
                     Text("Runs only when requested. No photos are uploaded. Results stay editable and save with this project. Canceling or leaving Studio keeps the previous masks unchanged. Automatic selections are estimates; fine hair, translucent edges, low contrast or night scenes may need a brush or range-mask refinement.").font(.caption).foregroundStyle(StudioStyle.secondary)
                 }.padding(20)
             }.navigationTitle("\(selectionTitle) selection").navigationBarTitleDisplayMode(.inline)
@@ -57,9 +72,10 @@ struct AutomaticSelectionSheet:View {
     }
     @MainActor private func analyze() {
         guard let image else { return }
+        let mode=subjectMode,point=picked
         let recipe = session.recipe,kind = target.kind,start = session.project.isVideo ? session.recipe.video.start : nil
         busy = true;message = nil
-        let task = Task.detached(priority:.utility) { try await AutomaticSelectionEngine.analyze(image,kind:kind,recipe:recipe,videoStart:start) };job = task
+        let task = Task.detached(priority:.utility) { try await AutomaticSelectionEngine.analyze(image,kind:kind,recipe:recipe,videoStart:start,subjectMode:mode,point:point) };job = task
         Task { @MainActor in
             defer { busy = false;job = nil }
             do {

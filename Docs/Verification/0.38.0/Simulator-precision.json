@@ -1,0 +1,36 @@
+{
+  "thermal" : 0,
+  "passed" : true,
+  "instanceRowStrideAndOrientation" : true,
+  "inference" : {
+    "skyTop" : 1,
+    "street" : 0,
+    "skyWidth" : 384,
+    "skySeconds" : 0.53543901443481445,
+    "skyBytes" : 53703,
+    "cancellation" : true,
+    "subjectNativeOnly" : true,
+    "passed" : true,
+    "skyHeight" : 384
+  },
+  "detailedTracking" : {
+    "movingTargetErrors" : [
+      0.0052354549845284037,
+      0.0034108799841893467
+    ],
+    "pointCounts" : [
+      30,
+      30
+    ],
+    "encodedTracking" : true,
+    "exportFramesPerClip" : 60,
+    "portraitLandscape" : true,
+    "cancellation" : true,
+    "encodedCorrections" : true,
+    "passed" : true
+  },
+  "version" : "0.38.0",
+  "subjectSeedBounds" : true,
+  "viewportCoordinateCases" : 24,
+  "zoomedBrushExportAlignment" : true
+}

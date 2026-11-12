@@ -1,4 +1,4 @@
-# Stillarc Studio · 0.37
+# Stillarc Studio · 0.38
 
 A local, reversible photo and single-clip video editor for iPhone and iPad. Black-and-blue controls keep the image central.
 
@@ -49,3 +49,6 @@ Source-time video animation now covers exposure offsets and look/LUT/local-mask 
 
 
 **Tracking corrections:** pause a video and shift a drifting tracked mask with a preview handle or two sliders. Source-time points blend those nudges without another analysis; clear them to return to the measured path. Whole drags support Undo/Redo and the same path is used in exports. Position only; review the clip for changes in shape or scale.
+
+
+**Precision masking:** zoom/pan the preview to work on small details, paint in the same source coordinates, then tap Done brushing to use video playback again. Subject choices isolate all foreground, one tapped object, or people with finer edge matting. Detailed tracking uses a more accurate position tracker, with an Efficient analysis option and a subject-based suggested target. These are on-request, on-device operations; changing-pose video matting remains future work.

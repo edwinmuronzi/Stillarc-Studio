@@ -5,6 +5,7 @@ struct MaskTrackingSheet:View {
     let maskID:UUID
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
+    @State private var quality=TrackingQuality.detailed
     @State private var seed = TrackingSeed()
     @State private var poster:CGImage?
     @State private var busy = false
@@ -35,6 +36,8 @@ struct MaskTrackingSheet:View {
                     seedSlider("Target vertical position",key:\.y,range:0...1)
                     seedSlider("Target width",key:\.width,range:0.08...0.7)
                     seedSlider("Target height",key:\.height,range:0.08...0.7)
+                    Picker("Tracking quality",selection:$quality){ForEach(TrackingQuality.allCases){Text($0.rawValue).tag($0)}}.pickerStyle(.segmented).disabled(busy)
+                    Text("Detailed uses a more accurate position tracker. Efficient favors faster analysis. Both analyze reduced-size frames once, then reuse the saved path during playback. Fine-tune drift afterward with Correct tracking.").font(.caption).foregroundStyle(StudioStyle.secondary)
                     if busy { ProgressView(value:progress);Text("Analyzing motion… \(Int(progress*100))%").font(.caption.monospacedDigit()) }
                     if let message { Text(message).font(.caption).foregroundStyle(StudioStyle.secondary) }
                     Button(action:analyze) { Label("Analyze & save tracking",systemImage:"viewfinder").frame(maxWidth:.infinity).padding(12) }.buttonStyle(.borderedProminent).disabled(!canAnalyze).accessibilityIdentifier("trackingAnalyze")
@@ -59,16 +62,18 @@ struct MaskTrackingSheet:View {
             let xs = points.map(\.x),ys = points.map(\.y)
             seed.x = ((xs.min() ?? 0.3)+(xs.max() ?? 0.7))/2;seed.y = ((ys.min() ?? 0.3)+(ys.max() ?? 0.7))/2
         } else { seed.x = mask.centerX;seed.y = mask.centerY }
-        initialSeed = seed
         let recipe = session.recipe
-        do { poster = try await Task.detached(priority:.userInitiated) { try await MaskTracker.seedFrame(url:url,descriptor:descriptor,recipe:recipe) }.value }
+        do {
+            let result=try await Task.detached(priority:.userInitiated) { (try await MaskTracker.seedFrame(url:url,descriptor:descriptor,recipe:recipe),mask.kind == .subject ? mask.automatic.flatMap {MaskTracker.suggestedSeed($0)}:nil) }.value
+            poster=result.0;if let suggested=result.1 {seed=suggested};initialSeed=seed
+        }
         catch { message = error.localizedDescription }
     }
     @MainActor private func analyze() {
         guard let url = session.sourceURL,let descriptor = session.project.video else { return }
-        let recipe = session.recipe,target = seed
+        let recipe = session.recipe,target = seed,mode=quality
         busy = true;progress = 0;message = nil
-        let task = Task.detached(priority:.utility) { try await MaskTracker.analyze(url:url,descriptor:descriptor,recipe:recipe,seed:target) { amount in await MainActor.run { progress = amount } } }
+        let task = Task.detached(priority:.utility) { try await MaskTracker.analyze(url:url,descriptor:descriptor,recipe:recipe,seed:target,quality:mode) { amount in await MainActor.run { progress = amount } } }
         job = task
         Task { @MainActor in
             defer { busy = false;job = nil }

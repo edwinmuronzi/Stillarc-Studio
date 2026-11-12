@@ -9,6 +9,7 @@ struct TrackingSeed:Sendable {
     var height = 0.25
     var rect:CGRect { CGRect(x:min(1-width,max(0,x-width/2)),y:min(1-height,max(0,1-y-height/2)),width:width,height:height) }
 }
+enum TrackingQuality:String,CaseIterable,Identifiable {case detailed="Detailed",efficient="Efficient";var id:String {rawValue}}
 enum MaskTracker {
     static func settings(_ descriptor:VideoDescriptor) -> [String:Any] {
         let swapped = abs(descriptor.affine.a)<0.5 && abs(descriptor.affine.d)<0.5
@@ -26,6 +27,15 @@ enum MaskTracker {
         image = image.transformed(by:.init(translationX:-image.extent.minX,y:-image.extent.minY))
         guard let cg = context.createCGImage(image,from:image.extent,format:.RGBA8,colorSpace:ImageEngine.output) else { throw StudioError.render };return cg
     }
+    static func suggestedSeed(_ mask:AutomaticMask)->TrackingSeed? {
+        guard let image=AutomaticMaskBitmap.image(mask,extent:CGRect(x:0,y:0,width:64,height:64),preview:false) else {return nil}
+        var pixels=[UInt8](repeating:0,count:4096)
+        ImageEngine.context().render(image,toBitmap:&pixels,rowBytes:64,bounds:CGRect(x:0,y:0,width:64,height:64),format:.L8,colorSpace:CGColorSpace(name:CGColorSpace.linearGray))
+        var minX=64,minY=64,maxX = -1,maxY = -1
+        for y in 0..<64 {for x in 0..<64 where pixels[y*64+x]>160 {minX=min(minX,x);maxX=max(maxX,x);minY=min(minY,y);maxY=max(maxY,y)}}
+        guard maxX>=minX,maxY>=minY else {return nil}
+        return TrackingSeed(x:Double(minX+maxX+1)/128,y:Double(minY+maxY+1)/128,width:min(0.7,max(0.08,Double(maxX-minX+1)/64)),height:min(0.7,max(0.08,Double(maxY-minY+1)/64)))
+    }
     static func seedFrame(url:URL,descriptor:VideoDescriptor,recipe:Recipe) async throws -> CGImage {
         let asset = AVURLAsset(url:url),reader = try AVAssetReader(asset:asset)
         guard let track = try await asset.loadTracks(withMediaType:.video).first else { throw StudioError.unreadable }
@@ -36,7 +46,7 @@ enum MaskTracker {
         guard let sample = output.copyNextSampleBuffer(),let buffer = CMSampleBufferGetImageBuffer(sample) else { throw StudioError.unreadable }
         try Task.checkCancellation();return try frame(buffer,descriptor:descriptor,recipe:recipe,context:ImageEngine.context())
     }
-    static func analyze(url:URL,descriptor:VideoDescriptor,recipe:Recipe,seed:TrackingSeed,progress:@escaping @Sendable (Double) async -> Void) async throws -> MaskMotion {
+    static func analyze(url:URL,descriptor:VideoDescriptor,recipe:Recipe,seed:TrackingSeed,quality:TrackingQuality = .detailed,progress:@escaping @Sendable (Double) async -> Void) async throws -> MaskMotion {
         try Task.checkCancellation();try LogConversion.prepare()
         guard seed.x.isFinite,seed.y.isFinite,seed.width.isFinite,seed.height.isFinite,(0...1).contains(seed.x),(0...1).contains(seed.y),(0.08...0.7).contains(seed.width),(0.08...0.7).contains(seed.height) else { throw failure("Choose a valid target box inside the picture.") }
         let range = recipe.video.range(duration:descriptor.duration)
@@ -48,7 +58,7 @@ enum MaskTracker {
         reader.timeRange = CMTimeRange(start:CMTime(seconds:range.lowerBound,preferredTimescale:60000),end:CMTime(seconds:range.upperBound,preferredTimescale:60000))
         guard reader.startReading() else { throw StudioError.unreadable };defer { reader.cancelReading() }
         let context = ImageEngine.context(),handler = VNSequenceRequestHandler(),initial = seed.rect
-        let request = VNTrackObjectRequest(detectedObjectObservation:VNDetectedObjectObservation(boundingBox:initial));request.trackingLevel = .fast
+        let request = VNTrackObjectRequest(detectedObjectObservation:VNDetectedObjectObservation(boundingBox:initial));request.trackingLevel = quality == .detailed ? .accurate:.fast
         var points = [MaskMotionPoint](),lastTime = -Double.infinity
         var anchor:CGPoint?
         while let sample = output.copyNextSampleBuffer() {

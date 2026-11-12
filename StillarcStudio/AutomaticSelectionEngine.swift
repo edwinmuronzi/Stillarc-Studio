@@ -4,6 +4,7 @@ import CoreML
 import Vision
 
 /// Request-only inference: models and working images live on the background worker, not in playback.
+enum SubjectSelectionMode:String,CaseIterable,Identifiable {case foreground="All subjects",picked="Tap a subject",people="People · fine edges";var id:String {rawValue}}
 enum AutomaticSelectionEngine {
     #if DEBUG
     private final class Counter:@unchecked Sendable { let lock = NSLock();var count = 0;func increment() { lock.lock();count += 1;lock.unlock() } }
@@ -49,20 +50,42 @@ enum AutomaticSelectionEngine {
         }
         return reduce("CIAreaMaximum")>0.5 && reduce("CIAreaAverage")>0.0001
     }
-    static func analyze(_ image:CGImage,kind:LocalMaskKind,recipe:Recipe,videoStart:Double?) async throws -> AutomaticMask {
+    // Vision's labels use image row order; the UI point is normalized from the top-left.
+    static func instance(at point:CGPoint,buffer:CVPixelBuffer) throws ->Int? {
+        guard point.x.isFinite,point.y.isFinite,(0...1).contains(point.x),(0...1).contains(point.y) else {throw error("Choose a point inside the photo.")}
+        guard CVPixelBufferGetPixelFormatType(buffer)==kCVPixelFormatType_OneComponent8 else {throw error("This device returned an unsupported subject map. Use All subjects or People instead.")}
+        CVPixelBufferLockBaseAddress(buffer,.readOnly);defer {CVPixelBufferUnlockBaseAddress(buffer,.readOnly)}
+        guard let base=CVPixelBufferGetBaseAddress(buffer) else {throw StudioError.render}
+        let x=min(CVPixelBufferGetWidth(buffer)-1,Int(point.x*Double(CVPixelBufferGetWidth(buffer)))),y=min(CVPixelBufferGetHeight(buffer)-1,Int(point.y*Double(CVPixelBufferGetHeight(buffer))))
+        let value=Int(base.assumingMemoryBound(to:UInt8.self)[y*CVPixelBufferGetBytesPerRow(buffer)+x])
+        return value==0 ? nil:value
+    }
+    static func analyze(_ image:CGImage,kind:LocalMaskKind,recipe:Recipe,videoStart:Double?,subjectMode:SubjectSelectionMode = .foreground,point:CGPoint? = nil) async throws -> AutomaticMask {
         try Task.checkCancellation()
         guard ProcessInfo.processInfo.thermalState.rawValue<ProcessInfo.ThermalState.serious.rawValue else { throw error("Let the phone cool before analyzing. Your existing masks are unchanged.") }
         #if DEBUG
         counter.increment()
         #endif
         let mask:CIImage
-        if kind == .subject {
+        if kind == .subject && subjectMode == .people {
+            let request=VNGeneratePersonSegmentationRequest();request.qualityLevel = .accurate;request.outputPixelFormat=kCVPixelFormatType_OneComponent32Float;request.preferBackgroundProcessing=true
+            let handler=VNImageRequestHandler(cgImage:image,orientation:.up)
+            try await withTaskCancellationHandler(operation:{try handler.perform([request])},onCancel:{request.cancel()})
+            try Task.checkCancellation()
+            guard let buffer=request.results?.first?.pixelBuffer else {throw error("No clear person was found. Try All subjects or a brush mask.")}
+            mask=CIImage(cvPixelBuffer:buffer,options:[.colorSpace:NSNull()])
+        } else if kind == .subject {
             let request = VNGenerateForegroundInstanceMaskRequest();request.preferBackgroundProcessing = true
             let handler = VNImageRequestHandler(cgImage:image,orientation:.up)
             try await withTaskCancellationHandler(operation:{ try handler.perform([request]) },onCancel:{ request.cancel() })
             try Task.checkCancellation()
             guard let observation = request.results?.first,!observation.allInstances.isEmpty else { throw error("No clear foreground subject was found. Try a photo with a distinct subject, or use a brush mask.") }
-            let buffer = try observation.generateScaledMaskForImage(forInstances:observation.allInstances,from:handler)
+            let instances:IndexSet
+            if subjectMode == .picked {
+                guard let point,let index=try instance(at:point,buffer:observation.instanceMask),observation.allInstances.contains(index) else {throw error("Tap inside the subject, away from its edge, then create the mask again. The previous selection is unchanged.")}
+                instances=IndexSet(integer:index)
+            } else {instances=observation.allInstances}
+            let buffer = try observation.generateScaledMaskForImage(forInstances:instances,from:handler)
             mask = CIImage(cvPixelBuffer:buffer,options:[.colorSpace:NSNull()])
         } else {
             guard kind == .sky,let url = Bundle.main.url(forResource:"SkySegSmall",withExtension:"mlmodelc") else { throw error("The bundled sky model could not be opened.") }
@@ -83,7 +106,7 @@ enum AutomaticSelectionEngine {
             mask = CIImage(cvPixelBuffer:coverage,options:[.colorSpace:NSNull()])
         }
         try Task.checkCancellation()
-        guard hasCoverage(mask) else { throw error("No clear \(kind == .sky ? "sky" : "foreground subject") was found. Try a different frame or use a brush mask. Existing masks are unchanged.") }
+        guard hasCoverage(mask) else {throw error(kind == .subject && subjectMode == .people ? "No clear person was found. Try All subjects, a closer crop or a brush. Existing masks are unchanged.":"No clear \(kind == .sky ? "sky":"foreground subject") was found. Try a different frame or use a brush mask. Existing masks are unchanged.")}
         return try AutomaticMaskBitmap.make(mask,recipe:recipe,videoStart:videoStart)
     }
 }

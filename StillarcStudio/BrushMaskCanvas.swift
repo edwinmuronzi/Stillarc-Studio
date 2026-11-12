@@ -4,6 +4,7 @@ struct BrushMaskCanvas:View {
     @Bindable var session:EditSession
     let id:UUID
     let sourceSize:CGSize
+    var viewport=MaskViewport()
     let erase:Bool
     @State private var strokeID:UUID?
     @State private var cursor:CGPoint?
@@ -11,8 +12,8 @@ struct BrushMaskCanvas:View {
         GeometryReader { geometry in
             if let layer = session.recipe.masks.first(where:{ $0.id == id }) {
                 let size = PhotoFraming.window(in:PhotoFraming.orientedSize(sourceSize,recipe:session.recipe),recipe:session.recipe).size
-                let scale = min(geometry.size.width/size.width,geometry.size.height/size.height)
-                let width = size.width*scale,height = size.height*scale,left = (geometry.size.width-width)/2,top = (geometry.size.height-height)/2
+                let visible=viewport.rect(size:size,container:geometry.size)
+                let width=visible.width,height=visible.height,left=visible.minX,top=visible.minY
                 let rect = CGRect(x:left,y:top,width:width,height:height)
                 let hit = Path(rect)
                 Color.clear.contentShape(hit,eoFill:true)
@@ -21,6 +22,7 @@ struct BrushMaskCanvas:View {
                         let point = BrushPoint(x:(value.location.x-left)/width,y:(value.location.y-top)/height).validated()
                         cursor = CGPoint(x:left+point.x*width,y:top+point.y*height)
                         if strokeID == nil {
+                            session.begin()
                             if session.recipe.masks[index].brush == nil { session.recipe.masks[index].brush = BrushDrawing() }
                             guard (session.recipe.masks[index].brush?.strokes.count ?? 0)<64 else { return }
                             session.begin();strokeID = session.recipe.masks[index].brush?.begin(point:point,radius:layer.width,feather:layer.feather,erase:erase != layer.inverted)
@@ -35,7 +37,7 @@ struct BrushMaskCanvas:View {
                         }
                         session.end();strokeID = nil;cursor = nil
                     })
-                    .accessibilityLabel("Paint mask on the image. Select Eraser to remove painted areas; undo removes a complete stroke.")
+                    .accessibilityValue("\(layer.brush?.strokes.count ?? 0) strokes").accessibilityIdentifier("brushMaskCanvas").accessibilityLabel("Paint mask on the image. Select Eraser to remove painted areas; undo removes a complete stroke.")
                 if let cursor {
                     Circle().stroke(.white,style:StrokeStyle(lineWidth:1,dash:erase ? [3,3] : []))
                         .frame(width:max(2,layer.width*min(width,height)*2),height:max(2,layer.width*min(width,height)*2)).position(cursor).allowsHitTesting(false)
