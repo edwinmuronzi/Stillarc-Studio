@@ -112,7 +112,9 @@ enum VideoEngine {
         let brushes = try BrushMaskRasterizer.prepareExport(layers:recipe.masks,extent:framed)
         guard writer.startWriting(),reader.startReading() else { throw StudioError.render }
         writer.startSession(atSourceTime:trimmed ? trimStart : .zero)
-        let context = ImageEngine.context(), outputSpace = hdr ? HDRPipeline.hlg : ImageEngine.output
+        // Extended sRGB has the same SDR primaries/transfer without an implicit HDR range conversion.
+        // SDR pixels are explicitly clamped below, matching the preview; encoded tags stay sRGB.
+        let context = ImageEngine.context(), outputSpace = hdr ? HDRPipeline.hlg : CGColorSpace(name:CGColorSpace.extendedSRGB)!
         try await withThrowingTaskGroup(of:Void.self) { group in
             group.addTask {
                 var lastProgress = -1.0, frames = 0
@@ -141,7 +143,10 @@ enum VideoEngine {
                         CVBufferSetAttachment(destination,kCVImageBufferTransferFunctionKey,hdr ? kCVImageBufferTransferFunction_ITU_R_2100_HLG : kCVImageBufferTransferFunction_sRGB,.shouldPropagate)
                         CVBufferSetAttachment(destination,kCVImageBufferYCbCrMatrixKey,hdr ? kCVImageBufferYCbCrMatrix_ITU_R_2020 : kCVImageBufferYCbCrMatrix_ITU_R_709_2,.shouldPropagate)
                         let pair = images(sourceBuffer,descriptor:descriptor)
-                        let image = AutomaticMaskBitmap.$prepared.withValue(automatic) { MaskMotion.$frame.withValue(.init(time:presentation.seconds,framing:MaskMotion.signature(recipe))) { BrushMaskRasterizer.$preparedExport.withValue(brushes) { HDRPipeline.grade(recipe.input.profile == .standard ? pair.managed : pair.signal,recipe:recipe,hdr:hdr) } } }
+                        var image = AutomaticMaskBitmap.$prepared.withValue(automatic) { MaskMotion.$frame.withValue(.init(time:presentation.seconds,framing:MaskMotion.signature(recipe))) { BrushMaskRasterizer.$preparedExport.withValue(brushes) { HDRPipeline.grade(recipe.input.profile == .standard ? pair.managed : pair.signal,recipe:recipe,hdr:hdr) } } }
+                        // Match the SDR preview: clip scene headroom before encoding to an SDR buffer.
+                        // Otherwise Core Image may tone-map the unclamped HDR graph during YUV conversion.
+                        if !hdr { image = image.applyingFilter("CIColorClamp",parameters:["inputMinComponents":CIVector(x:0,y:0,z:0,w:0),"inputMaxComponents":CIVector(x:1,y:1,z:1,w:1)]) }
                         let normalized = image.transformed(by:.init(translationX:-image.extent.minX,y:-image.extent.minY))
                         context.render(normalized,to:destination,bounds:CGRect(x:0,y:0,width:width,height:height),colorSpace:outputSpace)
                         let time = CMSampleBufferGetPresentationTimeStamp(sample)

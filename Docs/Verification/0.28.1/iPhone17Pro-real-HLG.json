@@ -1,0 +1,40 @@
+{
+  "sourceFPS": 30,
+  "sourceFrames": 132,
+  "sourceTransfer": "HLG",
+  "passed": true,
+  "sourcePreserved": true,
+  "scope": "Supplied real camera clip, full resolution SDR and HLG exports; sampled preview comparison, not an independent HDR display calibration",
+  "thermalPeakAtExportBoundaries": 0,
+  "exports": [
+    {
+      "timingExact": true,
+      "seconds": 3.322220208327053,
+      "hdr": false,
+      "previewExportMeanError": 0.003980894831480934,
+      "previewMean": 0.595009446144104,
+      "height": 3840,
+      "audioTracks": 2,
+      "duration": 4.376666666666667,
+      "width": 2160,
+      "transfer": "SDR",
+      "frames": 132,
+      "outputMean": 0.5950574278831482
+    },
+    {
+      "width": 2160,
+      "transfer": "HLG",
+      "previewExportMeanError": 0.004823423878355647,
+      "seconds": 4.143323666663491,
+      "height": 3840,
+      "timingExact": true,
+      "duration": 4.376666666666667,
+      "previewMean": 0.6144192218780518,
+      "frames": 132,
+      "hdr": true,
+      "outputMean": 0.6143544912338257,
+      "audioTracks": 2
+    }
+  ],
+  "testedVersion": "0.28.1"
+}

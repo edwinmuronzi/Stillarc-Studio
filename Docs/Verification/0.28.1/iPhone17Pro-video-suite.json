@@ -1,0 +1,91 @@
+{
+  "passed": true,
+  "levelsVideoExport": true,
+  "clips": [
+    {
+      "projectRoundTrip": true,
+      "height": 360,
+      "frames": 18,
+      "audioTracks": 2,
+      "metadata": true,
+      "profile": "standard",
+      "width": 640,
+      "color": true,
+      "cancellation": true,
+      "originalPreserved": true
+    },
+    {
+      "color": true,
+      "cancellation": true,
+      "audioTracks": 1,
+      "height": 640,
+      "projectRoundTrip": true,
+      "metadata": true,
+      "profile": "appleLog",
+      "width": 360,
+      "frames": 18,
+      "originalPreserved": true
+    },
+    {
+      "frames": 18,
+      "audioTracks": 1,
+      "profile": "appleLog2",
+      "width": 640,
+      "color": true,
+      "metadata": true,
+      "originalPreserved": true,
+      "cancellation": true,
+      "height": 360,
+      "projectRoundTrip": true
+    },
+    {
+      "height": 1860,
+      "width": 1860,
+      "cornerResized4KLog": true,
+      "frames": 3
+    }
+  ],
+  "dehazeVideoExport": true,
+  "encodedAutomaticMask": true,
+  "encodedCombinedBrushRangeMask": true,
+  "version": "0.28.1",
+  "maskTracking": {
+    "movingTargetErrors": [
+      0.005141170370601217,
+      0.0033422505339212594
+    ],
+    "encodedTracking": true,
+    "pointCounts": [
+      30,
+      30
+    ],
+    "passed": true,
+    "cancellation": true,
+    "portraitLandscape": true,
+    "exportFramesPerClip": 60
+  },
+  "encodedColorLuminanceMasks": true,
+  "trimHDR": {
+    "trimFrames": 33,
+    "audioTracks": 2,
+    "headroomVectors": 5,
+    "persistence": true,
+    "passed": true,
+    "trimSeconds": 1.1,
+    "presetIsolation": true,
+    "zeroBasedTiming": true,
+    "HDRToSDRPreviewClamp": true
+  },
+  "encodedAutomaticCropRepair": true,
+  "boundedTrackingDecode": true,
+  "photoInput": {
+    "presetInputIsolation": true,
+    "exposureAlpha": true,
+    "highlightShoulder": true,
+    "persistence": true,
+    "curveVectors": 32,
+    "passed": true,
+    "bothGamuts": true,
+    "standardBypass": true
+  }
+}

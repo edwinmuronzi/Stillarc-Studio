@@ -1,0 +1,36 @@
+{
+  "fixtures" : [
+    {
+      "renderedEdits" : 120,
+      "smallSampleRenderP95Milliseconds" : 4.9719166709110141,
+      "exports" : [
+        {
+          "previewExportMeanError" : 0.0086987967063123506,
+          "height" : 4032,
+          "format" : "JPEG",
+          "width" : 3024,
+          "seconds" : 0.33210491666977759
+        },
+        {
+          "width" : 3024,
+          "seconds" : 0.56273945832799654,
+          "previewExportMeanError" : 0.007943811623439009,
+          "format" : "PNG",
+          "height" : 4032
+        }
+      ],
+      "adjustmentMeanChange" : 0.02956224118618896,
+      "fixture" : 1,
+      "isRAW" : true,
+      "width" : 3024,
+      "thermalStart" : 0,
+      "sourcePreserved" : true,
+      "openSeconds" : 0.36731458333088085,
+      "height" : 4032,
+      "thermalPeak" : 0
+    }
+  ],
+  "version" : "0.28.0",
+  "passed" : true,
+  "scope" : "Explicit real RAW fixture copies; sampled render timings are not interactive display latency"
+}

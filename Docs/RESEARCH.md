@@ -38,3 +38,7 @@ Apple documents [event-driven MTKView drawing](https://developer.apple.com/docum
 ## Next research, before claiming parity
 
 Conduct task-based sessions with photographers and casual users: import a RAW, correct a portrait, create a film look, reuse it, compare, reopen and export. Record time-to-first-preview, slider-to-display timing, preview/export differences, peak memory, thermal state, energy and recovery after interruption. Include a compact older iPhone and iPad. Add feedback about missing tools to the roadmap, without interpreting a few online comments as market-wide demand.
+
+## Expanded workflow evaluation (12 November 2026)
+
+[Studio and timeline product direction](PRODUCT-DIRECTION.md) compares the current implemented tools with publisher-described photo, grading and timeline workflows. It proposes editing pools and subject/background improvements first, and a separate timeline companion later. These are proposals, not implemented feature or competitor-parity claims. External beta and App Store work are explicitly deferred.

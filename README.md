@@ -254,3 +254,10 @@ JPEG remains 96% quality, PNG remains lossless 8-bit sRGB, and video keeps the e
 - Keyboard shortcuts: Undo ⌘Z, Redo ⇧⌘Z and Export ⌘E. Slider double-tap reset, edit dots and reversible changes remain available.
 
 [Product overview](Docs/OVERVIEW.md) · [Release checklist and measured results](Docs/RELEASE-CHECKLIST.md) · [Listing draft](Docs/APP-STORE-LISTING.md) · [Privacy policy draft](Docs/PRIVACY-POLICY.md)
+
+
+### Real-media correction (0.28.1)
+
+Testing a supplied RAW photo and camera-original HLG video found and fixed darker SDR exports from HDR video. SDR export now matches the intended preview while HLG output retains its existing path. Real-clip resolution, frame timing, both audio tracks and original bytes were preserved. The full native video regression passed. [Results and limits](Docs/Verification/0.28.1/README.md).
+
+[Photo, grading and timeline feature evaluation](Docs/PRODUCT-DIRECTION.md): proposed editing pools, subject/background tools and a separate timeline companion. These are future directions, not newly shipped tools. Beta and App Store work are deferred.

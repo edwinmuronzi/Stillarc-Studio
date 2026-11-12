@@ -66,6 +66,15 @@ enum HDRTrimVerification {
         defer { try? FileManager.default.removeItem(at:rangeExport.url) }
         let rangeInfo = try await VideoEngine.describe(rangeExport.url),rangePoster = try await VideoEngine.poster(rangeExport.url,descriptor:rangeInfo,maxDimension:450)
         try require(rangeInfo.hdrTransfer == "HLG" && abs(pixel(rangePoster.image)[0]-2)<0.2,"HDR luminance-mask export lost headroom/selection")
+        // A bright red channel must not darken otherwise valid SDR midtones at encode time.
+        let mixed = try await VideoFixtures.make(profile:.standard,frames:12,linear:[4,0.25,0.0625],hdr:"HLG")
+        defer { try? FileManager.default.removeItem(at:mixed.deletingLastPathComponent()) }
+        let mixedInfo = try await VideoEngine.describe(mixed)
+        let sdr = try await VideoEngine.export(source:mixed,descriptor:mixedInfo,recipe:Recipe(),progress:{ _ in })
+        defer { try? FileManager.default.removeItem(at:sdr.url) }
+        let sdrInfo = try await VideoEngine.describe(sdr.url),sdrPoster = try await VideoEngine.poster(sdr.url,descriptor:sdrInfo,maxDimension:450)
+        let sdrPixels = pixel(sdrPoster.image)
+        try require(sdrInfo.hdrTransfer == nil && abs(sdrPixels[0]-1)<0.04 && abs(sdrPixels[1]-0.25)<0.025 && abs(sdrPixels[2]-0.0625)<0.02,"HDR-to-SDR preview clamp mismatch: \(sdrPixels)")
         let pq = try await VideoFixtures.make(profile:.standard,frames:18,linear:[4,4,4],hdr:"PQ")
         defer { try? FileManager.default.removeItem(at:pq.deletingLastPathComponent()) }
         let pqDescriptor = try await VideoEngine.describe(pq)
@@ -75,7 +84,7 @@ enum HDRTrimVerification {
         let pqOutputDescriptor = try await VideoEngine.describe(pqResult.url),pqPoster = try await VideoEngine.poster(pqResult.url,descriptor:pqOutputDescriptor,maxDimension:450)
         try require(abs(pixel(pqPoster.image)[0]-4)<0.2,"PQ to HLG conversion lost highlight headroom")
         #endif
-        return ["passed":true,"trimFrames":times.count,"audioTracks":audio.count,"trimSeconds":outputDescriptor.duration,"zeroBasedTiming":true,"headroomVectors":5,"persistence":true,"presetIsolation":true]
+        return ["passed":true,"trimFrames":times.count,"audioTracks":audio.count,"trimSeconds":outputDescriptor.duration,"zeroBasedTiming":true,"headroomVectors":5,"persistence":true,"presetIsolation":true,"HDRToSDRPreviewClamp":true]
     }
 }
 #endif
