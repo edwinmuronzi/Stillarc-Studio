@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreImage
 import Photos
 import UniformTypeIdentifiers
 
@@ -36,6 +37,12 @@ import UniformTypeIdentifiers
     @State private var numericEdit: NumericEdit?
     @State private var numericText = ""
     @State private var diagnosticsRunning = false
+    @State private var cropDisplayFinal = false
+    @State private var cropFocused = false
+    @State private var cropEditing = false
+    @State private var cropResumeID = 0
+    @State private var controlsHidden = false
+    @State private var automaticRefineExpanded = false
     @State private var zoom = 1.0
     @GestureState private var pinch = 1.0
     @State private var offset = CGSize.zero
@@ -52,14 +59,14 @@ import UniformTypeIdentifiers
                 if geometry.size.width > 800 {
                     HStack(spacing: 0) {
                         preview
-                        VStack(spacing: 0) { scopePanel;tools; controls }.frame(width: 340).background(StudioStyle.panel)
+                        VStack(spacing: 0) { scopePanel;tools; controls }.frame(width: controlsHidden ? 0 : 340).clipped().background(StudioStyle.panel)
                     }
                 } else {
                     VStack(spacing: 0) {
                         preview
                         scopePanel
                         tools
-                        controls.frame(height: min((tool == .curves || (tool == .color && colorPanel != .global)) ? 360 : 280,geometry.size.height * ((tool == .curves || (tool == .color && colorPanel != .global)) ? 0.54 : 0.43))).background(StudioStyle.panel)
+                        controls.frame(height: controlsHidden ? 0 : min(210,geometry.size.height * 0.30)).clipped().background(StudioStyle.panel)
                     }
                 }
             }
@@ -77,6 +84,15 @@ import UniformTypeIdentifiers
             if arguments.contains("--neutral-demo") { session.change { $0 = Recipe() } }
             if arguments.contains("--brush-demo") { var layer = LocalMask(kind:.brush);var drawing = BrushDrawing();let id = drawing.begin(point:BrushPoint(x:0.3,y:0.3),radius:0.08,feather:0.6,erase:false)!;drawing.append(BrushPoint(x:0.7,y:0.6),stroke:id);layer.brush = drawing;layer.exposure = 0.5;session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks }
             if arguments.contains("--mask-demo") { var layer = LocalMask(kind:.radial);layer.exposure = 0.5;session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks }
+            if arguments.contains("--crop-mask-demo"),let prepared = session.source {
+                let recipe = session.recipe,size = prepared.image.extent.size
+                let stored = try? await Task.detached(priority:.utility) {
+                    let bounds = CGRect(origin:.zero,size:size)
+                    let shape = CIImage(color:.white).cropped(to:CGRect(x:0,y:size.height*0.5,width:size.width,height:size.height*0.5)).composited(over:CIImage(color:.black).cropped(to:bounds))
+                    return try AutomaticMaskBitmap.make(shape,recipe:recipe,videoStart:nil)
+                }.value
+                if let stored { var layer = LocalMask(kind:.sky);layer.automatic = stored;layer.exposure = 0.4;session.change { $0.masks = [layer] } }
+            }
             if arguments.contains("--split") { splitComparison = true }
             if arguments.contains("--scopes") { scopesVisible = true;scopeSampler.setEnabled(true) }
             if arguments.contains("--verify-trim-ui") { await verifyTrimUI() }
@@ -140,6 +156,9 @@ import UniformTypeIdentifiers
             }
             #endif
         }
+        .task(id:cropSettleKey) { await settleCropAndMasks() }
+        .onChange(of:MaskMotion.signature(session.recipe)) { _,_ in cropDisplayFinal = false;cropFocused = false }
+        .onChange(of:tool) { _,_ in cropDisplayFinal = false;cropFocused = false }
         .onChange(of:scopesActive) { _,value in scopeSampler.setEnabled(value) }
         .onDisappear { scopeSampler.setEnabled(false) }
         .onChange(of: session.recipe) { _, _ in if !diagnosticsRunning { session.scheduleSave(library) } }
@@ -171,7 +190,8 @@ import UniformTypeIdentifiers
         let original = session.recipe,priorTool = tool,priorIdle = UIApplication.shared.isIdleTimerDisabled
         UIApplication.shared.isIdleTimerDisabled = true
         defer { session.recipe = original;tool = priorTool;UIApplication.shared.isIdleTimerDisabled = priorIdle }
-        tool = .crop;zoom = 1;offset = .zero;splitComparison = false
+        tool = .crop;zoom = 1;offset = .zero;splitComparison = false;cropEditing = true
+        defer { cropEditing = false }
         guard let source = session.source else { return }
         session.recipe.crop = .portrait;session.recipe.geometry.cropScale = 0.8
         try? await Task.sleep(for:.seconds(2))
@@ -186,9 +206,13 @@ import UniformTypeIdentifiers
             try? await Task.sleep(for:.milliseconds(16));maxDelay = max(maxDelay,CACurrentMediaTime()-start)
         }
         let dragRenders = PreviewMetrics.shared.times.count
+        cropEditing = false
+        try? await Task.sleep(for:.seconds(3))
+        let fittedRenders = PreviewMetrics.shared.times.count-dragRenders,fitted = cropDisplayFinal
+        let settled = PreviewMetrics.shared.times.count
         try? await Task.sleep(for:.seconds(2))
-        let idleRenders = PreviewMetrics.shared.times.count-dragRenders
-        let result:[String:Any] = ["version":"0.17.0","passed":!interrupted && dragRenders == 0 && idleRenders == 0 && PreviewMetrics.shared.failures == 0 && VideoPlayback.creationCount == players && maxDelay<0.25,"updates":180,"dragImageRenders":dragRenders,"idleImageRenders":idleRenders,"playersCreated":VideoPlayback.creationCount-players,"maxMainActorWakeSeconds":maxDelay,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
+        let idleRenders = PreviewMetrics.shared.times.count-settled
+        let result:[String:Any] = ["version":"0.18.0","fittedCropRenders":fittedRenders,"fittedAfterDelay":fitted,"passed":!interrupted && fitted && dragRenders == 0 && fittedRenders<=2 && idleRenders == 0 && PreviewMetrics.shared.failures == 0 && VideoPlayback.creationCount == players && maxDelay<0.25,"updates":180,"dragImageRenders":dragRenders,"idleImageRenders":idleRenders,"playersCreated":VideoPlayback.creationCount-players,"maxMainActorWakeSeconds":maxDelay,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
         let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("crop-ui-verification.json")
         if let data = try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted) { try? data.write(to:url,options:.atomic) }
     }
@@ -272,6 +296,25 @@ import UniformTypeIdentifiers
         if let data = try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted) { try? data.write(to:url,options:.atomic) }
     }
     #endif
+    private var cropSettleKey:String { "\(MaskMotion.signature(session.recipe))|\(session.recipe.video.start)|\(tool.rawValue)|\(cropEditing)|\(cropResumeID)|\(phase)|\(export)|\(session.source != nil)" }
+    private func settleCropAndMasks() async {
+        guard !cropEditing,phase == .active,!export,let url = session.sourceURL,let prepared = session.source else { return }
+        do {
+            try await Task.sleep(for:.seconds(2))
+            try Task.checkCancellation()
+            if tool == .crop { withAnimation(.easeInOut(duration:0.28)) { cropFocused = true } }
+            let snapshot = session.recipe
+            if snapshot.masks.contains(where:{ $0.kind.isAutomatic && $0.automatic?.matches(snapshot) == false }) {
+                let video = session.project.video
+                let worker = Task.detached(priority:.utility) { try await MaskFramingRepair.repair(recipe:snapshot,url:url,video:video,prepared:prepared) }
+                let repaired = try await withTaskCancellationHandler(operation:{ try await worker.value },onCancel:{ worker.cancel() })
+                guard !Task.isCancelled,MaskMotion.signature(session.recipe) == MaskMotion.signature(snapshot),session.recipe.video.start == snapshot.video.start,session.recipe.masks == snapshot.masks else { return }
+                session.recipe.masks = repaired.masks
+            }
+            if tool == .crop && cropFocused { try await Task.sleep(for:.milliseconds(320));cropDisplayFinal = true }
+        } catch is CancellationError {} catch { /* Export retries repair and provides an actionable error if needed. */ }
+    }
+    private func resumeCrop() { cropDisplayFinal = false;withAnimation(.easeInOut(duration:0.25)) { cropFocused = false };cropResumeID += 1 }
     private var header: some View {
         HStack(spacing: 8) {
             Button { Task { await session.persist(library); dismiss() } } label: { Image(systemName: "chevron.left").frame(width: 44,height: 44) }.accessibilityLabel("Back to workspace")
@@ -282,30 +325,38 @@ import UniformTypeIdentifiers
             Spacer(minLength: 0)
             Button { session.undo() } label: { Image(systemName: "arrow.uturn.backward").frame(width: 36,height: 44) }.disabled(session.undoStack.isEmpty).accessibilityLabel("Undo")
             Button { session.redo() } label: { Image(systemName: "arrow.uturn.forward").frame(width: 36,height: 44) }.disabled(session.redoStack.isEmpty).accessibilityLabel("Redo")
+            Button { withAnimation(.easeInOut(duration:0.2)) { controlsHidden.toggle() } } label: { Image(systemName: controlsHidden ? "rectangle.compress.vertical" : "rectangle.expand.vertical").frame(width:36,height:44) }.accessibilityLabel(controlsHidden ? "Show adjustments" : "Expand preview")
             Button { export = true } label: { Image(systemName: "square.and.arrow.up").frame(width: 44,height: 44).background(StudioStyle.blue.opacity(0.16),in: Circle()) }.disabled(session.source == nil).accessibilityLabel(session.project.isVideo ? "Export video" : "Export photo")
         }.foregroundStyle(.white).padding(.horizontal,10).padding(.vertical,8)
     }
-    private var previewRecipe:Recipe { tool == .crop ? CropEditingGeometry.workspace(session.recipe) : session.recipe }
+    private var previewRecipe:Recipe { tool == .crop && !cropDisplayFinal ? CropEditingGeometry.workspace(session.recipe) : session.recipe }
     private var preview: some View {
         GeometryReader { geometry in
+            let sourceSize = session.source.map { PhotoFraming.orientedSize($0.image.extent.size,recipe:session.recipe) } ?? CGSize(width:1,height:1)
+            let full = CropEditingGeometry.fit(size:sourceSize,container:geometry.size)
+            let raw = CropEditingGeometry.rect(size:sourceSize,recipe:session.recipe)
+            let frame = CGRect(x:full.minX+raw.minX*full.width/sourceSize.width,y:full.minY+raw.minY*full.height/sourceSize.height,width:raw.width*full.width/sourceSize.width,height:raw.height*full.height/sourceSize.height)
+            let focusScale = min(max(1,geometry.size.width-16)/max(1,frame.width),max(1,geometry.size.height-16)/max(1,frame.height))
+            let focusing = tool == .crop && cropFocused
             ZStack {
                 StudioStyle.ink
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic?.id },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
                         } else {
                             LivePreview(source:source.image,recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && trackingMask == nil && automaticTarget == nil,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
                         }
                     }
-                        .padding(tool == .crop ? 22 : 0)
-                        .scaleEffect(zoom * pinch).offset(x: offset.width+drag.width,y: offset.height+drag.height)
+                        .padding(tool == .crop ? (cropDisplayFinal ? 8 : 22) : 0)
+                        .scaleEffect(focusing && !cropDisplayFinal ? focusScale : zoom * pinch).offset(x: focusing && !cropDisplayFinal ? (geometry.size.width/2-frame.midX)*focusScale : offset.width+drag.width,y: focusing && !cropDisplayFinal ? (geometry.size.height/2-frame.midY)*focusScale : offset.height+drag.height)
                         .gesture(MagnifyGesture().updating($pinch) { value,state,_ in if !splitComparison && tool != .masks && tool != .crop { state = value.magnification } }.onEnded { value in guard !splitComparison && tool != .masks && tool != .crop else { return };zoom = min(4,max(1,zoom * value.magnification)); if zoom == 1 { offset = .zero } })
                         .simultaneousGesture(DragGesture(minimumDistance: 4).updating($drag) { value,state,_ in if zoom > 1 && tool != .crop { state = value.translation } }.onEnded { value in
                             if zoom > 1 && tool != .crop { offset.width += value.translation.width; offset.height += value.translation.height }
                         })
                         .onTapGesture(count: 2) { guard !splitComparison && tool != .masks && tool != .crop else { return };withAnimation(.easeOut(duration: 0.2)) { zoom = zoom > 1 ? 1 : 2; offset = .zero } }
-                        .accessibilityLabel(comparing ? "Original photograph" : "Edited photograph")
+                        .accessibilityElement(children:.contain)
+                        .accessibilityLabel(session.project.isVideo ? "Video preview" : (comparing ? "Original photograph" : "Edited photograph"))
                 } else if session.busy { ProgressView("Preparing your media…").font(.caption) }
                 else { ContentUnavailableView("Could not open media",systemImage: "photo.badge.exclamationmark",description: Text(session.error ?? "Return to the workspace and try another file.")) }
                 if tool == .masks,!comparing,let layer = selectedMask,let source = session.source {
@@ -316,7 +367,12 @@ import UniformTypeIdentifiers
                     SplitComparisonDivider(sourceSize:source.image.extent.size,recipe:session.recipe,fraction:$splitPosition)
                 }
                 if tool == .crop && zoom == 1 && pinch == 1, let source = session.source {
-                    CropHandlesOverlay(session:session,sourceSize:source.image.extent.size)
+                    CropHandlesOverlay(session:session,sourceSize:source.image.extent.size,editingChanged:{ cropEditing = $0 }).opacity(cropFocused ? 0 : 1).allowsHitTesting(!cropFocused)
+                }
+                if focusing {
+                    let visible = CGRect(x:(geometry.size.width-frame.width*focusScale)/2,y:(geometry.size.height-frame.height*focusScale)/2,width:frame.width*focusScale,height:frame.height*focusScale)
+                    Path { p in p.addRect(CGRect(origin:.zero,size:geometry.size));p.addRect(visible) }.fill(StudioStyle.ink,style:FillStyle(eoFill:true)).allowsHitTesting(false)
+                    VStack { Spacer();HStack { Spacer();Button("Adjust crop",action:resumeCrop).font(.caption.weight(.medium)).padding(10).background(.ultraThinMaterial,in:Capsule()) } }.padding(12).accessibilityIdentifier("cropFittedPreview")
                 }
                 VStack {
                     HStack {
@@ -353,19 +409,20 @@ import UniformTypeIdentifiers
     private var tools: some View {
         HStack(spacing: 0) {
             ForEach(Tool.allCases) { item in
-                Button { tool = item; if item == .crop || item == .masks { zoom = 1;offset = .zero };if item == .masks || item == .crop { splitComparison = false } } label: {
+                Button { controlsHidden = false;tool = item; if item == .crop || item == .masks { zoom = 1;offset = .zero };if item == .masks || item == .crop { splitComparison = false } } label: {
                     VStack(spacing: 5) {
                         Image(systemName: item.symbol).font(.system(size: 18))
                         Text(item.rawValue).font(.system(size: 10,weight: .medium))
                         Circle().fill(StudioStyle.blue).frame(width: 4,height: 4).opacity(session.recipe.hasAdjustments(in: item) ? 1 : 0).accessibilityHidden(true)
                     }
-                        .frame(maxWidth: .infinity).frame(height: 74).foregroundStyle(tool == item ? StudioStyle.blue : StudioStyle.secondary)
+                        .frame(maxWidth: .infinity).frame(height: 60).foregroundStyle(tool == item ? StudioStyle.blue : StudioStyle.secondary)
                         .background(alignment: .bottom) { if tool == item { Capsule().fill(StudioStyle.blue).frame(width: 24,height: 3) } }
                 }.buttonStyle(.plain).accessibilityElement(children: .combine).accessibilityValue(session.recipe.hasAdjustments(in: item) ? "Adjustments applied" : "No adjustments").accessibilityAddTraits(tool == item ? .isSelected : [])
             }
         }.background(StudioStyle.panel).overlay(alignment: .top) { Rectangle().fill(.white.opacity(0.06)).frame(height: 1) }
     }
     private var controls: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading,spacing: tool == .masks || (tool == .color && (colorPanel == .wheels || colorPanel == .mixer)) ? 12 : 22) {
                 HStack(alignment: .top) {
@@ -423,6 +480,9 @@ import UniformTypeIdentifiers
                 case .masks:
                     maskControls
                 case .detail:
+                    adjustment("Texture",key:\.texture)
+                    adjustment("Clarity",key:\.clarity)
+                    Text("Move right for more definition; left for a softer image. Texture works on finer detail, while Clarity shapes broader contrast. Neither changes the original.").font(.caption).foregroundStyle(StudioStyle.secondary)
                     adjustment("Sharpen",key: \.sharpen,range: 0...1)
                     adjustment("Noise reduction",key: \.noise,range: 0...1)
                     Text("For fine detail, export at full resolution. Pinch or double-tap the preview to inspect your composition.").font(.caption).foregroundStyle(StudioStyle.secondary)
@@ -454,10 +514,14 @@ import UniformTypeIdentifiers
                         if size.width-window.width > 1 { adjustment("Horizontal framing",key: \.cropX,range: 0...1,defaultValue: 0.5) }
                         if size.height-window.height > 1 { adjustment("Vertical framing",key: \.cropY,range: 0...1,defaultValue: 0.5) }
                     }
-                    Text("Drag a corner to resize; drag inside to move the frame. Free lets you change width and height independently. This workspace shows the full image with global color; switch tools to review the final crop and local adjustments. Changing a crop requires recreating automatic selections and tracking. Double-tap a slider to reset it.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                    Text("Drag a corner to resize; drag inside to move the frame. Free lets you change width and height independently. This workspace shows the full image with global color; switch tools to review the final crop and local adjustments. Saved automatic selections follow crop changes. After two seconds, the crop fills the preview; tap Adjust crop to keep framing. Double-tap a slider to reset it.").font(.caption).foregroundStyle(StudioStyle.secondary)
                 }
             }.padding(20).padding(.bottom,12)
-        }.scrollIndicators(.hidden)
+        }.scrollIndicators(.hidden).accessibilityIdentifier("editorAdjustments")
+        .onChange(of:automaticRefineExpanded) { _,expanded in
+            if expanded { withAnimation(.easeOut(duration:0.2)) { proxy.scrollTo("automaticThreshold",anchor:.top) } }
+        }
+        }
     }
     private var isPaintingBrush:Bool { tool == .masks && selectedMask?.kind == .brush && selectedMask?.motion == nil && brushMode != .view }
     private var selectedMask:LocalMask? { session.recipe.masks.first(where:{ $0.id == selectedMaskID }) ?? session.recipe.masks.first }
@@ -507,9 +571,9 @@ import UniformTypeIdentifiers
                 }.buttonStyle(.bordered)
                 if layer.kind.isAutomatic {
                     Button("Recreate \(layer.kind.rawValue.lowercased()) selection",systemImage:"arrow.clockwise") { automaticTarget = AutomaticSelectionTarget(kind:layer.kind,maskID:layer.id) }.font(.caption)
-                    if let stored = layer.automatic,!stored.matches(session.recipe) { Text("Crop or clip start changed. Recreate this selection before exporting.").font(.caption).foregroundStyle(StudioStyle.secondary) }
-                    DisclosureGroup("Refine automatic selection") {
-                        automaticSlider("Selection threshold",key:\.threshold,range:0.05...0.95)
+                    if let stored = layer.automatic,!stored.matches(session.recipe) { Text("Updating the selection for the new framing. Export also updates it automatically.").font(.caption).foregroundStyle(StudioStyle.secondary) }
+                    DisclosureGroup("Refine automatic selection",isExpanded:$automaticRefineExpanded) {
+                        automaticSlider("Selection threshold",key:\.threshold,range:0.05...0.95).id("automaticThreshold")
                         automaticSlider("Edge transition",key:\.transition,range:0.02...1)
                         automaticSlider("Grow / shrink (%)",key:\.expand,range:-0.01...0.01,scale:100)
                         automaticSlider("Soft edge (%)",key:\.softness,range:0...0.01,scale:100)
@@ -735,7 +799,7 @@ import UniformTypeIdentifiers
                         .padding(.vertical,5).padding(.leading,8)
                 }.buttonStyle(.plain).accessibilityLabel("Set exact \(name.lowercased())")
             }
-            Slider(value: Binding(get: { session.recipe[keyPath: key] },set: { session.recipe[keyPath: key] = $0 }),in: range,onEditingChanged: { editing in if editing { session.begin() } else { session.end() } })
+            Slider(value: Binding(get: { session.recipe[keyPath: key] },set: { session.recipe[keyPath: key] = $0 }),in: range,onEditingChanged: { editing in if tool == .crop { cropEditing = editing };if editing { session.begin() } else { session.end() } })
                 .accessibilityLabel(name)
                 .sliderReset { session.change { $0[keyPath:key] = defaultValue } }
         }
@@ -763,6 +827,7 @@ import UniformTypeIdentifiers
         let start = ProcessInfo.processInfo.thermalState.rawValue
         let began = CACurrentMediaTime()
         session.recipe.lut = try? await Task.detached(priority:.userInitiated) { try LUTVerification.example(dimension:65) }.value
+        session.recipe.texture = 0.4;session.recipe.clarity = 0.3
         session.recipe.look = .daylight; session.recipe.grain = 0.15; session.recipe.bloom = 0.1
         session.recipe.straighten = 3; session.recipe.crop = .portrait
         let steps = ProcessInfo.processInfo.arguments.contains("--sustained-preview") ? 7200 : 180
@@ -771,6 +836,7 @@ import UniformTypeIdentifiers
             if Task.isCancelled || UIApplication.shared.applicationState != .active { interrupted = true; break }
             if index % 120 == 0 { writeProgress(["stage":"running","step":index,"rendered":PreviewMetrics.shared.times.count,"active":UIApplication.shared.applicationState == .active]) }
             session.recipe.lutAmount = 0.5 + sin(Double(index)*0.1)*0.5
+            session.recipe.texture = sin(Double(index)*0.08)*0.6;session.recipe.clarity = cos(Double(index)*0.06)*0.4
             session.recipe.exposure = sin(Double(index) * 0.13)
             session.recipe.warmth = cos(Double(index) * 0.11) * 0.4
             session.recipe.rgbCurves.red.middle = 0.5 + sin(Double(index)*0.07)*0.06

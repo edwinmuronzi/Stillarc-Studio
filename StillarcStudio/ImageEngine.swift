@@ -37,6 +37,7 @@ enum ImageEngine {
         return CIContext(options: [.workingColorSpace: working, .cacheIntermediates: false, .priorityRequestLow: true])
     }
     static func open(_ url: URL, maxDimension: Double? = nil) throws -> PreparedPhoto {
+        try DetailRendering.prepare()
         try ColorPipeline.prepare()
         try LogConversion.prepare()
         try MaskEngine.prepare()
@@ -120,6 +121,7 @@ enum ImageEngine {
         }
         if let lut = r.lut, r.lutAmount > 0 { image = lut.apply(image,amount:r.lutAmount) }
         if r.noise > 0 { filter("CINoiseReduction", ["inputNoiseLevel": r.noise * 0.05, "inputSharpness": 0.2]) }
+        image = DetailRendering.apply(image,texture:r.texture,clarity:r.clarity)
         if r.sharpen > 0 { filter("CISharpenLuminance", [kCIInputSharpnessKey: r.sharpen * 0.8]) }
         // Radius is proportional to image size so preview and full export share a visual scale.
         let unit = max(image.extent.width, image.extent.height) / 1600

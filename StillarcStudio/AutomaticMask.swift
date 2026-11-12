@@ -2,6 +2,10 @@ import CoreImage
 import ImageIO
 import Foundation
 
+struct AutomaticMaskAnchor:Codable,Equatable,Sendable {
+    let id:UUID;let png:Data;let width:Int;let height:Int;let framing:String
+}
+
 struct AutomaticMask:Codable,Equatable,Sendable {
     let id:UUID
     let png:Data
@@ -9,6 +13,7 @@ struct AutomaticMask:Codable,Equatable,Sendable {
     let height:Int
     let framing:String
     let videoStart:Double?
+    var anchor:AutomaticMaskAnchor? = nil
     var bounded:Bool { !png.isEmpty && png.count<=4_194_304 && width>0 && height>0 && width<=1536 && height<=1536 }
     func matches(_ recipe:Recipe) -> Bool {
         framing == MaskMotion.signature(recipe) && (videoStart == nil || abs((videoStart ?? 0)-recipe.video.start)<0.002)

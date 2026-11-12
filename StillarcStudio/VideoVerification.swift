@@ -124,6 +124,13 @@ enum VideoVerification {
                 let automaticInside = patch(automaticPoster.image,0.35,0.8),automaticOutside = patch(automaticPoster.image,0.5,0.3)
                 try require((0..<3).allSatisfy { abs(automaticInside[$0]-base[$0]*2)<0.015 && abs(automaticOutside[$0]-base[$0])<0.015 },"Automatic matte video export or guide isolation")
                 try require(try await frameTimes(automaticOutput.url).count == originalTimes.count,"Automatic mask dropped video frames")
+                var croppedAutomatic = automaticRecipe;croppedAutomatic.crop = .square;croppedAutomatic.geometry.cropScale = 0.8
+                let repairedCrop = try await MaskFramingRepair.repair(recipe:croppedAutomatic,url:url,video:descriptor,prepared:prepared)
+                let cropOutput = try await VideoEngine.export(source:url,descriptor:descriptor,recipe:repairedCrop,tenBit:false,progress:{ _ in })
+                defer { try? FileManager.default.removeItem(at:cropOutput.url) }
+                let expectedCrop = PhotoFraming.window(in:CGSize(width:descriptor.width,height:descriptor.height),recipe:repairedCrop)
+                try require(cropOutput.width == Int(expectedCrop.width)/2*2 && cropOutput.height == Int(expectedCrop.height)/2*2,"Automatic crop video size")
+                try require(try await frameTimes(cropOutput.url).count == originalTimes.count,"Automatic crop video dropped frames")
                 for kind in [LocalMaskKind.color,.luminance] {
                     var range = LocalMask(kind:kind);range.exposure = 1
                     range.selection = MaskSelection(hue:30,tolerance:90,lower:0,upper:1)
@@ -161,7 +168,7 @@ enum VideoVerification {
         try require(try await frameTimes(scaledResult.url).count == 3,"Corner-resized export dropped frames")
         checks.append(["cornerResized4KLog":true,"width":scaledResult.width,"height":scaledResult.height,"frames":3])
         #endif
-        return ["maskTracking":try await TrackingVerification.video(),"passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","clips":checks,"photoInput":try LogVerification.run(),"boundedTrackingDecode":true,"encodedAutomaticMask":true,"encodedCombinedBrushRangeMask":true,"encodedColorLuminanceMasks":true,"trimHDR":try await HDRTrimVerification.run()]
+        return ["maskTracking":try await TrackingVerification.video(),"passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","clips":checks,"photoInput":try LogVerification.run(),"boundedTrackingDecode":true,"encodedAutomaticCropRepair":true,"encodedAutomaticMask":true,"encodedCombinedBrushRangeMask":true,"encodedColorLuminanceMasks":true,"trimHDR":try await HDRTrimVerification.run()]
     }
     @MainActor static func writeReport() async {
         let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("video-verification.json")

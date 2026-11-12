@@ -1,27 +1,64 @@
 import XCTest
 final class GestureTests:XCTestCase {
+    private func resumeCrop(_ app:XCUIApplication) {
+        if app.buttons["Adjust crop"].exists { app.buttons["Adjust crop"].tap() }
+    }
     func testCropCornerResizeMoveUndoAndRatio() throws {
         let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments = ["--demo-editor","--neutral-demo","--tool","Crop"];app.launch()
+        XCTAssertTrue(app.buttons["1:1"].waitForExistence(timeout:30));resumeCrop(app)
         let corner = app.otherElements["cropCorner.bottomRight"].firstMatch
-        XCTAssertTrue(corner.waitForExistence(timeout:30))
         let initial = corner.frame
         let begin = corner.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5))
         begin.press(forDuration:0.05,thenDragTo:begin.withOffset(CGVector(dx:-45,dy:-65)))
         XCTAssertLessThan(corner.frame.midX,initial.midX-15)
         let shrunk = corner.frame
-        let attachment = XCTAttachment(screenshot:app.screenshot());attachment.name = "Direct crop handles";attachment.lifetime = .keepAlways;add(attachment)
-        app.buttons["Undo"].tap();XCTAssertEqual(corner.frame.midX,initial.midX,accuracy:2)
-        app.buttons["Redo"].tap();XCTAssertEqual(corner.frame.midX,shrunk.midX,accuracy:2)
+        app.buttons["Undo"].tap();resumeCrop(app);XCTAssertEqual(corner.frame.midX,initial.midX,accuracy:2)
+        app.buttons["Redo"].tap();resumeCrop(app);XCTAssertEqual(corner.frame.midX,shrunk.midX,accuracy:2)
         let top = app.otherElements["cropCorner.topLeft"].firstMatch
         let center = app.coordinate(withNormalizedOffset:.zero).withOffset(CGVector(dx:(top.frame.midX+corner.frame.midX)/2,dy:(top.frame.midY+corner.frame.midY)/2))
         center.press(forDuration:0.05,thenDragTo:center.withOffset(CGVector(dx:15,dy:15)))
         XCTAssertGreaterThan(corner.frame.midX,shrunk.midX+5)
-        app.buttons["1:1"].tap()
+        app.buttons["1:1"].tap();resumeCrop(app)
         XCTAssertEqual(corner.frame.midX-top.frame.midX,corner.frame.midY-top.frame.midY,accuracy:2)
         let start = corner.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5))
         start.press(forDuration:0.05,thenDragTo:start.withOffset(CGVector(dx:-30,dy:-50)))
         XCTAssertEqual(corner.frame.midX-top.frame.midX,corner.frame.midY-top.frame.midY,accuracy:2)
+        XCTAssertTrue(app.buttons["Adjust crop"].waitForExistence(timeout:5))
+        let attachment = XCTAttachment(screenshot:app.screenshot());attachment.name = "Large fitted crop preview";attachment.lifetime = .keepAlways;add(attachment)
+    }
+    func testAutomaticMaskImmediateCropExportAndDetail() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = ["--demo-editor","--neutral-demo","--crop-mask-demo","--tool","Crop"];app.launch()
+        let square = app.buttons["1:1"];XCTAssertTrue(square.waitForExistence(timeout:30));square.tap()
+        app.buttons["Export photo"].tap()
+        let create = app.buttons["Create export"];XCTAssertTrue(create.waitForExistence(timeout:10))
+        if !create.isHittable { app.scrollViews.firstMatch.swipeUp() };create.tap()
+        XCTAssertTrue(app.buttons["Share or save to Files"].waitForExistence(timeout:30))
+        let image = XCTAttachment(screenshot:app.screenshot());image.name = "Automatic mask crop export succeeds";image.lifetime = .keepAlways;add(image)
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.buttons["Adjust crop"].waitForExistence(timeout:6))
+        app.buttons["Expand preview"].tap();XCTAssertTrue(app.buttons["Show adjustments"].exists)
+        let expanded = XCTAttachment(screenshot:app.screenshot());expanded.name = "Expanded cropped preview";expanded.lifetime = .keepAlways;add(expanded)
+        app.buttons["Show adjustments"].tap();app.buttons["Detail"].tap()
+        let texture = app.sliders["Texture"];XCTAssertTrue(texture.waitForExistence(timeout:10))
+        texture.adjust(toNormalizedSliderPosition:0.8);XCTAssertNotEqual(texture.value as? String,"0")
+        texture.doubleTap();XCTAssertEqual(texture.value as? String,"0")
+        XCTAssertTrue(app.sliders["Clarity"].exists)
+    }
+    func testVideoPlaybackControlsAppearAndHide() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = ["--video-demo","--neutral-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Export video"].waitForExistence(timeout:30))
+        XCTAssertFalse(app.buttons["Play video"].exists)
+        let reveal = app.buttons["playbackReveal"]
+        XCTAssertTrue(reveal.waitForExistence(timeout:10));reveal.tap()
+        let play = app.buttons["Play video"];XCTAssertTrue(play.waitForExistence(timeout:5));play.tap()
+        let pause = app.buttons["Pause video"];XCTAssertTrue(pause.waitForExistence(timeout:5))
+        let hidden = XCTNSPredicateExpectation(predicate:NSPredicate(format:"exists == false"),object:pause)
+        XCTAssertEqual(XCTWaiter.wait(for:[hidden],timeout:7),.completed)
+        reveal.tap();XCTAssertTrue(app.buttons["Trim video"].waitForExistence(timeout:5))
+        let attachment = XCTAttachment(screenshot:app.screenshot());attachment.name = "Large video preview and playback on tap";attachment.lifetime = .keepAlways;add(attachment)
     }
     func testDoubleTapAndDrag() throws {
         let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")

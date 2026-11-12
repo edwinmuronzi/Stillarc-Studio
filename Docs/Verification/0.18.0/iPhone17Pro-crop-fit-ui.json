@@ -1,0 +1,14 @@
+{
+  "passed" : true,
+  "dragImageRenders" : 0,
+  "fittedAfterDelay" : true,
+  "updates" : 180,
+  "fittedCropRenders" : 1,
+  "idleImageRenders" : 0,
+  "playersCreated" : 0,
+  "thermalStart" : 0,
+  "thermalEnd" : 0,
+  "version" : "0.18.0",
+  "interrupted" : false,
+  "maxMainActorWakeSeconds" : 0.025672916672192514
+}

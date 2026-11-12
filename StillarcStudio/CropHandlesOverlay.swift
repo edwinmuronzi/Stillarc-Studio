@@ -3,6 +3,7 @@ import SwiftUI
 struct CropHandlesOverlay:View {
     @Bindable var session:EditSession
     let sourceSize:CGSize
+    var editingChanged:(Bool)->Void = { _ in }
     @Environment(\.scenePhase) private var phase
     @State private var initial:Recipe?
     @State private var corner:CropCorner?
@@ -47,7 +48,7 @@ struct CropHandlesOverlay:View {
                             guard distance(nearest,point:value.startLocation,frame:frame)<=32 else { return }
                             corner = nearest;moving = false
                         }
-                        initial = session.recipe;session.begin()
+                        initial = session.recipe;session.begin();editingChanged(true)
                     }
                     guard let initial else { return }
                     let delta = CGSize(width:value.translation.width/scale,height:value.translation.height/scale)
@@ -62,5 +63,5 @@ struct CropHandlesOverlay:View {
     private func distance(_ corner:CropCorner,point:CGPoint,frame:CGRect) -> Double {
         hypot(point.x-(corner.left ? frame.minX : frame.maxX),point.y-(corner.top ? frame.minY : frame.maxY))
     }
-    private func finish() { if initial != nil { session.end() };initial = nil;corner = nil;moving = false }
+    private func finish() { if initial != nil { session.end();editingChanged(false) };initial = nil;corner = nil;moving = false }
 }

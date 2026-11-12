@@ -157,20 +157,28 @@ struct VideoPreview:View {
 private struct VideoPreviewContent:View {
     @Bindable var playback:VideoPlayback
     let poster:PreparedPhoto;let recipe:Recipe;let original:Bool;let active:Bool;let onTrim:() -> Void;let showTrimButton:Bool;let scopes:ScopeSampler?;let split:Double?;let maskPreview:LocalMask?;let hideTransport:Bool;let rangePreview:ColorRange?;let automaticReferenceIDs:[UUID]
+    @State private var transportVisible = false
+    @State private var scrubbing = false
+    @State private var transportRevision = 0
     var body:some View {
         ZStack(alignment:.bottom) {
             VideoMetalView(playback:playback,recipe:recipe,original:original,rangePreview:rangePreview,active:active,scopes:scopes,split:split,maskPreview:maskPreview)
             if playback.frame == nil { LivePreview(source:poster.image,recipe:recipe,signalSource:poster.signalImage,original:original,active:active,hdr:recipe.video.hdr,split:split,maskPreview:maskPreview) }
-            if !hideTransport {
+            Color.clear.contentShape(Rectangle()).onTapGesture { guard !hideTransport else { return };withAnimation(.easeOut(duration:0.15)) { transportVisible.toggle() };transportRevision += 1 }.accessibilityIdentifier("playbackReveal").accessibilityLabel("Show playback controls").accessibilityAddTraits(.isButton).accessibilityAction { transportVisible = true;transportRevision += 1 }
+            if !hideTransport && transportVisible {
             HStack(spacing:12) {
-                Button { playback.toggle() } label: { Image(systemName:playback.playing ? "pause.fill" : "play.fill").frame(width:36,height:36) }.disabled(!playback.ready).accessibilityLabel(playback.playing ? "Pause video" : "Play video")
+                Button { playback.toggle();transportRevision += 1 } label: { Image(systemName:playback.playing ? "pause.fill" : "play.fill").frame(width:36,height:36) }.disabled(!playback.ready).accessibilityLabel(playback.playing ? "Pause video" : "Play video")
                 if showTrimButton { Button(action:onTrim) { Image(systemName:"scissors").frame(width:32,height:36) }.accessibilityLabel("Trim video") }
-                Slider(value:Binding(get:{ playback.time },set:{ playback.seek($0) }),in:playback.selection,onEditingChanged:{ $0 ? playback.beginScrub() : playback.endScrub() }).accessibilityLabel("Video position").sliderReset { playback.beginScrub();playback.seek(playback.selection.lowerBound);playback.endScrub() }
+                Slider(value:Binding(get:{ playback.time },set:{ playback.seek($0) }),in:playback.selection,onEditingChanged:{ scrubbing = $0;transportRevision += 1;$0 ? playback.beginScrub() : playback.endScrub() }).accessibilityLabel("Video position").sliderReset { playback.beginScrub();playback.seek(playback.selection.lowerBound);playback.endScrub() }
                 Text("\(Int(playback.time))/\(Int(playback.descriptor.duration))s").font(.caption2.monospacedDigit()).fixedSize()
             }.padding(.horizontal,10).background(.ultraThinMaterial,in:Capsule()).padding(.horizontal,16).padding(.bottom,showTrimButton ? 62 : 12)
             }
             if let error = playback.error { Text(error).font(.caption).padding().background(.black.opacity(0.8)).frame(maxHeight:.infinity,alignment:.center) }
-        }.onChange(of:automaticReferenceIDs) { old,new in
+        }.task(id:"\(transportVisible)|\(scrubbing)|\(transportRevision)") {
+            guard transportVisible,!scrubbing else { return }
+            do { try await Task.sleep(for:.seconds(3));withAnimation(.easeOut(duration:0.2)) { transportVisible = false } } catch {}
+        }.onChange(of:hideTransport) { _,value in if value { transportVisible = false } }
+        .onChange(of:automaticReferenceIDs) { old,new in
             if new.contains(where:{ !old.contains($0) }) { playback.showAutomaticReferenceFrame() }
         }
     }

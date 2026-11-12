@@ -65,9 +65,12 @@ import UniformTypeIdentifiers
     private func render() async {
         guard let source = session.sourceURL else { return }
         busy = true;error = nil;videoProgress = 0
-        let recipe = session.recipe,format = format,video = session.project.video,tenBit = tenBitVideo
+        let recipe = session.recipe,format = format,video = session.project.video,tenBit = tenBitVideo,prepared = session.source
         defer { busy = false;exportTask = nil }
         let task = Task.detached(priority:.utility) {
+            let repaired = try await MaskFramingRepair.repair(recipe:recipe,url:source,video:video,prepared:prepared)
+            await MainActor.run { if session.recipe == recipe { session.recipe.masks = repaired.masks } }
+            let recipe = repaired
             if let video { return try await VideoEngine.export(source:source,descriptor:video,recipe:recipe,tenBit:tenBit,progress:{ value in await MainActor.run { videoProgress = value } },cooling:{ value in await MainActor.run { coolingVideo = value } }) }
             return try ImageEngine.export(source:source,recipe:recipe,format:format)
         }

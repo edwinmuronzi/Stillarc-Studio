@@ -1,0 +1,88 @@
+{
+  "encodedAutomaticCropRepair" : true,
+  "version" : "0.18.0",
+  "encodedAutomaticMask" : true,
+  "trimHDR" : {
+    "audioTracks" : 2,
+    "zeroBasedTiming" : true,
+    "persistence" : true,
+    "passed" : true,
+    "trimFrames" : 33,
+    "trimSeconds" : 1.1000000000000001,
+    "headroomVectors" : 5,
+    "presetIsolation" : true
+  },
+  "maskTracking" : {
+    "passed" : true,
+    "pointCounts" : [
+      30,
+      30
+    ],
+    "portraitLandscape" : true,
+    "exportFramesPerClip" : 60,
+    "cancellation" : true,
+    "encodedTracking" : true,
+    "movingTargetErrors" : [
+      0.0051411703706012168,
+      0.0033422505339212594
+    ]
+  },
+  "encodedColorLuminanceMasks" : true,
+  "photoInput" : {
+    "highlightShoulder" : true,
+    "passed" : true,
+    "bothGamuts" : true,
+    "exposureAlpha" : true,
+    "curveVectors" : 16,
+    "standardBypass" : true,
+    "persistence" : true,
+    "presetInputIsolation" : true
+  },
+  "clips" : [
+    {
+      "profile" : "standard",
+      "frames" : 18,
+      "metadata" : true,
+      "height" : 360,
+      "color" : true,
+      "originalPreserved" : true,
+      "projectRoundTrip" : true,
+      "width" : 640,
+      "audioTracks" : 2,
+      "cancellation" : true
+    },
+    {
+      "cancellation" : true,
+      "color" : true,
+      "width" : 360,
+      "projectRoundTrip" : true,
+      "profile" : "appleLog",
+      "originalPreserved" : true,
+      "frames" : 18,
+      "metadata" : true,
+      "audioTracks" : 1,
+      "height" : 640
+    },
+    {
+      "height" : 360,
+      "audioTracks" : 1,
+      "metadata" : true,
+      "color" : true,
+      "projectRoundTrip" : true,
+      "frames" : 18,
+      "profile" : "appleLog2",
+      "cancellation" : true,
+      "width" : 640,
+      "originalPreserved" : true
+    },
+    {
+      "cornerResized4KLog" : true,
+      "height" : 1860,
+      "width" : 1860,
+      "frames" : 3
+    }
+  ],
+  "boundedTrackingDecode" : true,
+  "passed" : true,
+  "encodedCombinedBrushRangeMask" : true
+}
