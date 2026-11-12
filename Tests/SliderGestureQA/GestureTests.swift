@@ -1,5 +1,28 @@
 import XCTest
 final class GestureTests:XCTestCase {
+    func testCropCornerResizeMoveUndoAndRatio() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = ["--demo-editor","--neutral-demo","--tool","Crop"];app.launch()
+        let corner = app.otherElements["cropCorner.bottomRight"].firstMatch
+        XCTAssertTrue(corner.waitForExistence(timeout:30))
+        let initial = corner.frame
+        let begin = corner.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5))
+        begin.press(forDuration:0.05,thenDragTo:begin.withOffset(CGVector(dx:-45,dy:-65)))
+        XCTAssertLessThan(corner.frame.midX,initial.midX-15)
+        let shrunk = corner.frame
+        let attachment = XCTAttachment(screenshot:app.screenshot());attachment.name = "Direct crop handles";attachment.lifetime = .keepAlways;add(attachment)
+        app.buttons["Undo"].tap();XCTAssertEqual(corner.frame.midX,initial.midX,accuracy:2)
+        app.buttons["Redo"].tap();XCTAssertEqual(corner.frame.midX,shrunk.midX,accuracy:2)
+        let top = app.otherElements["cropCorner.topLeft"].firstMatch
+        let center = app.coordinate(withNormalizedOffset:.zero).withOffset(CGVector(dx:(top.frame.midX+corner.frame.midX)/2,dy:(top.frame.midY+corner.frame.midY)/2))
+        center.press(forDuration:0.05,thenDragTo:center.withOffset(CGVector(dx:15,dy:15)))
+        XCTAssertGreaterThan(corner.frame.midX,shrunk.midX+5)
+        app.buttons["1:1"].tap()
+        XCTAssertEqual(corner.frame.midX-top.frame.midX,corner.frame.midY-top.frame.midY,accuracy:2)
+        let start = corner.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5))
+        start.press(forDuration:0.05,thenDragTo:start.withOffset(CGVector(dx:-30,dy:-50)))
+        XCTAssertEqual(corner.frame.midX-top.frame.midX,corner.frame.midY-top.frame.midY,accuracy:2)
+    }
     func testDoubleTapAndDrag() throws {
         let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments = ["--verify-slider-gestures"];app.launch()

@@ -16,7 +16,9 @@ Implemented in 0.2: active-adjustment indicators, section resets, exact numeric 
 
 Implemented in 0.8: independent free-crop width/height, horizontal/vertical flips, perspective correction and on-demand RGB histogram/waveform/vectorscope for photo/video previews.
 
-Next: draggable crop corner handles and lens corrections; texture/clarity/dehaze with predictable processing order. Levels and freely placed extra curve points. Numeric inputs, accessible adjustable controls and iPad keyboard shortcuts. Validate RAW camera fixtures, wide-gamut/HDR interpretation and export matching before adding HDR photo output.
+Implemented in 0.17: direct corner resizing, locked aspect ratios, free resizing and frame dragging in a full-image workspace, with one-step gesture undo and retained numeric controls. Crop-only drags reuse the graded image; exports preserve full remaining source resolution.
+
+Next: lens corrections; texture/clarity/dehaze with predictable processing order. Levels and freely placed extra curve points. Numeric inputs, accessible adjustable controls and iPad keyboard shortcuts. Validate RAW camera fixtures, wide-gamut/HDR interpretation and export matching before adding HDR photo output.
 
 ## 3 — Reusable grades and film
 

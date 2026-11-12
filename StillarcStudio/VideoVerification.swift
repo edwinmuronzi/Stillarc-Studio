@@ -154,6 +154,12 @@ enum VideoVerification {
         defer { try? FileManager.default.removeItem(at:largeResult.url) }
         try require(largeResult.width == 2160 && largeResult.height == 2160,"4K source crop geometry changed")
         try require(try await frameTimes(largeResult.url).count == 3,"4K export dropped frames")
+        let resized = CropEditingGeometry.resize(crop,size:CGSize(width:3840,height:2160),corner:.bottomRight,delta:CGSize(width:-300,height:-300))
+        let scaledResult = try await VideoEngine.export(source:largeURL,descriptor:largeDescriptor,recipe:resized,progress:{ _ in })
+        defer { try? FileManager.default.removeItem(at:scaledResult.url) }
+        try require(scaledResult.width == 1860 && scaledResult.height == 1860,"Corner-resized encoded video does not match frame")
+        try require(try await frameTimes(scaledResult.url).count == 3,"Corner-resized export dropped frames")
+        checks.append(["cornerResized4KLog":true,"width":scaledResult.width,"height":scaledResult.height,"frames":3])
         #endif
         return ["maskTracking":try await TrackingVerification.video(),"passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","clips":checks,"photoInput":try LogVerification.run(),"boundedTrackingDecode":true,"encodedAutomaticMask":true,"encodedCombinedBrushRangeMask":true,"encodedColorLuminanceMasks":true,"trimHDR":try await HDRTrimVerification.run()]
     }

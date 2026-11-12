@@ -116,7 +116,7 @@ enum Tool: String, CaseIterable, Identifiable {
         case .curves: "Shape brightness or individual red, green and blue tones."
         case .detail: "Bring out edges or soften visible digital noise."
         case .masks:"Adjust a chosen area with a soft linear, radial, brush, color or luminance mask."
-        case .crop: "Drag the photo to reframe it. Straighten a horizon without leaving black corners."
+        case .crop: "Drag crop corners to resize; drag inside the frame to move it. Fixed ratios stay locked."
         }
     }
 }

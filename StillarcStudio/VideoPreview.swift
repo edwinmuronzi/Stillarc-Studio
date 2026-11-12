@@ -139,11 +139,12 @@ struct VideoPreview:View {
     var split:Double? = nil
     var maskPreview:LocalMask? = nil
     var hideTransport = false
+    var automaticReferenceIDs:[UUID]? = nil
     var rangePreview:ColorRange?
     @State private var playback:VideoPlayback?
     var body:some View {
         Group {
-            if let playback { VideoPreviewContent(playback:playback,poster:poster,recipe:recipe,original:original,active:active,onTrim:onTrim,showTrimButton:showTrimButton,scopes:scopes,split:split,maskPreview:maskPreview,hideTransport:hideTransport,rangePreview:rangePreview) }
+            if let playback { VideoPreviewContent(playback:playback,poster:poster,recipe:recipe,original:original,active:active,onTrim:onTrim,showTrimButton:showTrimButton,scopes:scopes,split:split,maskPreview:maskPreview,hideTransport:hideTransport,rangePreview:rangePreview,automaticReferenceIDs:automaticReferenceIDs ?? recipe.masks.compactMap { $0.automatic?.id }) }
             else { LivePreview(source:poster.image,recipe:recipe,signalSource:poster.signalImage,original:original,active:active,hdr:recipe.video.hdr,split:split,maskPreview:maskPreview) }
         }
         .task { if playback == nil { let controller = VideoPlayback(url:url,descriptor:descriptor);controller.setEdit(recipe.video);controller.setActive(active);playback = controller } }
@@ -155,7 +156,7 @@ struct VideoPreview:View {
 }
 private struct VideoPreviewContent:View {
     @Bindable var playback:VideoPlayback
-    let poster:PreparedPhoto;let recipe:Recipe;let original:Bool;let active:Bool;let onTrim:() -> Void;let showTrimButton:Bool;let scopes:ScopeSampler?;let split:Double?;let maskPreview:LocalMask?;let hideTransport:Bool;let rangePreview:ColorRange?
+    let poster:PreparedPhoto;let recipe:Recipe;let original:Bool;let active:Bool;let onTrim:() -> Void;let showTrimButton:Bool;let scopes:ScopeSampler?;let split:Double?;let maskPreview:LocalMask?;let hideTransport:Bool;let rangePreview:ColorRange?;let automaticReferenceIDs:[UUID]
     var body:some View {
         ZStack(alignment:.bottom) {
             VideoMetalView(playback:playback,recipe:recipe,original:original,rangePreview:rangePreview,active:active,scopes:scopes,split:split,maskPreview:maskPreview)
@@ -169,7 +170,7 @@ private struct VideoPreviewContent:View {
             }.padding(.horizontal,10).background(.ultraThinMaterial,in:Capsule()).padding(.horizontal,16).padding(.bottom,showTrimButton ? 62 : 12)
             }
             if let error = playback.error { Text(error).font(.caption).padding().background(.black.opacity(0.8)).frame(maxHeight:.infinity,alignment:.center) }
-        }.onChange(of:recipe.masks.compactMap { $0.automatic?.id }) { old,new in
+        }.onChange(of:automaticReferenceIDs) { old,new in
             if new.contains(where:{ !old.contains($0) }) { playback.showAutomaticReferenceFrame() }
         }
     }

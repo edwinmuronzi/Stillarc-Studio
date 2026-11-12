@@ -46,7 +46,7 @@ This is the **0.16 subject and sky selection milestone**, not a finished PeekLUT
 - Open **Looks → Saved versions**, enter a name and save the complete current edit. Keep up to 20 named versions per photo/clip, including input conversion, framing, trim, HDR choice and LUT. Restore returns to the preview; Undo recovers the edit you had before restoring. Delete removes that saved snapshot, not the source. Versions stay with this project; Looks presets are for reusing grades on other media. No media files are duplicated.
 
 - Tap **Scopes** in the preview for an RGB histogram, RGB waveform or color vectorscope. The histogram shows where dark/bright tones sit; the waveform shows brightness across the image; the vectorscope shows color direction and saturation. These are sampled preview guides, not full-resolution or RAW sensor measurements.
-- In Crop, choose **Free** to change width and height independently, then drag the image or use framing sliders to position it. Flip horizontally/vertically, correct leaning buildings with horizontal/vertical perspective, rotate, or straighten a horizon. Perspective correction trims edges to avoid empty corners. Crop reset and undo restore the earlier framing; saved creative presets keep each source’s geometry intact.
+- In Crop, choose **Free** to change width and height independently, drag a corner handle to resize the frame, then drag inside it or use framing sliders to position it. Flip horizontally/vertically, correct leaning buildings with horizontal/vertical perspective, rotate, or straighten a horizon. Perspective correction trims edges to avoid empty corners. Crop reset and undo restore the earlier framing; saved creative presets keep each source’s geometry intact.
 
 - Open a photo or video from Photos or Files. Videos up to 4K can be played, scrubbed, graded with the same tools, and exported as a new HEVC movie with original audio tracks and frame timing. Trim the start/end without changing the original. This is a single-clip workflow, without a multi-clip timeline.
 - Export video as SDR or **10-bit HLG HDR**. HDR preserves brighter highlights on compatible displays; SDR gives the widest sharing compatibility. HLG/PQ-tagged HDR input is recognized automatically and starts with HDR output enabled. HDR video uses extended-range live previews on compatible screens. Photo exports remain SDR JPEG/PNG.
@@ -62,7 +62,7 @@ This is the **0.16 subject and sky selection milestone**, not a finished PeekLUT
 - Import display-sRGB 3D `.cube` LUTs from Files, with 2–65 points per side, `DOMAIN_MIN`/`DOMAIN_MAX` support and a 20 MB input limit. A LUT remaps colors for a consistent finish. Adjust LUT strength live under Film, turn it off at zero, or remove it. The imported LUT is also saved as a reusable look; import keeps your current adjustments. Applying a saved look replaces the color/film recipe while preserving framing.
 - In Looks, save your complete current grade, including its LUT, as a named preset. Export/import the self-contained Studio JSON to reuse it without the original `.cube` file. LUT presets use schema 2 and require Studio 0.5 or later; earlier schema-1 presets remain supported.
 - Use Show range to inspect affected colors before wheels, mixer, LUT and film effects. Unselected colors dim. This temporary view is never saved in presets or exported.
-- Choose an aspect ratio, drag the fitted photo to reposition the crop, rotate 90 degrees, or straighten up to 15 degrees. Straightening trims the edges to avoid black corners. Framing sliders provide another way to position the crop. Pinch/double-tap to inspect; a zoomed preview pans for inspection.
+- Choose an aspect ratio, drag inside the crop frame to reposition it, rotate 90 degrees, or straighten up to 15 degrees. Straightening trims the edges to avoid black corners. Framing sliders provide another way to position the crop. Outside Crop and Masks, pinch/double-tap to inspect; a zoomed preview pans for inspection.
 - A blue dot beneath each editing tab shows that the section has active adjustments. Dots follow undo/redo, presets, reopening and reset. Returning a section to neutral clears its dot.
 - Tap an adjustment number to enter an exact value; double-tap the slider row to reset that value. Reset one section or the entire photo, with undo. Whites shapes the brightest tones; Blacks shapes the darkest.
 - Hold Compare to see the original with the current framing. Undo/redo adjustment gestures without altering the source.
@@ -148,3 +148,11 @@ Debug verification instructions are in [Docs/VALIDATION.md](Docs/VALIDATION.md).
 ## Important boundaries
 
 Per-frame/deforming video segmentation, deformation/scale/rotation tracking, healing, HDR photo export, batch work, metadata controls, multi-clip video timelines and Camera/Studio preset exchange are **planned**, not available in this build. Studio presets are not yet compatible with Camera presets. A LUT can encode compatible color transformations, but cannot encode grain, bloom, sharpening, masks or geometry.
+
+### Direct crop handles (0.17)
+
+In **Crop**, drag any corner to resize and drag inside the frame to move it. Original and fixed ratios keep their proportions; **Free** changes width and height independently. The dimmed area shows what will be removed. One drag is one undo step. The Frame size and framing sliders offer exact control and double-tap resets. Photo and video exports use the same framing, at the remaining source resolution.
+
+While cropping, the full image keeps its global color adjustments; local masks are hidden until you switch tools to review the final result. Recreate automatic selections or tracking after changing their framing. Crop movement updates only the lightweight guide, without re-grading the full image at every touch.
+
+![Direct crop handles](Docs/Screenshots/CropHandles.png)

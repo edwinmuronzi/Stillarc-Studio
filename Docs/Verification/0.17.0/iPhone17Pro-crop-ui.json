@@ -1,0 +1,12 @@
+{
+  "version" : "0.17.0",
+  "idleImageRenders" : 0,
+  "thermalStart" : 0,
+  "dragImageRenders" : 0,
+  "maxMainActorWakeSeconds" : 0.027238624999881722,
+  "playersCreated" : 0,
+  "updates" : 180,
+  "thermalEnd" : 0,
+  "passed" : true,
+  "interrupted" : false
+}

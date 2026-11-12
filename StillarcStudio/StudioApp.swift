@@ -217,9 +217,9 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Subject & sky selection · 0.16.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Direct crop handles · 0.17.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
                     Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export JPEG/PNG photographs or trimmed HEVC video with audio in SDR or 10-bit HLG HDR.")
-                    Text("Use Scopes to inspect brightness and color. Free crop, flips and perspective help refine your composition; every change stays reversible.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
+                    Text("Use Scopes to inspect brightness and color. Drag crop corners to resize and drag inside to reposition. Fixed ratios stay locked; Free lets each edge change. Flips and perspective help refine your composition; every change stays reversible.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Drag the split divider to compare original and edit. Save complete versions under Looks to try different grades and return to a favorite.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Copy selected adjustments under Looks, then paste them onto another photo or clip. Its framing, camera input and trim stay intact; undo reverses the paste.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Use Masks to brighten a face or darken part of a sky. Linear and radial shapes have soft edges, inversion and strength; the red guide is only a preview. Masks stay with this source; Radial, Brush and Subject masks can use position tracking.").font(.subheadline).foregroundStyle(StudioStyle.secondary)

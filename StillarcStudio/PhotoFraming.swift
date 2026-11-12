@@ -18,8 +18,8 @@ enum PhotoFraming {
         if recipe.crop == .free {
             let g = recipe.geometry.validated();width = max(1,floor(size.width*g.width));height = max(1,floor(size.height*g.height))
         } else if let ratio = recipe.crop.ratio {
-            width = max(1,floor(min(size.width,size.height * ratio)));height = max(1,floor(min(size.height,size.width / ratio)))
-        } else { return CGRect(origin:.zero,size:size) }
+            width = max(1,floor(min(size.width,size.height * ratio)*recipe.geometry.validated().cropScale));height = max(1,floor(min(size.height,size.width / ratio)*recipe.geometry.validated().cropScale))
+        } else { let scale = recipe.geometry.validated().cropScale;width = max(1,floor(size.width*scale));height = max(1,floor(size.height*scale)) }
         return CGRect(x: floor((size.width-width) * min(1,max(0,recipe.cropX))),y: floor((size.height-height) * (1-min(1,max(0,recipe.cropY)))),width: width,height: height)
     }
     static func apply(_ source: CIImage, recipe: Recipe) -> CIImage {

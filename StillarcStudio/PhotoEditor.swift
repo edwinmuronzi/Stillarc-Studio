@@ -35,7 +35,6 @@ import UniformTypeIdentifiers
     @State private var reset = false
     @State private var numericEdit: NumericEdit?
     @State private var numericText = ""
-    @State private var cropDragStart: CGSize?
     @State private var diagnosticsRunning = false
     @State private var zoom = 1.0
     @GestureState private var pinch = 1.0
@@ -131,6 +130,9 @@ import UniformTypeIdentifiers
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("--verify-brush-ui") { await verifyBrushUI() }
             #endif
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--verify-crop-ui") { await verifyCropUI() }
+            #endif
             await runPreviewCheckIfRequested()
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("--verify-editor-layout") {
@@ -165,6 +167,31 @@ import UniformTypeIdentifiers
         .alert("Unable to complete",isPresented: Binding(get: { session.error != nil },set: { if !$0 { session.error = nil } })) { Button("OK") { session.error = nil } } message: { Text(session.error ?? "") }
     }
     #if DEBUG
+    private func verifyCropUI() async {
+        let original = session.recipe,priorTool = tool,priorIdle = UIApplication.shared.isIdleTimerDisabled
+        UIApplication.shared.isIdleTimerDisabled = true
+        defer { session.recipe = original;tool = priorTool;UIApplication.shared.isIdleTimerDisabled = priorIdle }
+        tool = .crop;zoom = 1;offset = .zero;splitComparison = false
+        guard let source = session.source else { return }
+        session.recipe.crop = .portrait;session.recipe.geometry.cropScale = 0.8
+        try? await Task.sleep(for:.seconds(2))
+        let base = session.recipe,size = PhotoFraming.orientedSize(source.image.extent.size,recipe:base)
+        PreviewMetrics.shared.times = [];PreviewMetrics.shared.failures = 0
+        let thermal = ProcessInfo.processInfo.thermalState.rawValue,players = VideoPlayback.creationCount
+        var maxDelay = 0.0,interrupted = false
+        for i in 0..<180 {
+            guard UIApplication.shared.applicationState == .active else { interrupted = true;break }
+            let start = CACurrentMediaTime(),d = 50*sin(Double(i)*0.1)
+            session.recipe = CropEditingGeometry.resize(base,size:size,corner:.bottomRight,delta:CGSize(width:d,height:d))
+            try? await Task.sleep(for:.milliseconds(16));maxDelay = max(maxDelay,CACurrentMediaTime()-start)
+        }
+        let dragRenders = PreviewMetrics.shared.times.count
+        try? await Task.sleep(for:.seconds(2))
+        let idleRenders = PreviewMetrics.shared.times.count-dragRenders
+        let result:[String:Any] = ["version":"0.17.0","passed":!interrupted && dragRenders == 0 && idleRenders == 0 && PreviewMetrics.shared.failures == 0 && VideoPlayback.creationCount == players && maxDelay<0.25,"updates":180,"dragImageRenders":dragRenders,"idleImageRenders":idleRenders,"playersCreated":VideoPlayback.creationCount-players,"maxMainActorWakeSeconds":maxDelay,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
+        let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("crop-ui-verification.json")
+        if let data = try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted) { try? data.write(to:url,options:.atomic) }
+    }
     private func verifyTrimUI() async {
         guard session.project.isVideo else { return }
         let original = session.recipe
@@ -258,6 +285,7 @@ import UniformTypeIdentifiers
             Button { export = true } label: { Image(systemName: "square.and.arrow.up").frame(width: 44,height: 44).background(StudioStyle.blue.opacity(0.16),in: Circle()) }.disabled(session.source == nil).accessibilityLabel(session.project.isVideo ? "Export video" : "Export photo")
         }.foregroundStyle(.white).padding(.horizontal,10).padding(.vertical,8)
     }
+    private var previewRecipe:Recipe { tool == .crop ? CropEditingGeometry.workspace(session.recipe) : session.recipe }
     private var preview: some View {
         GeometryReader { geometry in
             ZStack {
@@ -265,20 +293,18 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:session.recipe,original:comparing,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic?.id },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
                         } else {
-                            LivePreview(source:source.image,recipe:session.recipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && trackingMask == nil && automaticTarget == nil,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
+                            LivePreview(source:source.image,recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && trackingMask == nil && automaticTarget == nil,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
                         }
                     }
+                        .padding(tool == .crop ? 22 : 0)
                         .scaleEffect(zoom * pinch).offset(x: offset.width+drag.width,y: offset.height+drag.height)
-                        .gesture(MagnifyGesture().updating($pinch) { value,state,_ in if !splitComparison && tool != .masks { state = value.magnification } }.onEnded { value in guard !splitComparison && tool != .masks else { return };zoom = min(4,max(1,zoom * value.magnification)); if zoom == 1 { offset = .zero } })
-                        .simultaneousGesture(DragGesture(minimumDistance: 4).updating($drag) { value,state,_ in if zoom > 1 { state = value.translation } }.onChanged { value in
-                            if !splitComparison && tool == .crop && zoom == 1 && pinch == 1 && session.recipe.crop != .original { moveCrop(value,previewSize: geometry.size) }
-                        }.onEnded { value in
-                            if cropDragStart != nil { cropDragStart = nil; session.end() }
-                            else if zoom > 1 { offset.width += value.translation.width; offset.height += value.translation.height }
+                        .gesture(MagnifyGesture().updating($pinch) { value,state,_ in if !splitComparison && tool != .masks && tool != .crop { state = value.magnification } }.onEnded { value in guard !splitComparison && tool != .masks && tool != .crop else { return };zoom = min(4,max(1,zoom * value.magnification)); if zoom == 1 { offset = .zero } })
+                        .simultaneousGesture(DragGesture(minimumDistance: 4).updating($drag) { value,state,_ in if zoom > 1 && tool != .crop { state = value.translation } }.onEnded { value in
+                            if zoom > 1 && tool != .crop { offset.width += value.translation.width; offset.height += value.translation.height }
                         })
-                        .onTapGesture(count: 2) { guard !splitComparison && tool != .masks else { return };withAnimation(.easeOut(duration: 0.2)) { zoom = zoom > 1 ? 1 : 2; offset = .zero } }
+                        .onTapGesture(count: 2) { guard !splitComparison && tool != .masks && tool != .crop else { return };withAnimation(.easeOut(duration: 0.2)) { zoom = zoom > 1 ? 1 : 2; offset = .zero } }
                         .accessibilityLabel(comparing ? "Original photograph" : "Edited photograph")
                 } else if session.busy { ProgressView("Preparing your media…").font(.caption) }
                 else { ContentUnavailableView("Could not open media",systemImage: "photo.badge.exclamationmark",description: Text(session.error ?? "Return to the workspace and try another file.")) }
@@ -290,7 +316,7 @@ import UniformTypeIdentifiers
                     SplitComparisonDivider(sourceSize:source.image.extent.size,recipe:session.recipe,fraction:$splitPosition)
                 }
                 if tool == .crop && zoom == 1 && pinch == 1, let source = session.source {
-                    FramingGrid(sourceSize: source.image.extent.size,recipe: session.recipe).allowsHitTesting(false)
+                    CropHandlesOverlay(session:session,sourceSize:source.image.extent.size)
                 }
                 VStack {
                     HStack {
@@ -316,18 +342,18 @@ import UniformTypeIdentifiers
                             .onLongPressGesture(minimumDuration: .infinity,pressing: { comparing = $0 },perform: {})
                             .accessibilityAddTraits(.isButton).accessibilityAction { comparing.toggle() }
                     }
-                }.padding(15).opacity(isPaintingBrush ? 0 : 1).allowsHitTesting(!isPaintingBrush)
+                }.padding(15).opacity(isPaintingBrush || tool == .crop ? 0 : 1).allowsHitTesting(!isPaintingBrush && tool != .crop)
             }.coordinateSpace(name:"comparisonPreview").frame(width: geometry.size.width,height: geometry.size.height).clipped()
         }
     }
-    private var scopesActive:Bool { scopesVisible && phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil && !inputSheet }
+    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil && !inputSheet }
     @ViewBuilder private var scopePanel:some View {
-        if scopesVisible { ScopePanel(sampler:scopeSampler,mode:$scopeMode) }
+        if scopesVisible && tool != .crop { ScopePanel(sampler:scopeSampler,mode:$scopeMode) }
     }
     private var tools: some View {
         HStack(spacing: 0) {
             ForEach(Tool.allCases) { item in
-                Button { tool = item; if item == .crop || item == .masks { zoom = 1;offset = .zero };if item == .masks { splitComparison = false } } label: {
+                Button { tool = item; if item == .crop || item == .masks { zoom = 1;offset = .zero };if item == .masks || item == .crop { splitComparison = false } } label: {
                     VStack(spacing: 5) {
                         Image(systemName: item.symbol).font(.system(size: 18))
                         Text(item.rawValue).font(.system(size: 10,weight: .medium))
@@ -403,7 +429,7 @@ import UniformTypeIdentifiers
                 case .crop:
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 78))],spacing: 10) {
                         ForEach(Crop.allCases,id: \.self) { crop in
-                            Button { session.change { $0.crop = crop }; zoom = 1; offset = .zero } label: {
+                            Button { session.change { $0.crop = crop; $0.geometry.cropScale = 1 }; zoom = 1; offset = .zero } label: {
                                 Text(crop.rawValue).font(.caption.weight(.medium)).frame(maxWidth: .infinity).padding(.vertical,14).background(session.recipe.crop == crop ? StudioStyle.blue : Color.white.opacity(0.05),in: RoundedRectangle(cornerRadius: 12)).foregroundStyle(.white)
                             }.buttonStyle(.plain)
                         }
@@ -416,17 +442,19 @@ import UniformTypeIdentifiers
                     if session.recipe.crop == .free {
                         adjustment("Crop width (%)",key:\.geometry.width,range:0.1...1,defaultValue:1)
                         adjustment("Crop height (%)",key:\.geometry.height,range:0.1...1,defaultValue:1)
+                    } else {
+                        adjustment("Frame size (%)",key:\.geometry.cropScale,range:0.1...1,defaultValue:1)
                     }
                     adjustment("Horizontal perspective",key:\.geometry.horizontal,range:-0.3...0.3)
                     adjustment("Vertical perspective",key:\.geometry.vertical,range:-0.3...0.3)
                     adjustment("Straighten",key: \.straighten,range: -15...15,unit: "°")
-                    if session.recipe.crop != .original, let source = session.source {
+                    if let source = session.source {
                         let size = PhotoFraming.orientedSize(source.image.extent.size,recipe: session.recipe)
                         let window = PhotoFraming.window(in: size,recipe: session.recipe)
                         if size.width-window.width > 1 { adjustment("Horizontal framing",key: \.cropX,range: 0...1,defaultValue: 0.5) }
                         if size.height-window.height > 1 { adjustment("Vertical framing",key: \.cropY,range: 0...1,defaultValue: 0.5) }
                     }
-                    Text("Choose Free to resize width and height independently, then drag the photo to position it. Perspective straightens leaning buildings; some edges are trimmed. Straightening automatically trims the edges to avoid black corners. Tap any adjustment number for an exact value.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                    Text("Drag a corner to resize; drag inside to move the frame. Free lets you change width and height independently. This workspace shows the full image with global color; switch tools to review the final crop and local adjustments. Changing a crop requires recreating automatic selections and tracking. Double-tap a slider to reset it.").font(.caption).foregroundStyle(StudioStyle.secondary)
                 }
             }.padding(20).padding(.bottom,12)
         }.scrollIndicators(.hidden)
@@ -711,16 +739,6 @@ import UniformTypeIdentifiers
                 .accessibilityLabel(name)
                 .sliderReset { session.change { $0[keyPath:key] = defaultValue } }
         }
-    }
-    private func moveCrop(_ value: DragGesture.Value, previewSize: CGSize) {
-        guard let source = session.source else { return }
-        if cropDragStart == nil { cropDragStart = CGSize(width: session.recipe.cropX,height: session.recipe.cropY); session.begin() }
-        guard let initial = cropDragStart else { return }
-        let size = PhotoFraming.orientedSize(source.image.extent.size,recipe: session.recipe)
-        let window = PhotoFraming.window(in: size,recipe: session.recipe)
-        let scale = min(previewSize.width/window.width,previewSize.height/window.height)
-        if size.width-window.width > 1 { session.recipe.cropX = min(1,max(0,Double(initial.width-value.translation.width / scale / (size.width-window.width)))) }
-        if size.height-window.height > 1 { session.recipe.cropY = min(1,max(0,Double(initial.height-value.translation.height / scale / (size.height-window.height)))) }
     }
     private func runPreviewCheckIfRequested() async {
         #if DEBUG
