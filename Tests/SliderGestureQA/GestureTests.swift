@@ -108,6 +108,28 @@ final class GestureTests:XCTestCase {
         if !card.isHittable { app.scrollViews.firstMatch.swipeUp() };card.tap()
         XCTAssertTrue(app.buttons["Remove favorite"].exists)
     }
+    func testInstantSelectionAndHomeCopyPaste() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = ["--batch-demo"];app.launch()
+        XCTAssertTrue(app.staticTexts["Added 2 of 2."].waitForExistence(timeout:30))
+        let search = app.textFields["workspaceSearch"];search.tap();search.typeText("Studio batch QA");app.keyboards.buttons["Search"].tap();app.scrollViews.firstMatch.swipeUp()
+        app.buttons["Manage Studio batch QA 1"].tap();app.buttons["Copy adjustments"].tap()
+        XCTAssertTrue(app.buttons["copyHomeAdjustments"].waitForExistence(timeout:5));app.buttons["copyHomeAdjustments"].tap()
+        let other = app.buttons["Open Studio batch QA 2"]
+        other.press(forDuration:1);app.buttons["Copy adjustments"].tap()
+        XCTAssertTrue(app.navigationBars["Copy adjustments"].waitForExistence(timeout:5));app.navigationBars["Copy adjustments"].buttons["Done"].tap()
+        app.buttons["Manage Studio batch QA 2"].tap();app.buttons["doc.on.clipboard"].tap()
+        XCTAssertTrue(app.buttons["applyBatchPaste"].waitForExistence(timeout:5));app.buttons["applyBatchPaste"].tap()
+        XCTAssertTrue(app.staticTexts["Applied to 1 of 1."].waitForExistence(timeout:10));app.navigationBars["Paste adjustments"].buttons["Done"].tap()
+        app.scrollViews.firstMatch.swipeDown();app.buttons["Select"].tap();app.scrollViews.firstMatch.swipeUp()
+        let item = app.buttons["Select Studio batch QA 1"]
+        item.tap();XCTAssertEqual(item.value as? String,"Selected")
+        item.tap();XCTAssertNotEqual(item.value as? String,"Selected")
+        item.tap();app.buttons["Select Studio batch QA 2"].tap()
+        item.press(forDuration:1);app.buttons["Rate selected"].tap();app.buttons["5 stars"].tap()
+        app.buttons["Manage Studio batch QA 1"].tap();XCTAssertTrue(app.buttons["Export selected"].waitForExistence(timeout:5))
+        app.buttons["Export selected"].tap();XCTAssertTrue(app.buttons["createBatchExport"].waitForExistence(timeout:5))
+    }
     func testSelectedHoldActionsTrashPreviewAndBatchPaste() throws {
         let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments = ["--batch-demo","--batch-paste-demo"];app.launch()

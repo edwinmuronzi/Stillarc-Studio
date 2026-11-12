@@ -38,13 +38,15 @@ struct BatchPasteSheet:View {
                         Toggle(isOn:Binding(get:{ sections.contains(section) },set:{ if $0 { sections.insert(section) } else { sections.remove(section) } })) { VStack(alignment:.leading) { Text(section.title);Text(section.help).font(.caption).foregroundStyle(StudioStyle.secondary) } }
                     }
                 }.disabled(busy || finished)
-                Section {
-                    if busy { ProgressView();Button("Cancel remaining") { task?.cancel() } }
-                    else if !finished { Button("Apply to selected") { apply() }.disabled(sections.isEmpty).accessibilityIdentifier("applyBatchPaste") }
-                    if let status { Text(status).font(.caption) }
-                }
             }.navigationTitle("Paste adjustments").navigationBarTitleDisplayMode(.inline)
                 .toolbar { Button("Done") { dismiss() }.disabled(busy) }
+                .safeAreaInset(edge:.bottom) {
+                    VStack(spacing:10) {
+                        if busy { HStack { ProgressView();Button("Cancel remaining") { task?.cancel() } } }
+                        else if !finished { Button("Apply to selected") { apply() }.disabled(sections.isEmpty).buttonStyle(.borderedProminent).accessibilityIdentifier("applyBatchPaste") }
+                        if let status { Text(status).font(.caption).lineLimit(4) }
+                    }.frame(maxWidth:.infinity).padding(14).background(.regularMaterial)
+                }
         }.tint(StudioStyle.blue).interactiveDismissDisabled(busy)
         .onAppear { sections = Set(clipboard.sections) }
         .onChange(of:phase) { _,value in if value != .active { task?.cancel() } }

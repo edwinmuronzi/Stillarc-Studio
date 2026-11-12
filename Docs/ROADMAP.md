@@ -58,6 +58,8 @@ Implemented in 0.22: thumbnail hold previews with project actions, double-tap fa
 
 Implemented in 0.23: bin thumbnails/enlarged poster previews and days remaining; selection-aware hold actions; serial batch paste of chosen copied adjustment groups with per-project before versions.
 
+Implemented in 0.24: immediate selection taps, Home copy/paste with section choices, and selection-aware ellipsis actions including bulk ratings and unfavourite.
+
 Next: more robust tracking, changing-pose segmentation, healing and carefully bounded advanced noise reduction. Explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
 
 ## 5 — Video grading

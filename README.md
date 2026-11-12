@@ -2,7 +2,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.23 bin previews and selection workflow milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.24 instant selection and Home grading milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -210,3 +210,7 @@ Hold a project thumbnail to preview it and select, rate, favourite or delete it.
 Recently Deleted shows a thumbnail and the number of days before each project expires. Tap its thumbnail for a larger still preview (video projects show a poster frame). While selecting projects, hold a selected thumbnail for Favourite selected, Export selected, Paste adjustments and Delete selected.
 
 To apply one grade to several projects, first copy adjustments from the editor’s Looks menu. Select projects on Home and choose Paste adjustments. Choose which copied groups to apply; destination crop, input conversion, masks, trim, audio and HDR choice stay intact. Each changed project gets a **Before batch paste** version under Looks → Versions. Projects already holding 20 versions are skipped with an explanation; unchanged edits do not create a version. Work runs serially without decoding media; Cancel remaining or leaving the app stops before the next project. Completed pastes remain applied and can be restored through Versions.
+
+### Instant selection and Home grading (0.24)
+
+Selection mode handles a single tap immediately instead of waiting for a potential double-tap. Outside selection mode, double-tapping still marks a project as a favourite. Hold a project or open its ellipsis menu to **Copy adjustments**, choose the groups, then paste onto another project directly from Home or onto selected projects. Copying reads saved edit settings only; it does not open or decode the media. Copy and Apply stay visible in fixed bottom bars while choosing adjustment groups. Selected-project hold and ellipsis menus also support bulk ratings and removing favourites, alongside export, paste and recoverable deletion.
