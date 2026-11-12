@@ -26,6 +26,7 @@ struct Recipe: Codable, Equatable, Sendable {
     var grain = 0.0
     var bloom = 0.0
     var vignette = 0.0
+    var dehaze = 0.0
     var texture = 0.0
     var clarity = 0.0
     var sharpen = 0.0
@@ -41,7 +42,7 @@ struct Recipe: Codable, Equatable, Sendable {
     var look = FilmLook.original
     var lookAmount = 1.0
     init() {}
-    private enum CodingKeys: String, CodingKey { case masks, geometry, video, input, lut, lutAmount, colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, texture, clarity, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
+    private enum CodingKeys: String, CodingKey { case masks, geometry, video, input, lut, lutAmount, colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, dehaze, texture, clarity, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
     init(from decoder: Decoder) throws {
         self.init()
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -69,6 +70,7 @@ struct Recipe: Codable, Equatable, Sendable {
         grain = try values.decodeIfPresent(Double.self, forKey: .grain) ?? grain
         bloom = try values.decodeIfPresent(Double.self, forKey: .bloom) ?? bloom
         vignette = try values.decodeIfPresent(Double.self, forKey: .vignette) ?? vignette
+        dehaze = try values.decodeIfPresent(Double.self,forKey:.dehaze) ?? 0
         texture = try values.decodeIfPresent(Double.self,forKey:.texture) ?? 0
         clarity = try values.decodeIfPresent(Double.self,forKey:.clarity) ?? 0
         sharpen = try values.decodeIfPresent(Double.self, forKey: .sharpen) ?? sharpen
@@ -118,7 +120,7 @@ enum Tool: String, CaseIterable, Identifiable {
         case .color: "Balance the whole photo or refine individual color ranges."
         case .film: "Build a look with texture, soft light and a film-inspired finish."
         case .curves: "Shape brightness or individual red, green and blue tones."
-        case .detail: "Texture refines small details; Clarity adds or softens broader definition."
+        case .detail: "Texture shapes fine details, Clarity adds definition and Dehaze reduces a pale veil."
         case .masks:"Adjust a chosen area with a soft linear, radial, brush, color or luminance mask."
         case .crop: "Drag crop corners to resize; drag inside the frame to move it. Fixed ratios stay locked."
         }
@@ -153,7 +155,7 @@ struct PresetDocument: Codable {
 extension Recipe {
     func validated() -> Recipe {
         var copy = self
-        let signed: [WritableKeyPath<Recipe, Double>] = [\.texture, \.clarity, \.contrast, \.highlights, \.shadows, \.whites, \.blacks, \.warmth, \.tint, \.saturation, \.vibrance, \.curveShadows, \.curveMidtones, \.curveHighlights]
+        let signed: [WritableKeyPath<Recipe, Double>] = [\.dehaze, \.texture, \.clarity, \.contrast, \.highlights, \.shadows, \.whites, \.blacks, \.warmth, \.tint, \.saturation, \.vibrance, \.curveShadows, \.curveMidtones, \.curveHighlights]
         let positive: [WritableKeyPath<Recipe, Double>] = [\.fade, \.grain, \.bloom, \.vignette, \.sharpen, \.noise, \.lookAmount, \.lutAmount]
         for key in signed { copy[keyPath: key] = copy[keyPath: key].isFinite ? min(1, max(-1, copy[keyPath: key])) : 0 }
         for key in positive { copy[keyPath: key] = copy[keyPath: key].isFinite ? min(1, max(0, copy[keyPath: key])) : 0 }
@@ -179,7 +181,7 @@ extension Tool {
         case .color: [\.warmth, \.tint, \.saturation, \.vibrance]
         case .film: [\.grain, \.bloom, \.fade, \.vignette]
         case .curves: [\.curveShadows, \.curveMidtones, \.curveHighlights]
-        case .detail: [\.texture, \.clarity, \.sharpen, \.noise]
+        case .detail: [\.dehaze, \.texture, \.clarity, \.sharpen, \.noise]
         case .masks: []
         case .crop: [\.straighten]
         }

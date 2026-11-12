@@ -20,7 +20,9 @@ Implemented in 0.17: direct corner resizing, locked aspect ratios, free resizing
 
 Implemented in 0.18: background crop repair for automatic selections and their subject motion, delayed fitted crop preview, larger/collapsible editor previews, tap-to-reveal playback, and signed Texture/Clarity controls with resolution-scaled luminance processing.
 
-Next: lens corrections and dehaze with predictable processing order. Levels and freely placed extra curve points. Numeric inputs, accessible adjustable controls and iPad keyboard shortcuts. Validate RAW camera fixtures, wide-gamut/HDR interpretation and export matching before adding HDR photo output.
+Implemented in 0.19: a signed live Dehaze control before creative looks/LUTs, quicker crop settling with gentler easing, explicit playback opacity transitions and Reduce Motion support.
+
+Next: lens corrections. Levels and freely placed extra curve points. Numeric inputs, accessible adjustable controls and iPad keyboard shortcuts. Validate RAW camera fixtures, wide-gamut/HDR interpretation and export matching before adding HDR photo output.
 
 ## 3 — Reusable grades and film
 

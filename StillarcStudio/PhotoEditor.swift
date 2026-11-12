@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 @MainActor struct PhotoEditor: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var session: EditSession
     @Bindable var library: StudioLibrary
     @State private var scopesVisible = false
@@ -41,6 +42,7 @@ import UniformTypeIdentifiers
     @State private var cropFocused = false
     @State private var cropEditing = false
     @State private var cropResumeID = 0
+    @State private var cropAwaitingAdjustment = false
     @State private var controlsHidden = false
     @State private var automaticRefineExpanded = false
     @State private var zoom = 1.0
@@ -157,8 +159,8 @@ import UniformTypeIdentifiers
             #endif
         }
         .task(id:cropSettleKey) { await settleCropAndMasks() }
-        .onChange(of:MaskMotion.signature(session.recipe)) { _,_ in cropDisplayFinal = false;cropFocused = false }
-        .onChange(of:tool) { _,_ in cropDisplayFinal = false;cropFocused = false }
+        .onChange(of:MaskMotion.signature(session.recipe)) { _,_ in cropAwaitingAdjustment = false;cropDisplayFinal = false;cropFocused = false }
+        .onChange(of:tool) { _,_ in cropAwaitingAdjustment = false;cropDisplayFinal = false;cropFocused = false }
         .onChange(of:scopesActive) { _,value in scopeSampler.setEnabled(value) }
         .onDisappear { scopeSampler.setEnabled(false) }
         .onChange(of: session.recipe) { _, _ in if !diagnosticsRunning { session.scheduleSave(library) } }
@@ -212,7 +214,7 @@ import UniformTypeIdentifiers
         let settled = PreviewMetrics.shared.times.count
         try? await Task.sleep(for:.seconds(2))
         let idleRenders = PreviewMetrics.shared.times.count-settled
-        let result:[String:Any] = ["version":"0.18.0","fittedCropRenders":fittedRenders,"fittedAfterDelay":fitted,"passed":!interrupted && fitted && dragRenders == 0 && fittedRenders<=2 && idleRenders == 0 && PreviewMetrics.shared.failures == 0 && VideoPlayback.creationCount == players && maxDelay<0.25,"updates":180,"dragImageRenders":dragRenders,"idleImageRenders":idleRenders,"playersCreated":VideoPlayback.creationCount-players,"maxMainActorWakeSeconds":maxDelay,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
+        let result:[String:Any] = ["version":"0.19.0","fittedCropRenders":fittedRenders,"fittedAfterDelay":fitted,"passed":!interrupted && fitted && dragRenders == 0 && fittedRenders<=2 && idleRenders == 0 && PreviewMetrics.shared.failures == 0 && VideoPlayback.creationCount == players && maxDelay<0.25,"updates":180,"dragImageRenders":dragRenders,"idleImageRenders":idleRenders,"playersCreated":VideoPlayback.creationCount-players,"maxMainActorWakeSeconds":maxDelay,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
         let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("crop-ui-verification.json")
         if let data = try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted) { try? data.write(to:url,options:.atomic) }
     }
@@ -296,13 +298,13 @@ import UniformTypeIdentifiers
         if let data = try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted) { try? data.write(to:url,options:.atomic) }
     }
     #endif
-    private var cropSettleKey:String { "\(MaskMotion.signature(session.recipe))|\(session.recipe.video.start)|\(tool.rawValue)|\(cropEditing)|\(cropResumeID)|\(phase)|\(export)|\(session.source != nil)" }
+    private var cropSettleKey:String { "\(MaskMotion.signature(session.recipe))|\(session.recipe.video.start)|\(tool.rawValue)|\(cropEditing)|\(cropAwaitingAdjustment)|\(cropResumeID)|\(phase)|\(export)|\(session.source != nil)" }
     private func settleCropAndMasks() async {
-        guard !cropEditing,phase == .active,!export,let url = session.sourceURL,let prepared = session.source else { return }
+        guard !cropEditing,!cropAwaitingAdjustment,phase == .active,!export,let url = session.sourceURL,let prepared = session.source else { return }
         do {
-            try await Task.sleep(for:.seconds(2))
+            try await Task.sleep(for:.milliseconds(700))
             try Task.checkCancellation()
-            if tool == .crop { withAnimation(.easeInOut(duration:0.28)) { cropFocused = true } }
+            if tool == .crop { withAnimation(reduceMotion ? nil : .timingCurve(0.2,0.8,0.2,1,duration:0.4)) { cropFocused = true } }
             let snapshot = session.recipe
             if snapshot.masks.contains(where:{ $0.kind.isAutomatic && $0.automatic?.matches(snapshot) == false }) {
                 let video = session.project.video
@@ -311,10 +313,10 @@ import UniformTypeIdentifiers
                 guard !Task.isCancelled,MaskMotion.signature(session.recipe) == MaskMotion.signature(snapshot),session.recipe.video.start == snapshot.video.start,session.recipe.masks == snapshot.masks else { return }
                 session.recipe.masks = repaired.masks
             }
-            if tool == .crop && cropFocused { try await Task.sleep(for:.milliseconds(320));cropDisplayFinal = true }
+            if tool == .crop && cropFocused { try await Task.sleep(for:.milliseconds(reduceMotion ? 0 : 440));cropDisplayFinal = true }
         } catch is CancellationError {} catch { /* Export retries repair and provides an actionable error if needed. */ }
     }
-    private func resumeCrop() { cropDisplayFinal = false;withAnimation(.easeInOut(duration:0.25)) { cropFocused = false };cropResumeID += 1 }
+    private func resumeCrop() { cropAwaitingAdjustment = true;cropDisplayFinal = false;withAnimation(reduceMotion ? nil : .easeOut(duration:0.3)) { cropFocused = false };cropResumeID += 1 }
     private var header: some View {
         HStack(spacing: 8) {
             Button { Task { await session.persist(library); dismiss() } } label: { Image(systemName: "chevron.left").frame(width: 44,height: 44) }.accessibilityLabel("Back to workspace")
@@ -367,7 +369,7 @@ import UniformTypeIdentifiers
                     SplitComparisonDivider(sourceSize:source.image.extent.size,recipe:session.recipe,fraction:$splitPosition)
                 }
                 if tool == .crop && zoom == 1 && pinch == 1, let source = session.source {
-                    CropHandlesOverlay(session:session,sourceSize:source.image.extent.size,editingChanged:{ cropEditing = $0 }).opacity(cropFocused ? 0 : 1).allowsHitTesting(!cropFocused)
+                    CropHandlesOverlay(session:session,sourceSize:source.image.extent.size,editingChanged:{ cropEditing = $0;if $0 { cropAwaitingAdjustment = false } }).opacity(cropFocused ? 0 : 1).allowsHitTesting(!cropFocused)
                 }
                 if focusing {
                     let visible = CGRect(x:(geometry.size.width-frame.width*focusScale)/2,y:(geometry.size.height-frame.height*focusScale)/2,width:frame.width*focusScale,height:frame.height*focusScale)
@@ -482,6 +484,8 @@ import UniformTypeIdentifiers
                 case .detail:
                     adjustment("Texture",key:\.texture)
                     adjustment("Clarity",key:\.clarity)
+                    adjustment("Dehaze",key:\.dehaze)
+                    Text("Dehaze reduces a pale, washed-out veil. Move left to add a soft haze instead. It cannot recover details that were never recorded.").font(.caption).foregroundStyle(StudioStyle.secondary)
                     Text("Move right for more definition; left for a softer image. Texture works on finer detail, while Clarity shapes broader contrast. Neither changes the original.").font(.caption).foregroundStyle(StudioStyle.secondary)
                     adjustment("Sharpen",key: \.sharpen,range: 0...1)
                     adjustment("Noise reduction",key: \.noise,range: 0...1)
@@ -514,7 +518,7 @@ import UniformTypeIdentifiers
                         if size.width-window.width > 1 { adjustment("Horizontal framing",key: \.cropX,range: 0...1,defaultValue: 0.5) }
                         if size.height-window.height > 1 { adjustment("Vertical framing",key: \.cropY,range: 0...1,defaultValue: 0.5) }
                     }
-                    Text("Drag a corner to resize; drag inside to move the frame. Free lets you change width and height independently. This workspace shows the full image with global color; switch tools to review the final crop and local adjustments. Saved automatic selections follow crop changes. After two seconds, the crop fills the preview; tap Adjust crop to keep framing. Double-tap a slider to reset it.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                    Text("Drag a corner to resize; drag inside to move the frame. Free lets you change width and height independently. This workspace shows the full image with global color; switch tools to review the final crop and local adjustments. Saved automatic selections follow crop changes. After a short pause, the crop smoothly fills the preview; tap Adjust crop to keep framing. Double-tap a slider to reset it.").font(.caption).foregroundStyle(StudioStyle.secondary)
                 }
             }.padding(20).padding(.bottom,12)
         }.scrollIndicators(.hidden).accessibilityIdentifier("editorAdjustments")
@@ -827,7 +831,7 @@ import UniformTypeIdentifiers
         let start = ProcessInfo.processInfo.thermalState.rawValue
         let began = CACurrentMediaTime()
         session.recipe.lut = try? await Task.detached(priority:.userInitiated) { try LUTVerification.example(dimension:65) }.value
-        session.recipe.texture = 0.4;session.recipe.clarity = 0.3
+        session.recipe.dehaze = 0.25;session.recipe.texture = 0.4;session.recipe.clarity = 0.3
         session.recipe.look = .daylight; session.recipe.grain = 0.15; session.recipe.bloom = 0.1
         session.recipe.straighten = 3; session.recipe.crop = .portrait
         let steps = ProcessInfo.processInfo.arguments.contains("--sustained-preview") ? 7200 : 180
@@ -836,6 +840,7 @@ import UniformTypeIdentifiers
             if Task.isCancelled || UIApplication.shared.applicationState != .active { interrupted = true; break }
             if index % 120 == 0 { writeProgress(["stage":"running","step":index,"rendered":PreviewMetrics.shared.times.count,"active":UIApplication.shared.applicationState == .active]) }
             session.recipe.lutAmount = 0.5 + sin(Double(index)*0.1)*0.5
+            session.recipe.dehaze = sin(Double(index)*0.05)*0.4
             session.recipe.texture = sin(Double(index)*0.08)*0.6;session.recipe.clarity = cos(Double(index)*0.06)*0.4
             session.recipe.exposure = sin(Double(index) * 0.13)
             session.recipe.warmth = cos(Double(index) * 0.11) * 0.4

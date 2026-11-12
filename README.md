@@ -153,13 +153,13 @@ Per-frame/deforming video segmentation, deformation/scale/rotation tracking, hea
 
 In **Crop**, drag any corner to resize and drag inside the frame to move it. Original and fixed ratios keep their proportions; **Free** changes width and height independently. The dimmed area shows what will be removed. One drag is one undo step. The Frame size and framing sliders offer exact control and double-tap resets. Photo and video exports use the same framing, at the remaining source resolution.
 
-While dragging, the full image keeps its global color adjustments. After two seconds without changes, the crop smoothly fills the preview and shows its local adjustments too. Tap **Adjust crop** to resume framing. Automatic Subject/Sky selections follow crop changes, including crops saved by 0.17; their original selection is retained so expanding the crop restores it. Export also repairs selections immediately if you do not wait for the preview. Crop movement updates only the lightweight guide, without re-grading the full image at every touch.
+While dragging, the full image keeps its global color adjustments. After a 0.7-second pause without changes, the crop smoothly fills the preview and shows its local adjustments too. Tap **Adjust crop** to resume framing. Automatic Subject/Sky selections follow crop changes, including crops saved by 0.17; their original selection is retained so expanding the crop restores it. Export also repairs selections immediately if you do not wait for the preview. Crop movement updates only the lightweight guide, without re-grading the full image at every touch.
 
 ![Direct crop handles](Docs/Screenshots/CropHandles.png)
 
 ### Larger previews, Texture & Clarity (0.18)
 
-The editor gives photos and videos more space across all tools. **Expand preview** hides the adjustment panel; **Show adjustments** brings it back. On video, tap the image to reveal playback and trimming controls; they hide after three seconds unless you are scrubbing. The original media and export resolution are unchanged.
+The editor gives photos and videos more space across all tools. **Expand preview** hides the adjustment panel; **Show adjustments** brings it back. On video, tap the image to reveal playback and trimming controls; they gently fade out after three seconds unless you are scrubbing. The original media and export resolution are unchanged.
 
 In **Detail**, **Texture** changes small surface details, while **Clarity** changes broader definition. Move either right for more definition or left for a softer result. Both sliders work live, support double-tap reset, undo, saved looks, complete versions and adjustment copy/paste. These are detail-contrast tools, not AI upscaling or lens-profile correction.
 
@@ -168,3 +168,13 @@ Cropping repositions saved automatic selections on a background worker without a
 ![Expanded crop preview](Docs/Screenshots/ExpandedCropPreview.png)
 
 [Playback-control visibility test screenshot](Docs/Screenshots/VideoPlaybackOnTap.png)
+
+### Dehaze and refined motion (0.19)
+
+In **Detail → Dehaze**, move right to reduce a pale, washed-out veil and give bright tones more separation. Move left to add a soft atmospheric haze. This is a manual correction; it does not reconstruct hidden details or automatically identify fog. It works live on photos and video, with double-tap reset, undo, saved looks, complete versions and Detail copy/paste. The same correction reaches full-resolution exports.
+
+The crop fit now starts after **0.7 seconds** and eases into place over **0.4 seconds** without bouncing. **Adjust crop** keeps the handles open until you make another adjustment. Playback controls use a **0.28-second opacity fade** in place, preserving the video’s framing. Reduce Motion disables the crop zoom and shortens the playback fade.
+
+Dehaze uses one GPU color operation before creative looks/LUTs. It bypasses completely at zero, needs no additional blur, image readback, AI analysis or background processing loop, and retains HDR highlight headroom. Lens-profile correction is still planned separately.
+
+![Live Dehaze control](Docs/Screenshots/Dehaze.png)

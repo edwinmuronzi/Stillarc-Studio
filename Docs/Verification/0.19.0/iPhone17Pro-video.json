@@ -1,0 +1,89 @@
+{
+  "encodedCombinedBrushRangeMask" : true,
+  "trimHDR" : {
+    "passed" : true,
+    "trimFrames" : 33,
+    "headroomVectors" : 5,
+    "zeroBasedTiming" : true,
+    "persistence" : true,
+    "trimSeconds" : 1.1000000000000001,
+    "presetIsolation" : true,
+    "audioTracks" : 2
+  },
+  "dehazeVideoExport" : true,
+  "passed" : true,
+  "clips" : [
+    {
+      "profile" : "standard",
+      "width" : 640,
+      "color" : true,
+      "originalPreserved" : true,
+      "frames" : 18,
+      "height" : 360,
+      "metadata" : true,
+      "audioTracks" : 2,
+      "cancellation" : true,
+      "projectRoundTrip" : true
+    },
+    {
+      "profile" : "appleLog",
+      "originalPreserved" : true,
+      "frames" : 18,
+      "width" : 360,
+      "cancellation" : true,
+      "color" : true,
+      "projectRoundTrip" : true,
+      "metadata" : true,
+      "height" : 640,
+      "audioTracks" : 1
+    },
+    {
+      "projectRoundTrip" : true,
+      "cancellation" : true,
+      "audioTracks" : 1,
+      "originalPreserved" : true,
+      "profile" : "appleLog2",
+      "frames" : 18,
+      "metadata" : true,
+      "width" : 640,
+      "height" : 360,
+      "color" : true
+    },
+    {
+      "cornerResized4KLog" : true,
+      "height" : 1860,
+      "frames" : 3,
+      "width" : 1860
+    }
+  ],
+  "encodedAutomaticCropRepair" : true,
+  "boundedTrackingDecode" : true,
+  "version" : "0.19.0",
+  "maskTracking" : {
+    "pointCounts" : [
+      30,
+      30
+    ],
+    "encodedTracking" : true,
+    "movingTargetErrors" : [
+      0.0051411703706012168,
+      0.0033422505339212594
+    ],
+    "portraitLandscape" : true,
+    "cancellation" : true,
+    "passed" : true,
+    "exportFramesPerClip" : 60
+  },
+  "encodedAutomaticMask" : true,
+  "encodedColorLuminanceMasks" : true,
+  "photoInput" : {
+    "highlightShoulder" : true,
+    "bothGamuts" : true,
+    "curveVectors" : 16,
+    "standardBypass" : true,
+    "exposureAlpha" : true,
+    "passed" : true,
+    "persistence" : true,
+    "presetInputIsolation" : true
+  }
+}

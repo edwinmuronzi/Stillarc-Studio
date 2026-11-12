@@ -77,10 +77,20 @@ enum VideoVerification {
             let output = try await VideoEngine.poster(result.url,descriptor:converted,maxDimension:450)
             let actual = mean(output.image)
             try require((0..<3).allSatisfy { abs(actual[$0]-expected[$0])<0.025 },"Preview/export color mismatch: \(profile.rawValue) expected=\(expected) actual=\(actual)")
+            var hazed = recipe;hazed.dehaze = 0.8
+            let expectedDehaze = mean(ImageEngine.apply(prepared.source(for:hazed),recipe:hazed))
+            let dehazed = try await VideoEngine.export(source:url,descriptor:descriptor,recipe:hazed,tenBit:tenBit,progress:{ _ in })
+            defer { try? FileManager.default.removeItem(at:dehazed.url) }
+            let dehazeDescriptor = try await VideoEngine.describe(dehazed.url),dehazePoster = try await VideoEngine.poster(dehazed.url,descriptor:dehazeDescriptor,maxDimension:450)
+            let actualDehaze = mean(dehazePoster.image)
+            try require((0..<3).allSatisfy { abs(actualDehaze[$0]-expectedDehaze[$0])<0.025 },"Dehaze encoded video differs from preview")
+            try require((0..<3).contains { abs(expectedDehaze[$0]-expected[$0])>0.008 },"Dehaze did not change video reference")
             let originalTimes = try await frameTimes(url),exportedTimes = try await frameTimes(result.url)
+            try require(try await frameTimes(dehazed.url).count == originalTimes.count,"Dehaze export dropped frames")
             try require(originalTimes.count == exportedTimes.count && !originalTimes.isEmpty,"Video export dropped frames")
             try require(zip(originalTimes,exportedTimes).allSatisfy { abs($0-$1)<0.002 },"Video export changed source frame timing")
             let originalAudio = try await audioHashes(url),exportedAudio = try await audioHashes(result.url)
+            try require(try await audioHashes(dehazed.url) == originalAudio,"Dehaze export changed audio")
             try require(originalAudio == exportedAudio,"Video export changed or dropped audio")
             try require(abs(converted.duration-descriptor.duration)<0.05,"Video duration/audio sync changed")
             try require(try Data(contentsOf:url) == before,"Video original was modified")
@@ -168,7 +178,7 @@ enum VideoVerification {
         try require(try await frameTimes(scaledResult.url).count == 3,"Corner-resized export dropped frames")
         checks.append(["cornerResized4KLog":true,"width":scaledResult.width,"height":scaledResult.height,"frames":3])
         #endif
-        return ["maskTracking":try await TrackingVerification.video(),"passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","clips":checks,"photoInput":try LogVerification.run(),"boundedTrackingDecode":true,"encodedAutomaticCropRepair":true,"encodedAutomaticMask":true,"encodedCombinedBrushRangeMask":true,"encodedColorLuminanceMasks":true,"trimHDR":try await HDRTrimVerification.run()]
+        return ["maskTracking":try await TrackingVerification.video(),"passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","clips":checks,"photoInput":try LogVerification.run(),"boundedTrackingDecode":true,"dehazeVideoExport":true,"encodedAutomaticCropRepair":true,"encodedAutomaticMask":true,"encodedCombinedBrushRangeMask":true,"encodedColorLuminanceMasks":true,"trimHDR":try await HDRTrimVerification.run()]
     }
     @MainActor static func writeReport() async {
         let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("video-verification.json")

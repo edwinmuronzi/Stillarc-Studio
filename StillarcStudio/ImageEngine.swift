@@ -37,6 +37,7 @@ enum ImageEngine {
         return CIContext(options: [.workingColorSpace: working, .cacheIntermediates: false, .priorityRequestLow: true])
     }
     static func open(_ url: URL, maxDimension: Double? = nil) throws -> PreparedPhoto {
+        try DehazeRendering.prepare()
         try DetailRendering.prepare()
         try ColorPipeline.prepare()
         try LogConversion.prepare()
@@ -100,6 +101,7 @@ enum ImageEngine {
         image = ColorPipeline.applyCurves(image,curves:r.rgbCurves)
         image = ColorPipeline.applySelective(image,adjustments:r.selectiveColors,wheels:r.colorWheels,mixer:r.channelMixer,previewRange:rangePreview)
         if rangePreview != nil { return PhotoFraming.apply(image,recipe:r) }
+        image = DehazeRendering.apply(image,amount:r.dehaze)
         if r.look != .original && r.lookAmount > 0 {
             let base = image
             switch r.look {

@@ -45,6 +45,12 @@ final class GestureTests:XCTestCase {
         texture.adjust(toNormalizedSliderPosition:0.8);XCTAssertNotEqual(texture.value as? String,"0")
         texture.doubleTap();XCTAssertEqual(texture.value as? String,"0")
         XCTAssertTrue(app.sliders["Clarity"].exists)
+        let dehaze = app.sliders["Dehaze"]
+        dehaze.doubleTap() // Native accessibility scrolls the complete slider into view.
+        XCTAssertTrue(dehaze.isHittable);dehaze.adjust(toNormalizedSliderPosition:0.75)
+        XCTAssertNotEqual(dehaze.value as? String,"0")
+        let screenshot = XCTAttachment(screenshot:app.screenshot());screenshot.name = "Live Dehaze detail control";screenshot.lifetime = .keepAlways;add(screenshot)
+        dehaze.doubleTap();XCTAssertEqual(dehaze.value as? String,"0")
     }
     func testVideoPlaybackControlsAppearAndHide() throws {
         let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
