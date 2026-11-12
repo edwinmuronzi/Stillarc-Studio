@@ -37,11 +37,10 @@ enum StudioStyle {
 @MainActor struct StudioMark: View {
     var size: CGFloat = 38
     var body: some View {
-        ZStack {
-            Circle().trim(from: 0.04, to: 0.46).stroke(StudioStyle.blue, style: StrokeStyle(lineWidth: size * 0.07,lineCap: .round)).rotationEffect(.degrees(-90))
-            Circle().trim(from: 0.54, to: 0.96).stroke(StudioStyle.blue, style: StrokeStyle(lineWidth: size * 0.07,lineCap: .round)).rotationEffect(.degrees(-90))
-            Text("S").font(.system(size: size * 0.65, weight: .medium, design: .serif)).foregroundStyle(.white)
-        }.frame(width: size, height: size).accessibilityHidden(true)
+        Image("StudioBrand").resizable().scaledToFit()
+            .frame(width:size,height:size)
+            .clipShape(RoundedRectangle(cornerRadius:size*0.21,style:.continuous))
+            .accessibilityHidden(true)
     }
 }
 @MainActor struct StudioHome: View {
@@ -483,7 +482,7 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Photo development · 0.31.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Photo development · 0.31.2").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
                     Text("Select projects on Home and choose Edit together. Swipe between items or use the filmstrip; edits stay individual until you choose Sync edits. Sync selected sections to selected items or the entire pool, with recoverable before versions. Resume the pool later. In Masks → Add mask, Subject & Background creates two independent regions from one on-device analysis.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Remove a photo background, then choose Replace background for a solid color, your own image, or a blurred version of the scene. Position, resize and soften it separately from your subject. Transparent backgrounds export as PNG; opaque replacements can use JPEG, PNG or HDR HEIF. Check hair and translucent edges with the saved mask controls. Duplicate a mask for another adjustment, invert it to edit the other side, or use the extra local light, tint, clarity and blur controls.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Detail → Photo development gives supported RAW files their own white balance, exposure, rendering boost, decoder noise controls and supported camera lens/highlight-recovery switches. Manual optics controls reduce color fringing. In Detail's menu, Heal repairs small spots by matching a clean patch; Clone copies it directly. Inspect detail loads a full-resolution tile on demand. HDR development keeps available bright detail; SDR proof previews the JPEG/PNG tone mapping. Choose HDR HEIF for a 10-bit HLG still on compatible screens. From an editing pool, Export pool items lets you deliver everything or select individual items.").font(.subheadline).foregroundStyle(StudioStyle.secondary)

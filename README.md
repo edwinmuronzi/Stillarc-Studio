@@ -306,3 +306,6 @@ History holds up to 40 actions while the pool stays open. Closing/reopening the 
 - **Light/dark app icons:** matching blue arc/S artwork follows the Home Screen icon appearance (dark appearance on iOS 18+). Earlier iOS uses the default light artwork. The editing interface keeps its black-and-blue theme.
 
 All new photo settings, replacement assets and repairs remain source-specific, reversible and saved with project versions. Reusable color presets and pool color sync do not copy another image's replacement, RAW decode, HDR choice or repairs. Face/skin segmentation and advanced denoise are still deferred pending quality/energy validation; no timeline app or external beta/App Store preparation is included.
+
+
+Studio 0.31.2 uses the approved flat arc-S before/after identity in both Home Screen icon appearances and the in-app workspace/About mark. [Identity masters and regeneration instructions](Design/Icons/README.md).
