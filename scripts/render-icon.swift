@@ -14,7 +14,7 @@ let blue=color(0.18,0.49,1),cyan=color(0.38,0.76,1,0.75)
 c.drawLinearGradient(CGGradient(colorsSpace:space,colors:[bottom,top] as CFArray,locations:[0,1])!,start:CGPoint(x:512,y:0),end:CGPoint(x:512,y:1024),options:[])
 c.setStrokeColor(dark ? color(1,1,1,0.14):color(0.18,0.49,1,0.2));c.setLineWidth(2);c.strokeEllipse(in:CGRect(x:163,y:163,width:698,height:698))
 c.setLineCap(.round);c.setLineJoin(.round)
-for (a,b) in [(18.0,157.0),(198.0,337.0)] {
+for (a,b) in [(108.0,252.0),(288.0,432.0)] {
     c.saveGState();c.setShadow(offset:.zero,blur:24,color:color(0.18,0.49,1,dark ? 0.3:0.15));c.setLineWidth(43);c.setStrokeColor(blue)
     c.addArc(center:CGPoint(x:512,y:512),radius:332,startAngle:a * .pi/180,endAngle:b * .pi/180,clockwise:false);c.strokePath();c.restoreGState()
     c.setLineWidth(4);c.setStrokeColor(cyan);c.addArc(center:CGPoint(x:512,y:512),radius:344,startAngle:(a+3) * .pi/180,endAngle:(b-3) * .pi/180,clockwise:false);c.strokePath()
