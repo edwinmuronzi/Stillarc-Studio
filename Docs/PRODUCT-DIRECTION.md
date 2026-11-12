@@ -49,3 +49,7 @@ The editing pool comes first, then paired subject/background controls. This dire
 
 
 0.32 begins batch 4 with persistent private reference-image comparison, edited project snapshots, a bounded request-only statistical shot-match suggestion, reversible strength and portable matching corrections, plus an SDR vectorscope skin-hue guide. It is not semantic/object-aware matching or a universal skin-color target. Clearer color-warp controls, additional validated camera transforms, grade/mask keyframes and output/interchange work remain future checkpoints. Empty Bin is also added with snapshot confirmation and restore-aware deletion.
+
+
+### 0.33 checkpoint
+Color Warp adds up to four soft hue/richness controls in the fused GPU color pass, reversible direct-map and slider controls, Color-group sync, schema-5 presets and color-LUT export. Single/pool photo/video delivery adds remembered longest-edge size limits and compression choices, with full-source grading, alpha/HDR preservation and no upscaling. Video color-map editing uses the first kept frame; review playback in the editor. Advanced camera transforms, grade keyframes, portable project packages and an export queue remain later scope. No external beta/store preparation or timeline companion is included.

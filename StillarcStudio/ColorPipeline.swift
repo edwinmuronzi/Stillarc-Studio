@@ -68,8 +68,9 @@ enum ColorPipeline {
     static var backend: String { kernel.backend }
     static var compilationNote: String { kernel.compilationNote }
     static var available: Bool { kernel.value != nil }
-    static func applySelective(_ image: CIImage, adjustments: SelectiveColors, wheels: ColorWheels = ColorWheels(), mixer: ChannelMixer = ChannelMixer(), previewRange: ColorRange? = nil) -> CIImage {
-        guard !adjustments.isNeutral || !wheels.isNeutral || !mixer.isNeutral || previewRange != nil, let kernel = kernel.value else { return image }
+    static func applySelective(_ image: CIImage, adjustments: SelectiveColors, wheels: ColorWheels = ColorWheels(), mixer: ChannelMixer = ChannelMixer(), warp:ColorWarp? = nil, previewRange: ColorRange? = nil) -> CIImage {
+        let warp=(warp ?? ColorWarp()).validated()
+        guard !warp.isNeutral || !adjustments.isNeutral || !wheels.isNeutral || !mixer.isNeutral || previewRange != nil, let kernel = kernel.value else { return image }
         let vectors = ColorRange.allCases.map { band -> CIVector in
             let a = adjustments[keyPath:band.key]
             return CIVector(x:a.hue/60,y:a.saturation,z:a.brightness)
@@ -87,6 +88,12 @@ enum ColorPipeline {
         arguments += [CIVector(x:wheels.balance,y:wheels.blend)]
         arguments += rows.map { $0 as Any }
         arguments += [CIVector(x:wheels.isNeutral ? 0 : 1,y:mixer.isNeutral ? 0 : 1,z:mixer.monochrome ? 1 : 0,w:wheels.preserveBrightness ? 1 : 0), adjustments.isNeutral ? 0.0 : 1.0]
+        for i in 0..<4 {
+            let p=i<warp.points.count ? warp.points[i] : ColorWarpPoint()
+            let on=i<warp.points.count && !p.isNeutral
+            arguments += [CIVector(x:p.hue/60,y:p.saturation,z:on ? p.hueShift/60*warp.amount:0,w:on ? p.saturationShift*warp.amount:0),CIVector(x:p.hueWidth/60,y:p.saturationWidth)]
+        }
+        arguments += [warp.isNeutral ? 0.0:1.0]
         return kernel.apply(extent:image.extent,arguments:arguments) ?? image
     }
     // First compile happens on the import/decode worker, not during the first slider gesture.

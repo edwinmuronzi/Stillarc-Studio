@@ -1,0 +1,91 @@
+{
+  "version" : "0.33.0",
+  "photoInput" : {
+    "presetInputIsolation" : true,
+    "passed" : true,
+    "exposureAlpha" : true,
+    "bothGamuts" : true,
+    "curveVectors" : 32,
+    "standardBypass" : true,
+    "highlightShoulder" : true,
+    "persistence" : true
+  },
+  "encodedColorLuminanceMasks" : true,
+  "maskTracking" : {
+    "portraitLandscape" : true,
+    "cancellation" : true,
+    "movingTargetErrors" : [
+      0.0051411703706012168,
+      0.0033422505339212594
+    ],
+    "exportFramesPerClip" : 60,
+    "pointCounts" : [
+      30,
+      30
+    ],
+    "encodedTracking" : true,
+    "passed" : true
+  },
+  "dehazeVideoExport" : true,
+  "encodedAutomaticCropRepair" : true,
+  "encodedAutomaticMask" : true,
+  "passed" : true,
+  "clips" : [
+    {
+      "width" : 640,
+      "profile" : "standard",
+      "frames" : 18,
+      "audioTracks" : 2,
+      "metadata" : true,
+      "height" : 360,
+      "color" : true,
+      "originalPreserved" : true,
+      "projectRoundTrip" : true,
+      "cancellation" : true
+    },
+    {
+      "frames" : 18,
+      "cancellation" : true,
+      "metadata" : true,
+      "audioTracks" : 1,
+      "height" : 640,
+      "width" : 360,
+      "color" : true,
+      "profile" : "appleLog",
+      "projectRoundTrip" : true,
+      "originalPreserved" : true
+    },
+    {
+      "projectRoundTrip" : true,
+      "profile" : "appleLog2",
+      "cancellation" : true,
+      "audioTracks" : 1,
+      "metadata" : true,
+      "width" : 640,
+      "originalPreserved" : true,
+      "color" : true,
+      "frames" : 18,
+      "height" : 360
+    },
+    {
+      "frames" : 3,
+      "height" : 1860,
+      "cornerResized4KLog" : true,
+      "width" : 1860
+    }
+  ],
+  "levelsVideoExport" : true,
+  "trimHDR" : {
+    "passed" : true,
+    "trimFrames" : 33,
+    "persistence" : true,
+    "presetIsolation" : true,
+    "trimSeconds" : 1.1000000000000001,
+    "audioTracks" : 2,
+    "headroomVectors" : 5,
+    "HDRToSDRPreviewClamp" : true,
+    "zeroBasedTiming" : true
+  },
+  "boundedTrackingDecode" : true,
+  "encodedCombinedBrushRangeMask" : true
+}

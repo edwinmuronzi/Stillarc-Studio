@@ -1,0 +1,21 @@
+{
+  "validationAndPersistence" : true,
+  "warpCenterAndReach" : true,
+  "LUTExport" : true,
+  "transparentPNG" : true,
+  "grayAndHueSeam" : true,
+  "passed" : true,
+  "presetSchema5AndTransfer" : true,
+  "version" : "0.33.0",
+  "photoFormats" : 3,
+  "strengthAndAlpha" : true,
+  "video" : {
+    "audioTracks" : 1,
+    "width" : 1280,
+    "height" : 720,
+    "duration" : 0.16666666666666666
+  },
+  "thermal" : 0,
+  "sourcePreserved" : true,
+  "poolDelivery" : true
+}

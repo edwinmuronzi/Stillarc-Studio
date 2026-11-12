@@ -1,5 +1,45 @@
 import XCTest
 final class GestureTests:XCTestCase {
+    func testColorWarpResetUndoAndPersistence() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--demo-editor","--neutral-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Looks"].waitForExistence(timeout:30));app.buttons["Looks"].tap();app.buttons["Color Warp"].tap()
+        XCTAssertTrue(app.buttons["addWarpPoint"].waitForExistence(timeout:10));app.buttons["addWarpPoint"].tap()
+        let scroll=app.scrollViews.firstMatch
+        scroll.swipeUp()
+        let hue=app.sliders["Hue move"];XCTAssertTrue(hue.waitForExistence(timeout:10));hue.adjust(toNormalizedSliderPosition:0.7)
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Color Warp live controls";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Done"].tap();app.buttons["Undo"].tap();app.buttons["Redo"].tap()
+        app.buttons["Back to workspace"].tap();app.terminate();app.launchArguments=["--demo-editor"];app.launch()
+        XCTAssertTrue(app.buttons["Looks"].waitForExistence(timeout:30));app.buttons["Looks"].tap();app.buttons["Color Warp"].tap()
+        app.scrollViews.firstMatch.swipeUp();XCTAssertTrue(app.sliders["Hue move"].waitForExistence(timeout:10));XCTAssertNotEqual(app.sliders["Hue move"].value as? String,"50%")
+        app.sliders["Hue move"].doubleTap();app.buttons["Done"].tap()
+    }
+    func testColorWarpMapAndPointLimit() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--demo-editor","--neutral-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Looks"].waitForExistence(timeout:30));app.buttons["Looks"].tap();app.buttons["Color Warp"].tap()
+        let addPoint=app.buttons["addWarpPoint"];XCTAssertTrue(addPoint.waitForExistence(timeout:10));for _ in 0..<4 {addPoint.tap()};XCTAssertFalse(addPoint.isEnabled)
+        let edit=app.descendants(matching:.any).matching(identifier:"editWarpMap").firstMatch;XCTAssertTrue(edit.waitForExistence(timeout:10));edit.tap()
+        let map=app.otherElements["warpMap"];XCTAssertTrue(map.waitForExistence(timeout:10))
+        map.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.4)).press(forDuration:0.1,thenDragTo:map.coordinate(withNormalizedOffset:CGVector(dx:0.58,dy:0.3)))
+        edit.tap();app.scrollViews.firstMatch.swipeUp()
+        XCTAssertTrue(app.sliders["Hue move"].waitForExistence(timeout:10));XCTAssertNotEqual(app.sliders["Hue move"].value as? String,"50%")
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Color Warp map and four point limit";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Done"].tap()
+    }
+    func testDeliverySizeQualityAndRetry() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--demo-editor","--neutral-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Export photo"].waitForExistence(timeout:30));app.buttons["Export photo"].tap()
+        let scroll=app.scrollViews.firstMatch;scroll.swipeUp()
+        let size=app.buttons["deliverySize"];XCTAssertTrue(size.waitForExistence(timeout:10));size.tap();app.buttons["1280 px"].tap()
+        app.buttons["deliveryQuality"].tap();app.buttons["Balanced"].tap()
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Export size and quality";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Create export"].tap();XCTAssertTrue(app.buttons["Change export options"].waitForExistence(timeout:30));app.buttons["Change export options"].tap()
+        scroll.swipeDown();app.buttons["deliverySize"].tap();app.buttons["Original"].tap();app.buttons["deliveryQuality"].tap();app.buttons["Maximum"].tap()
+        app.buttons["Done"].tap()
+    }
     func testReferenceMatchStrengthUndoAndPersistence() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments=["--demo-editor","--reference-demo"];app.launch()

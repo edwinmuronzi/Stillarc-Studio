@@ -24,7 +24,7 @@ extension Recipe {
             switch section {
             case .light: for key in Tool.light.valueKeys { result[keyPath:key] = source[keyPath:key] }
             case .whiteBalance: result.warmth = source.warmth;result.tint = source.tint
-            case .color: result.matchGrade=source.matchGrade;result.saturation = source.saturation;result.vibrance = source.vibrance;result.selectiveColors = source.selectiveColors
+            case .color: result.colorWarp=source.colorWarp;result.matchGrade=source.matchGrade;result.saturation = source.saturation;result.vibrance = source.vibrance;result.selectiveColors = source.selectiveColors
             case .curves: result.rgbCurves = source.rgbCurves;for key in Tool.curves.valueKeys { result[keyPath:key] = source[keyPath:key] }
             case .wheels: result.colorWheels = source.colorWheels
             case .mixer: result.channelMixer = source.channelMixer

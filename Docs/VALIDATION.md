@@ -1,3 +1,7 @@
+## 0.33.0, build 37 — Color Warp and delivery
+
+Native color/export and full Studio/video regressions, compact simulator correctness and five UI cases passed. The sustained native preview completed 1,799 renders for 1,800 updates with 26.74 ms p95 completion, no GPU failures or idle draws, and nominal iOS thermal state. [Reports and limits](Verification/0.33.0/README.md).
+
 ## 0.32.0, build 36 — Reference matching and Empty Bin
 
 Native reference/photo/video/storage checks and eight distinct UI cases passed, including the corrected bin confirmation flow. [Reports and limits](Verification/0.32.0/README.md).

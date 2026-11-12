@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
     @Bindable var session: EditSession
     var library:StudioLibrary? = nil
     var pool:EditingPool? = nil
+    @State private var delivery=DeliverySettings.load()
     @State private var poolDelivery=false
     @State private var privacy = ExportPrivacy.load()
     @State private var format: ExportFormat = .jpeg
@@ -35,11 +36,12 @@ import UniformTypeIdentifiers
                     if !session.project.isVideo && session.recipe.hasTransparentCutout {Label("PNG · Transparent background",systemImage:"square.dashed").font(.subheadline).accessibilityIdentifier("transparentPNGFormat")}
                     if session.project.isVideo { Toggle("HDR video · HLG",isOn:Binding(get:{ session.recipe.video.hdr },set:{ value in session.change { $0.video.hdr = value } })).disabled(busy || result != nil);Text("HDR keeps brighter highlights on supported screens. SDR is the safest choice for universal sharing. HDR uses 10-bit HEVC; SDR looks/LUTs can change highlight detail.").font(.caption).foregroundStyle(StudioStyle.secondary) }
                     if session.project.isVideo { Picker("Video depth",selection:$tenBitVideo) { Text("10-bit HEVC").tag(true);Text("8-bit HEVC").tag(false) }.pickerStyle(.segmented).disabled(busy || result != nil || session.recipe.video.hdr) }
+                    DeliveryControls(settings:$delivery,lossless:!session.project.isVideo && (format == .png || session.recipe.hasTransparentCutout)).disabled(busy || result != nil)
                     ExportPrivacyControls(policy:$privacy,video:session.project.isVideo).disabled(busy || result != nil)
                     VStack(alignment: .leading,spacing: 14) {
-                        exportDetail("Resolution",value: "Full original · crop applied")
+                        exportDetail("Resolution",value: delivery.size == .original ? "Full original · crop applied" : delivery.size.rawValue+" maximum edge · crop applied")
                         exportDetail("Color",value:session.project.isVideo ? (session.recipe.video.hdr ? "Rec.2020 · HLG HDR":"sRGB · SDR") : (format == .hdrHEIF ? "Rec.2020 · HLG HDR":"sRGB · SDR"))
-                        exportDetail("Quality",value:session.project.isVideo ? "HEVC · \((tenBitVideo || session.recipe.video.hdr) ? 10 : 8)-bit · source frame timing" : (format == .jpeg ? "96% JPEG" : (format == .png ? "Lossless PNG · 8-bit":"10-bit HLG HEIF")))
+                        exportDetail("Quality",value:session.project.isVideo ? "HEVC · \((tenBitVideo || session.recipe.video.hdr) ? 10 : 8)-bit · \(delivery.quality.rawValue) · source timing" : (format == .jpeg ? "\(Int(delivery.quality.photo*100))% JPEG" : (format == .png ? "Lossless PNG · 8-bit":"10-bit HLG HEIF · \(Int(delivery.quality.photo*100))%")))
                         if let video = session.project.video { let r = session.recipe.video.range(duration:video.duration);exportDetail("Duration",value:String(format:"%.2f seconds",r.upperBound-r.lowerBound)) }
                         if session.project.isVideo { exportDetail("Audio",value:privacy.audio ? "Original tracks preserved" : "Sound removed") }
                         exportDetail("Location",value:privacy.location ? "Included when present" : "Omitted")
@@ -53,7 +55,7 @@ import UniformTypeIdentifiers
                     if busy && session.project.isVideo { ProgressView(value:videoProgress);if coolingVideo { Text("Paused to cool your iPhone. Export resumes when thermal state improves.").font(.caption).foregroundStyle(StudioStyle.secondary) };Button("Cancel export",role:.cancel) { exportTask?.cancel() } }
                     if let message { Label(message,systemImage: "checkmark.circle").font(.subheadline).foregroundStyle(StudioStyle.blue) }
                     if let error { Text(error).font(.subheadline).foregroundStyle(.orange) }
-                    Text("The same adjustments are applied to the full-resolution source. Large RAW files can take longer to develop; you can continue editing after closing this sheet.").font(.caption).foregroundStyle(StudioStyle.secondary).lineSpacing(3)
+                    Text("Your full-resolution source is graded before the chosen export resize. Large RAW files can take longer to develop; you can continue editing after closing this sheet.").font(.caption).foregroundStyle(StudioStyle.secondary).lineSpacing(3)
                 }.padding(26)
             }.safeAreaInset(edge:.bottom) {
                 if result == nil {
@@ -81,14 +83,14 @@ import UniformTypeIdentifiers
     private func render() async {
         guard let source = session.sourceURL else { return }
         busy = true;error = nil;videoProgress = 0
-        let recipe = session.recipe,format = format,video = session.project.video,tenBit = tenBitVideo,prepared = session.source,privacy = privacy
+        let recipe = session.recipe,format = format,video = session.project.video,tenBit = tenBitVideo,prepared = session.source,privacy = privacy,delivery=delivery
         defer { busy = false;exportTask = nil }
         let task = Task.detached(priority:.utility) {
             let repaired = try await MaskFramingRepair.repair(recipe:recipe,url:source,video:video,prepared:prepared)
             await MainActor.run { if session.recipe == recipe { session.recipe.masks = repaired.masks } }
             let recipe = repaired
-            if let video { return try await VideoEngine.export(source:source,descriptor:video,recipe:recipe,tenBit:tenBit,privacy:privacy,progress:{ value in await MainActor.run { videoProgress = value } },cooling:{ value in await MainActor.run { coolingVideo = value } }) }
-            return try ImageEngine.export(source:source,recipe:recipe,format:recipe.hasTransparentCutout ? .png:format,privacy:privacy)
+            if let video { return try await VideoEngine.export(source:source,descriptor:video,recipe:recipe,tenBit:tenBit,privacy:privacy,delivery:delivery,progress:{ value in await MainActor.run { videoProgress = value } },cooling:{ value in await MainActor.run { coolingVideo = value } }) }
+            return try ImageEngine.export(source:source,recipe:recipe,format:recipe.hasTransparentCutout ? .png:format,privacy:privacy,delivery:delivery)
         }
         exportTask = task
         do { result = try await task.value }
@@ -223,7 +225,7 @@ private struct ColorLUTRequest:Identifiable { let id = UUID();let recipe:Recipe 
                 defer { if secured { url.stopAccessingSecurityScopedResource() } }
                 let values = try url.resourceValues(forKeys: [.fileSizeKey]); guard (values.fileSize ?? 0) <= 8_000_000 else { throw StudioError.unsupportedPreset }
                 let preset = try JSONDecoder().decode(PresetDocument.self,from: Data(contentsOf: url))
-                guard (1...4).contains(preset.schema) else { throw StudioError.unsupportedPreset }
+                guard (1...5).contains(preset.schema) else { throw StudioError.unsupportedPreset }
                 return preset
             }.value
             if !(await library.saveLook(name:preset.name,recipe:preset.recipe.validated())) { error = library.error }

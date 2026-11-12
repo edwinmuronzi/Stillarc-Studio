@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "distinctTests": 5,
+  "tests": [
+    "ColorWarpResetUndoAndPersistence",
+    "ColorWarpMapAndPointLimit",
+    "DeliverySizeQualityAndRetry",
+    "PoolDeliveryAllAndSelected",
+    "ReferenceMatchStrengthUndoAndPersistence"
+  ],
+  "testHarnessCorrections": "Renamed a local variable that shadowed XCTest add; selected the map Toggle by its accessibility identifier rather than assuming a Button."
+}

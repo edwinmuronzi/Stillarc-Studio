@@ -6,7 +6,7 @@ struct BatchExportResult:Sendable {
     let failures:[String]
 }
 enum BatchExportEngine {
-    static func run(_ projects:[Project],vault:ProjectVault,format:ExportFormat,privacy:ExportPrivacy = ExportPrivacy(),progress:@escaping @Sendable (Int,Double,String) async -> Void) async throws -> BatchExportResult {
+    static func run(_ projects:[Project],vault:ProjectVault,format:ExportFormat,privacy:ExportPrivacy = ExportPrivacy(),delivery:DeliverySettings = DeliverySettings(),progress:@escaping @Sendable (Int,Double,String) async -> Void) async throws -> BatchExportResult {
         guard !projects.isEmpty,projects.count<=20 else { throw StudioError.render }
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("Stillarc-Batch-\(UUID())",isDirectory:true)
         try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
@@ -25,8 +25,8 @@ enum BatchExportEngine {
                 let recipe = try await MaskFramingRepair.repair(recipe:p.recipe,url:source,video:p.video,prepared:nil)
                 try Task.checkCancellation()
                 let output:ExportResult
-                if let video = p.video { output = try await VideoEngine.export(source:source,descriptor:video,recipe:recipe,privacy:privacy,progress:{ value in await progress(i,value,p.name) }) }
-                else { output = try ImageEngine.export(source:source,recipe:recipe,format:recipe.hasTransparentCutout ? .png:format,privacy:privacy) }
+                if let video = p.video { output = try await VideoEngine.export(source:source,descriptor:video,recipe:recipe,privacy:privacy,delivery:delivery,progress:{ value in await progress(i,value,p.name) }) }
+                else { output = try ImageEngine.export(source:source,recipe:recipe,format:recipe.hasTransparentCutout ? .png:format,privacy:privacy,delivery:delivery) }
                 defer { try? FileManager.default.removeItem(at:output.url) }
                 try Task.checkCancellation()
                 let cleaned = String(String.UnicodeScalarView(p.name.unicodeScalars.filter { CharacterSet.alphanumerics.union(.whitespaces).union(CharacterSet(charactersIn:"-_" )).contains($0) }.prefix(60)))

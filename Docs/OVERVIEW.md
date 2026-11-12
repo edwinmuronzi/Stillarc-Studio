@@ -1,4 +1,4 @@
-# Stillarc Studio · 0.32
+# Stillarc Studio · 0.33
 
 A local, reversible photo and single-clip video editor for iPhone and iPad. Black-and-blue controls keep the image central.
 
@@ -30,3 +30,7 @@ Pool delivery now offers Export all or an individual selection. Each item retain
 
 
 Reference & Match puts a saved visual target beside the current edit. A requested statistical suggestion offers a bounded light/color starting point, with adjustable strength and Undo/Redo. Video uses its first kept frame; HDR is compared as an SDR proof. References remain individual while color corrections can transfer across a pool. The optional vectorscope skin-hue guide gives a visual direction, not a prescribed skin color. Empty Bin is available in Recently Deleted and from its Home long-press menu, with permanent-delete confirmation.
+
+
+### 0.33 checkpoint
+Color Warp adds up to four soft hue/richness controls in the fused GPU color pass, reversible direct-map and slider controls, Color-group sync, schema-5 presets and color-LUT export. Single/pool photo/video delivery adds remembered longest-edge size limits and compression choices, with full-source grading, alpha/HDR preservation and no upscaling. Video color-map editing uses the first kept frame; review playback in the editor. Advanced camera transforms, grade keyframes, portable project packages and an export queue remain later scope. No external beta/store preparation or timeline companion is included.

@@ -6,6 +6,7 @@ struct BatchExportSheet:View {
     let vault:ProjectVault
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
+    @State private var delivery=DeliverySettings.load()
     @State private var privacy = ExportPrivacy.load()
     @State private var format = ExportFormat.jpeg
     @State private var result:BatchExportResult?
@@ -23,6 +24,7 @@ struct BatchExportSheet:View {
                     Text("Your edits, together.").font(.title.weight(.semibold))
                     Text("Exports each project with its own current edit, crop and masks. Video keeps its trim and HDR choice; sound follows your export privacy settings. Work runs one item at a time; originals stay untouched.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     if projects.contains(where:{ !$0.isVideo }) { Picker("Photo format",selection:$format) { ForEach(ExportFormat.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).disabled(busy || result != nil) }
+                    DeliveryControls(settings:$delivery,lossless:format == .png && !projects.contains(where:{$0.isVideo})).disabled(busy || result != nil)
                     ExportPrivacyControls(policy:$privacy,video:projects.contains(where:{ $0.isVideo }),batch:true).disabled(busy || result != nil)
                     Text("\(projects.count) selected · full remaining source resolution").font(.caption).foregroundStyle(StudioStyle.secondary)
                     if projects.contains(where:{$0.recipe.hasTransparentCutout}) {Text("Photo cutouts always export as transparent PNG; other photos use the chosen format.").font(.caption).foregroundStyle(StudioStyle.secondary)}
@@ -56,8 +58,8 @@ struct BatchExportSheet:View {
     }
     private func start() {
         busy = true;error = nil;progress = 0
-        let format = format,privacy = privacy
-        let job = Task.detached(priority:.utility) { try await BatchExportEngine.run(projects,vault:vault,format:format,privacy:privacy) { index,fraction,name in
+        let format = format,privacy = privacy,delivery=delivery
+        let job = Task.detached(priority:.utility) { try await BatchExportEngine.run(projects,vault:vault,format:format,privacy:privacy,delivery:delivery) { index,fraction,name in
             await MainActor.run { progress = (Double(index)+fraction)/Double(projects.count);status = "\(index+1) of \(projects.count) · \(name)" }
         } };task = job
         Task { @MainActor in

@@ -70,7 +70,7 @@ enum VideoEngine {
         return PreparedPhoto(image:CIImage(cgImage:managed),width:descriptor.width,height:descriptor.height,isRAW:false,signalImage:CIImage(cgImage:signal,options:[.colorSpace:NSNull()]))
     }
 
-    static func export(source:URL,descriptor:VideoDescriptor,recipe:Recipe,tenBit:Bool = true,privacy:ExportPrivacy = ExportPrivacy(),progress:@escaping @Sendable (Double) async -> Void,cooling:@escaping @Sendable (Bool) async -> Void = { _ in }) async throws -> ExportResult {
+    static func export(source:URL,descriptor:VideoDescriptor,recipe:Recipe,tenBit:Bool = true,privacy:ExportPrivacy = ExportPrivacy(),delivery:DeliverySettings = DeliverySettings(),progress:@escaping @Sendable (Double) async -> Void,cooling:@escaping @Sendable (Bool) async -> Void = { _ in }) async throws -> ExportResult {
         try Task.checkCancellation()
         guard !recipe.hasCutout else {throw NSError(domain:"Cutout",code:2,userInfo:[NSLocalizedDescriptionKey:"Transparent cutouts are photo-only. Turn off Keep selection as cutout before exporting video."])}
         try LensRendering.prepare();try FilmRendering.prepare()
@@ -90,13 +90,14 @@ enum VideoEngine {
         let tenBit = tenBit || hdr
         guard reader.canAdd(video) else { throw StudioError.render }; reader.add(video)
         let framed = PhotoFraming.window(in:PhotoFraming.orientedSize(CGSize(width:descriptor.width,height:descriptor.height),recipe:recipe),recipe:recipe)
-        let width = max(2,Int(framed.width)/2*2),height = max(2,Int(framed.height)/2*2)
+        let target=delivery.dimensions(framed.size,video:true)
+        let width=Int(target.width),height=Int(target.height)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("Stillarc-Video-\(UUID().uuidString.prefix(8)).mov")
         let writer = try AVAssetWriter(outputURL:url,fileType:.mov)
         var completed = false
         defer { if !completed { reader.cancelReading(); writer.cancelWriting(); try? FileManager.default.removeItem(at:url) } }
         writer.metadata = try await privacy.videoMetadata(asset)
-        let bitrate = max(8_000_000,min(80_000_000,Int(Double(width*height)*max(24,descriptor.frameRate)*0.14)))
+        let bitrate = max(Int(8_000_000*delivery.quality.video),min(80_000_000,Int(Double(width*height)*max(24,descriptor.frameRate)*0.14*delivery.quality.video)))
         let primaries = hdr ? AVVideoColorPrimaries_ITU_R_2020 : AVVideoColorPrimaries_ITU_R_709_2
         let transfer = hdr ? AVVideoTransferFunction_ITU_R_2100_HLG : kCVImageBufferTransferFunction_sRGB as String
         let matrix = hdr ? AVVideoYCbCrMatrix_ITU_R_2020 : AVVideoYCbCrMatrix_ITU_R_709_2
@@ -150,7 +151,7 @@ enum VideoEngine {
                         // Match the SDR preview: clip scene headroom before encoding to an SDR buffer.
                         // Otherwise Core Image may tone-map the unclamped HDR graph during YUV conversion.
                         if !hdr { image = image.applyingFilter("CIColorClamp",parameters:["inputMinComponents":CIVector(x:0,y:0,z:0,w:0),"inputMaxComponents":CIVector(x:1,y:1,z:1,w:1)]) }
-                        let normalized = image.transformed(by:.init(translationX:-image.extent.minX,y:-image.extent.minY))
+                        let normalized = delivery.resize(image,video:true)
                         context.render(normalized,to:destination,bounds:CGRect(x:0,y:0,width:width,height:height),colorSpace:outputSpace)
                         let time = CMSampleBufferGetPresentationTimeStamp(sample)
                         guard time.isNumeric,adaptor.append(destination,withPresentationTime:time) else { throw StudioError.render }

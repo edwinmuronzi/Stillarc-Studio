@@ -8,6 +8,12 @@ enum GradingKernelSource {
         float width = distance < 0.0 ? leftWidth : rightWidth;
         return 1.0-smoothstep(0.0,width,abs(distance));
     }
+    vec2 warpChange(float hue,float saturation,vec4 point,vec2 reach) {
+        float h=abs(mod(hue-point.x+9.0,6.0)-3.0)/reach.x;
+        float s=abs(saturation-point.y)/reach.y;
+        float weight=1.0-smoothstep(0.0,1.0,sqrt(h*h+s*s));
+        return point.zw*weight;
+    }
     vec3 mixChannels(vec3 rgb, vec4 rowR, vec4 rowG, vec4 rowB, float monochrome) {
         vec3 mixed = vec3(dot(rgb,rowR.xyz)+rowR.w,dot(rgb,rowG.xyz)+rowG.w,dot(rgb,rowB.xyz)+rowB.w);
         if (monochrome > 0.5) mixed = vec3(dot(mixed,vec3(0.2126,0.7152,0.0722)));
@@ -21,14 +27,15 @@ enum GradingKernelSource {
     kernel vec4 studioSelective(__sample pixel, vec3 red, vec3 orange, vec3 yellow, vec3 green,
                                 vec3 aqua, vec3 blue, vec3 purple, vec3 magenta, float previewRange,
                                 vec4 shadows, vec4 midtones, vec4 highlights, vec4 globalWheel, vec2 toneControl,
-                                vec4 rowR, vec4 rowG, vec4 rowB, vec4 gradingControl, float selectiveActive) {
+                                vec4 rowR, vec4 rowG, vec4 rowB, vec4 gradingControl, float selectiveActive,
+                                vec4 warp0,vec2 reach0,vec4 warp1,vec2 reach1,vec4 warp2,vec2 reach2,vec4 warp3,vec2 reach3,float warpActive) {
         vec4 original = unpremultiply(pixel);
         // A mixer-only edit stays in linear light: no transfer functions or hue work.
-        if (selectiveActive < 0.5 && gradingControl.x < 0.5 && previewRange < -0.5) {
+        if (warpActive < 0.5 && selectiveActive < 0.5 && gradingControl.x < 0.5 && previewRange < -0.5) {
             return premultiply(vec4(mixChannels(original.rgb,rowR,rowG,rowB,gradingControl.z),original.a));
         }
         vec3 encoded = vec3(encodeComponent(original.r),encodeComponent(original.g),encodeComponent(original.b));
-        if (selectiveActive > 0.5 || previewRange > -0.5) {
+        if (warpActive > 0.5 || selectiveActive > 0.5 || previewRange > -0.5) {
         float low = min(encoded.r,min(encoded.g,encoded.b));
         float high = max(encoded.r,max(encoded.g,encoded.b));
         float offset = min(0.0,low);
@@ -54,6 +61,14 @@ enum GradingKernelSource {
         float w7 = rangeWeight(hue,5.0,0.5,1.0);
         float chromaGate = smoothstep(0.0,0.08,chroma);
         vec3 change = (red*w0+orange*w1+yellow*w2+green*w3+aqua*w4+blue*w5+purple*w6+magenta*w7)*chromaGate;
+        if (warpActive > 0.5 && previewRange < -0.5 && chroma > 0.00001) {
+            float l=(maximum+minimum)*0.5;
+            float s=chroma/max(0.00001,1.0-abs(2.0*l-1.0));
+            vec2 delta=warpChange(hue,s,warp0,reach0)+warpChange(hue,s,warp1,reach1)+warpChange(hue,s,warp2,reach2)+warpChange(hue,s,warp3,reach3);
+            change.x+=clamp(delta.x,-1.0,1.0)*chromaGate;
+            // Existing mix uses multiplicative saturation; map warp's additive move into that domain.
+            change.y+=clamp(delta.y,-0.5,0.5)*chromaGate/max(s,0.00001);
+        }
         if (dot(abs(change),vec3(1.0)) > 0.000001 && chroma > 0.00001) {
             float lightness = (maximum+minimum)*0.5;
             float saturation = chroma/max(0.00001,1.0-abs(2.0*lightness-1.0));

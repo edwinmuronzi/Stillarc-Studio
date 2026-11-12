@@ -117,3 +117,7 @@ Static-photo backgrounds and development from proposed batches 2–3 are impleme
 
 ### 0.32 checkpoint
 Implemented the first color-workflow tranche: reference comparison/import/project snapshots, one-tap bounded statistical light/color matching with strength/reset/Undo, schema-4 matched presets and Color transfer, first-kept-frame video comparison, plus an optional SDR vectorscope skin-hue guide. Empty Bin is available within Recently Deleted and its Home hold menu, with confirmed-snapshot deletion. Next proposed color work remains flexible color warping and explicit output choices; additional camera transforms and motion keyframes require fixture validation. No timeline app or external beta/store preparation is included.
+
+
+### 0.33 checkpoint
+Color Warp adds up to four soft hue/richness controls in the fused GPU color pass, reversible direct-map and slider controls, Color-group sync, schema-5 presets and color-LUT export. Single/pool photo/video delivery adds remembered longest-edge size limits and compression choices, with full-source grading, alpha/HDR preservation and no upscaling. Video color-map editing uses the first kept frame; review playback in the editor. Advanced camera transforms, grade keyframes, portable project packages and an export queue remain later scope. No external beta/store preparation or timeline companion is included.

@@ -1,0 +1,325 @@
+{
+  "idleCheckSeconds" : 15,
+  "rendered" : 1799,
+  "gpuFailures" : 0,
+  "cutoutCheck" : false,
+  "interrupted" : false,
+  "requestedUpdates" : 1800,
+  "kernelBackend" : "Metal stitchable",
+  "thermalEnd" : 0,
+  "cancelled" : false,
+  "thermalStart" : 0,
+  "cutoutActive" : false,
+  "extraIdleFrames" : 0,
+  "inferenceCalls" : 0,
+  "backgroundCheck" : false,
+  "version" : "0.33.0",
+  "matchCheck" : true,
+  "p95Milliseconds" : 26.738291664514691,
+  "thermalPeak" : 0,
+  "releaseCheck" : true,
+  "thermalSamples" : [
+    {
+      "seconds" : 0.013115791662130505,
+      "state" : 0,
+      "rendered" : 0
+    },
+    {
+      "state" : 0,
+      "seconds" : 1.2530647083476651,
+      "rendered" : 29
+    },
+    {
+      "state" : 0,
+      "rendered" : 59,
+      "seconds" : 2.3853917083470151
+    },
+    {
+      "state" : 0,
+      "rendered" : 89,
+      "seconds" : 3.4492995833279565
+    },
+    {
+      "state" : 0,
+      "seconds" : 4.5127717916620895,
+      "rendered" : 119
+    },
+    {
+      "state" : 0,
+      "rendered" : 149,
+      "seconds" : 5.5789812083530705
+    },
+    {
+      "seconds" : 6.6472944999986794,
+      "rendered" : 179,
+      "state" : 0
+    },
+    {
+      "rendered" : 209,
+      "seconds" : 7.7137032500177156,
+      "state" : 0
+    },
+    {
+      "seconds" : 8.7771858333435375,
+      "state" : 0,
+      "rendered" : 239
+    },
+    {
+      "rendered" : 269,
+      "seconds" : 9.8405303750187159,
+      "state" : 0
+    },
+    {
+      "state" : 0,
+      "rendered" : 299,
+      "seconds" : 10.906496791663812
+    },
+    {
+      "seconds" : 11.981888666661689,
+      "state" : 0,
+      "rendered" : 329
+    },
+    {
+      "state" : 0,
+      "rendered" : 359,
+      "seconds" : 13.071582250006031
+    },
+    {
+      "rendered" : 389,
+      "state" : 0,
+      "seconds" : 14.139759250014322
+    },
+    {
+      "seconds" : 15.204506666661473,
+      "state" : 0,
+      "rendered" : 419
+    },
+    {
+      "state" : 0,
+      "seconds" : 16.272008333355188,
+      "rendered" : 449
+    },
+    {
+      "rendered" : 479,
+      "seconds" : 17.349836625013268,
+      "state" : 0
+    },
+    {
+      "rendered" : 508,
+      "seconds" : 18.413561875000596,
+      "state" : 0
+    },
+    {
+      "seconds" : 19.474950125004398,
+      "state" : 0,
+      "rendered" : 539
+    },
+    {
+      "state" : 0,
+      "rendered" : 569,
+      "seconds" : 20.539155958336778
+    },
+    {
+      "seconds" : 21.605385541683063,
+      "state" : 0,
+      "rendered" : 599
+    },
+    {
+      "seconds" : 22.668729375000112,
+      "state" : 0,
+      "rendered" : 629
+    },
+    {
+      "state" : 0,
+      "rendered" : 659,
+      "seconds" : 23.728693166660378
+    },
+    {
+      "seconds" : 24.792217833339237,
+      "state" : 0,
+      "rendered" : 689
+    },
+    {
+      "seconds" : 25.860903541673906,
+      "rendered" : 719,
+      "state" : 0
+    },
+    {
+      "state" : 0,
+      "rendered" : 749,
+      "seconds" : 26.928030416660476
+    },
+    {
+      "rendered" : 779,
+      "seconds" : 27.993600375019014,
+      "state" : 0
+    },
+    {
+      "state" : 0,
+      "seconds" : 29.061002833332168,
+      "rendered" : 809
+    },
+    {
+      "rendered" : 839,
+      "state" : 0,
+      "seconds" : 30.127233666687971
+    },
+    {
+      "seconds" : 31.191669958352577,
+      "rendered" : 869,
+      "state" : 0
+    },
+    {
+      "seconds" : 32.258037583349505,
+      "state" : 0,
+      "rendered" : 899
+    },
+    {
+      "rendered" : 929,
+      "seconds" : 33.321173708332935,
+      "state" : 0
+    },
+    {
+      "seconds" : 34.388764125003945,
+      "state" : 0,
+      "rendered" : 959
+    },
+    {
+      "state" : 0,
+      "rendered" : 989,
+      "seconds" : 35.456369833351346
+    },
+    {
+      "state" : 0,
+      "seconds" : 36.516001166688511,
+      "rendered" : 1019
+    },
+    {
+      "seconds" : 37.581142833339982,
+      "state" : 0,
+      "rendered" : 1049
+    },
+    {
+      "seconds" : 38.64314641666715,
+      "rendered" : 1079,
+      "state" : 0
+    },
+    {
+      "seconds" : 39.707443000021158,
+      "rendered" : 1109,
+      "state" : 0
+    },
+    {
+      "state" : 0,
+      "rendered" : 1139,
+      "seconds" : 40.770166125003016
+    },
+    {
+      "state" : 0,
+      "rendered" : 1169,
+      "seconds" : 41.832287541677942
+    },
+    {
+      "seconds" : 42.897256374999415,
+      "rendered" : 1199,
+      "state" : 0
+    },
+    {
+      "seconds" : 43.964884666667785,
+      "state" : 0,
+      "rendered" : 1229
+    },
+    {
+      "rendered" : 1259,
+      "seconds" : 45.021429833344882,
+      "state" : 0
+    },
+    {
+      "seconds" : 46.085070791683393,
+      "rendered" : 1289,
+      "state" : 0
+    },
+    {
+      "rendered" : 1319,
+      "state" : 0,
+      "seconds" : 47.149145041679731
+    },
+    {
+      "rendered" : 1349,
+      "state" : 0,
+      "seconds" : 48.219995416671736
+    },
+    {
+      "state" : 0,
+      "rendered" : 1379,
+      "seconds" : 49.284436000016285
+    },
+    {
+      "state" : 0,
+      "rendered" : 1409,
+      "seconds" : 50.348889541666722
+    },
+    {
+      "seconds" : 51.41377637500409,
+      "state" : 0,
+      "rendered" : 1439
+    },
+    {
+      "state" : 0,
+      "seconds" : 52.480848125007469,
+      "rendered" : 1469
+    },
+    {
+      "rendered" : 1499,
+      "state" : 0,
+      "seconds" : 53.548803416662849
+    },
+    {
+      "rendered" : 1529,
+      "seconds" : 54.613619666662998,
+      "state" : 0
+    },
+    {
+      "rendered" : 1559,
+      "state" : 0,
+      "seconds" : 55.679767833353253
+    },
+    {
+      "rendered" : 1589,
+      "state" : 0,
+      "seconds" : 56.748270041687647
+    },
+    {
+      "rendered" : 1619,
+      "state" : 0,
+      "seconds" : 57.811903791676741
+    },
+    {
+      "state" : 0,
+      "rendered" : 1649,
+      "seconds" : 58.874899833346717
+    },
+    {
+      "state" : 0,
+      "seconds" : 59.94031575002009,
+      "rendered" : 1679
+    },
+    {
+      "state" : 0,
+      "rendered" : 1709,
+      "seconds" : 61.009815541678108
+    },
+    {
+      "state" : 0,
+      "rendered" : 1739,
+      "seconds" : 62.074881291686324
+    },
+    {
+      "state" : 0,
+      "seconds" : 63.141007875005016,
+      "rendered" : 1769
+    }
+  ],
+  "warpCheck" : true,
+  "elapsedSeconds" : 80.943218958331272
+}

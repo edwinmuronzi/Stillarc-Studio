@@ -4,7 +4,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.32 reference comparison and shot-matching milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.33 Color Warp and export-delivery milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -69,7 +69,7 @@ This is the **0.32 reference comparison and shot-matching milestone**. Developme
 - Tap an adjustment number to enter an exact value; double-tap the slider row to reset that value. Reset one section or the entire photo, with undo. Whites shapes the brightest tones; Blacks shapes the darkest.
 - Hold Compare to see the original with the current framing. Undo/redo adjustment gestures without altering the source.
 - Autosave adjustments, reopen projects, create/delete presets, and import/export versioned Studio JSON presets. Presets exclude crop, rotation and straightening. Existing 0.1/0.2/0.3/0.4 projects and presets load with neutral defaults for new controls; RGB curves, selective colors, wheels, mixer and LUT settings are included in project/preset saves. Use a current Studio version when sharing presets that use newer tools.
-- Export a full-resolution JPEG (96% quality) or lossless 8-bit PNG in sRGB/SDR; share to Files or save a new copy to Photos. Identifying metadata is omitted by default; use Metadata & privacy to include selected source details.
+- Export a JPEG (96% quality by default) or lossless 8-bit PNG in sRGB/SDR; share to Files or save a new copy to Photos. Identifying metadata is omitted by default; use Metadata & privacy to include selected source details.
 - Delete a Studio project without deleting the source in Photos/Files.
 
 No sign-in, server processing, analytics SDK or upload is required. Imported project copies use local application storage. System device backups and iCloud-sourced imports remain subject to the user's Apple settings. Uninstalling Studio removes its local workspace; export important work first.
@@ -121,7 +121,7 @@ Scopes sample a 128×72 graded image on a utility worker, at most five times per
 
 RGB curves use bounded cached 1024-sample float tables. Selective color, wheels and channel mixing share one Core Image color kernel, using Metal stitchable functions on compatible GPUs and the portable Core Image kernel path on older hardware. Compilation and a small warm-up render happen on the decode worker before editing; no 3D LUT is rebuilt for each slider move. Neutral settings bypass the color stages. A mixer-only edit takes a simpler linear-light path without hue/tone calculations.
 
-The preview is decoded once, capped at 1600 pixels on its long edge and rendered directly with Core Image/Metal. The view draws on changes, with one GPU submission in flight and newest-state coalescing; it has no perpetual display loop. Import and full-resolution export run away from the main actor. The preview pauses behind export/preset sheets and when the scene is inactive. Photo export reopens the original, so preview sizing does not reduce exported dimensions.
+The preview is decoded once, capped at 1600 pixels on its long edge and rendered directly with Core Image/Metal. The view draws on changes, with one GPU submission in flight and newest-state coalescing; it has no perpetual display loop. Import and full-resolution export run away from the main actor. The preview pauses behind export/preset sheets and when the scene is inactive. Photo export reopens the original; export dimensions follow your delivery size choice, independently of preview sizing.
 
 LUT files are parsed and validated away from the UI actor. Immutable float tables are shared by undo states, not rebuilt or hashed during slider moves. LUTs run after built-in looks and before texture/detail; zero strength skips the LUT stage. Input/output numbers are interpreted as display sRGB, with explicit transfer curves around the cube in the linear working pipeline. Non-default input domains are normalized, and inputs outside the domain clamp to its edges. One LUT can be active at a time. Camera input conversion is separate and happens before creative grading. Creative LUTs still need to target display sRGB; a camera conversion LUT would double-convert an input already set to Apple Log/Log 2. 1D shapers, combined shaper/3D files and LUT stacking remain planned. Color-only LUT-file export is available separately.
 
@@ -321,3 +321,11 @@ Studio 0.31.2 uses the approved flat arc-S before/after identity in both Home Sc
 - **Recently Deleted → Empty Bin**, or hold the Home **Recently Deleted** button and choose **Empty Bin…**. Confirming permanently removes the listed Studio copies and saved edits. The action reconciles interrupted restores and uses the confirmed snapshot of entries, preserving active/restored projects and items deleted afterward. Original Photos/Files media is untouched. Failures leave remaining entries available to retry.
 
 Studio’s approved light and dark icon masters were also copied to the Desktop as **Stillarc Studio - Light.png** and **Stillarc Studio - Dark.png**. This checkpoint does not add the separate timeline app, advanced denoise or face/skin segmentation.
+
+## Color Warp and export delivery · 0.33
+
+Open a project → **Looks → Color Warp** (also accessible in Color). Add up to four points: Source hue/richness choose which colors change, Hue move/Richness move choose their direction, and Colors affected controls the soft reach. Edit color map enables direct dragging; turn it off to scroll freely. Neutral gray is protected. Points blend when they overlap. Warp strength, double-tap slider reset, point deletion/reset and Undo/Redo remain reversible. The large photo preview updates live; video uses its first kept frame in this sheet, with full playback in the editor. The preview is an SDR proof; HDR output is independent.
+
+Warps belong to the Color copy/sync/reset group, persist with projects/versions and are included in Studio presets and color-only LUT export. Warped presets use schema 5; older Studio versions reject them instead of silently dropping the adjustment. No object detection is implied.
+
+Single and pool exports now share remembered **Original / 3840 / 1920 / 1280 px** longest-edge limits, applied after cropping. Small originals are never enlarged; video dimensions remain even for HEVC. **Maximum / Balanced / Compact** change JPEG/HEIF compression and target HEVC bitrate, preserving selected size, trim, HDR/SDR, audio policy and source timing. PNG stays lossless and preserves transparency. Original + Maximum remain the defaults. Full-source grading precedes Lanczos downsizing so mask geometry and film scale do not depend on preview size. Compression ratios and resulting file sizes vary with content.

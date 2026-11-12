@@ -113,7 +113,7 @@ enum ImageEngine {
         }
         image = LevelsRendering.apply(image,recipe:r)
         image = ColorPipeline.applyCurves(image,curves:r.rgbCurves)
-        image = ColorPipeline.applySelective(image,adjustments:r.selectiveColors,wheels:r.colorWheels,mixer:r.channelMixer,previewRange:rangePreview)
+        image = ColorPipeline.applySelective(image,adjustments:r.selectiveColors,wheels:r.colorWheels,mixer:r.channelMixer,warp:r.colorWarp,previewRange:rangePreview)
         if rangePreview != nil { return PhotoFraming.apply(image,recipe:r) }
         image = DehazeRendering.apply(image,amount:r.dehaze)
         if r.look != .original && r.lookAmount > 0 {
@@ -155,7 +155,7 @@ enum ImageEngine {
         return BackgroundRendering.composite(MaskEngine.apply(framed,layers:r.masks,preview:preview,framing:MaskMotion.signature(r)),original:framed,recipe:r)
     }
 
-    static func export(source: URL, recipe: Recipe, format: ExportFormat, privacy:ExportPrivacy = ExportPrivacy()) throws -> ExportResult {
+    static func export(source: URL, recipe: Recipe, format: ExportFormat, privacy:ExportPrivacy = ExportPrivacy(),delivery:DeliverySettings = DeliverySettings()) throws -> ExportResult {
         try autoreleasepool {
             if recipe.hasTransparentCutout && format != .png {throw NSError(domain:"Cutout",code:1,userInfo:[NSLocalizedDescriptionKey:"Choose PNG to preserve the transparent background."])}
             let automatic = try AutomaticMaskBitmap.prepare(recipe)
@@ -169,7 +169,7 @@ enum ImageEngine {
                 recipe.photoHDR == true || format == .hdrHEIF ? HDRPipeline.grade(original.source(for:recipe),recipe:recipe,hdr:true):apply(original.source(for:recipe),recipe:recipe)
             }}}
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("Stillarc-\(UUID().uuidString.prefix(8)).\(format.ext)")
-            let image = format == .hdrHEIF ? graded : (recipe.photoHDR == true ? PhotoRendering.sdr(graded):graded)
+            let image = delivery.resize(format == .hdrHEIF ? graded : (recipe.photoHDR == true ? PhotoRendering.sdr(graded):graded))
             let context = context()
             var completed = false
             defer { if !completed { try? FileManager.default.removeItem(at:url) } }
@@ -177,13 +177,13 @@ enum ImageEngine {
             if format == .hdrHEIF {
                 try HDRPipeline.prepare()
                 let tagged=image.settingProperties(privacy.photoProperties(source:source))
-                try context.writeHEIF10Representation(of:tagged,to:url,colorSpace:HDRPipeline.hlg,options:[CIImageRepresentationOption(rawValue:kCGImageDestinationLossyCompressionQuality as String):0.96])
+                try context.writeHEIF10Representation(of:tagged,to:url,colorSpace:HDRPipeline.hlg,options:[CIImageRepresentationOption(rawValue:kCGImageDestinationLossyCompressionQuality as String):delivery.quality.photo])
                 try Task.checkCancellation();completed=true;return ExportResult(url:url,width:Int(image.extent.width),height:Int(image.extent.height))
             }
             guard let rendered = context.createCGImage(image,from:image.extent,format:.RGBA8,colorSpace:output),let destination = CGImageDestinationCreateWithURL(url as CFURL,(format == .jpeg ? UTType.jpeg.identifier : UTType.png.identifier) as CFString,1,nil) else { throw StudioError.render }
             try Task.checkCancellation()
             var properties = privacy.photoProperties(source:source)
-            if format == .jpeg { properties[kCGImageDestinationLossyCompressionQuality as String] = 0.96 }
+            if format == .jpeg { properties[kCGImageDestinationLossyCompressionQuality as String] = delivery.quality.photo }
             CGImageDestinationAddImage(destination,rendered,properties as CFDictionary)
             guard CGImageDestinationFinalize(destination) else { throw StudioError.render }
             try Task.checkCancellation();completed = true
