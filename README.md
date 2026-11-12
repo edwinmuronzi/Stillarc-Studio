@@ -2,7 +2,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.21 batch workflow and recovery milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.22 project gestures and library actions milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -200,3 +200,7 @@ Favorites and ratings belong to Studio projects; they do not change the original
 - Local metadata recovery keeps a separate atomic copy of project settings and saved looks. Healthy saves refresh the settings backup at most every 30 seconds; organization changes force a refresh. If a project index is damaged, Studio tries the backup and shows a notice; up to 30 seconds of recent saved edits may be absent. Unreadable media/index files are retained rather than silently deleted. This is metadata recovery, not a second media copy or cloud backup. Export important work separately.
 - **Curves** scrolls normally by default. Tap **Edit curve points** to drag points, then **Done editing points** to return to scrolling. A scroll gutter remains beside the graph; exact-value controls and VoiceOver adjustment remain available.
 - Tap outside the workspace search to hide the keyboard; the import controls now sit in a floating, rounded glass panel.
+
+### Project gestures and library actions (0.22)
+
+Hold a project thumbnail to preview it and select, rate, favourite or delete it. Double-tap a thumbnail to mark it as a favourite; a single tap opens it. Recently Deleted now has a labelled button below the search/filter controls. Select projects and choose Delete selected, or use Delete → Delete all projects. Bulk deletion requires confirmation and moves Studio copies into Recently Deleted for 30 days; it never deletes originals from Photos or Files.

@@ -54,6 +54,8 @@ Implemented in 0.16: on-request foreground Subject and Sky selection, saved 16-b
 
 Implemented in 0.21: serial multi-item import, per-project batch export, 30-day Recently Deleted with restore, and local project/settings and saved-look recovery. Curves requires an explicit edit mode so scrolling does not alter points; workspace keyboard dismissal and a floating import dock improve navigation.
 
+Implemented in 0.22: thumbnail hold previews with project actions, double-tap favourites, visibly labelled Recently Deleted, selected-project deletion and confirmed delete-all using recoverable local copies.
+
 Next: more robust tracking, changing-pose segmentation, healing and carefully bounded advanced noise reduction. Batch copy/paste and explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
 
 ## 5 — Video grading

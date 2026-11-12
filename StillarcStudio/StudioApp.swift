@@ -59,6 +59,9 @@ enum StudioStyle {
     @State private var files = false
     @State private var info = false
     @State private var deletion: Project?
+    @State private var deleteIDs = Set<UUID>()
+    @State private var confirmBulkDelete = false
+    @State private var deletingProjects = false
     @State private var demoBusy = false
     @State private var workspaceSearch = ""
     @FocusState private var searchFocused:Bool
@@ -98,6 +101,7 @@ enum StudioStyle {
                             Button(items.count>20 ? "Select first 20 shown" : "Select shown") { selection = Set(items.prefix(20).map(\.id)) }
                             Spacer()
                             Button("Export \(selection.count)") { batchExport = true }.disabled(selection.isEmpty || importingBatch)
+                            Button("Delete selected",role:.destructive) { deleteIDs = selection;confirmBulkDelete = true }.disabled(selection.isEmpty || deletingProjects)
                         }.font(.caption).buttonStyle(.bordered)
                     }
                     if library.loading { ProgressView().frame(maxWidth: .infinity) }
@@ -116,9 +120,23 @@ enum StudioStyle {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150),spacing: 14)],spacing: 20) {
                             ForEach(items) { project in
                                 VStack(alignment:.leading,spacing:9) {
-                                    Button { openOrSelect(project) } label: {
-                                        ProjectThumbnail(project:project,vault:library.vault).aspectRatio(0.9,contentMode:.fit).clipShape(RoundedRectangle(cornerRadius:18)).contentShape(RoundedRectangle(cornerRadius:18)).accessibilityHidden(true)
-                                    }.buttonStyle(.plain).disabled(importingBatch).contentShape(RoundedRectangle(cornerRadius:18)).accessibilityElement(children:.ignore).accessibilityLabel(selecting ? "Select \(project.name)" : "Open \(project.name)").accessibilityValue(selecting && selection.contains(project.id) ? "Selected" : "")
+                                    ProjectThumbnail(project:project,vault:library.vault).aspectRatio(0.9,contentMode:.fit).clipShape(RoundedRectangle(cornerRadius:18)).contentShape(RoundedRectangle(cornerRadius:18))
+                                        .accessibilityElement(children:.ignore).accessibilityAddTraits(.isButton)
+                                        .accessibilityLabel(selecting ? "Select \(project.name)" : "Open \(project.name)")
+                                        .accessibilityValue(selecting && selection.contains(project.id) ? "Selected" : "")
+                                        .accessibilityAction { openOrSelect(project) }
+                                        .gesture(TapGesture(count:2).exclusively(before:TapGesture(count:1)).onEnded { value in
+                                            switch value {
+                                            case .first: if !importingBatch && !deletingProjects { Task { await library.organize(project,favorite:true) } }
+                                            case .second: openOrSelect(project)
+                                            }
+                                        })
+                                        .contextMenu {
+                                            projectActions(project)
+                                        } preview: {
+                                            ProjectThumbnail(project:project,vault:library.vault).scaledToFit().frame(width:300,height:380).clipShape(RoundedRectangle(cornerRadius:22))
+                                        }
+                                        .allowsHitTesting(!importingBatch && !deletingProjects)
                                     .overlay(alignment:.topLeading) { if selecting { Image(systemName:selection.contains(project.id) ? "checkmark.circle.fill" : "circle").font(.title2).foregroundStyle(selection.contains(project.id) ? StudioStyle.blue : .white).padding(10).allowsHitTesting(false).accessibilityHidden(true) } }
                                     HStack(alignment:.top,spacing:6) {
                                         VStack(alignment:.leading,spacing:5) {
@@ -130,13 +148,8 @@ enum StudioStyle {
                                             Text("\(project.isVideo ? "VIDEO" : (project.isRAW ? "RAW" : "PHOTO")) · \(project.width) × \(project.height)").font(.system(size:10,design:.monospaced)).foregroundStyle(StudioStyle.secondary)
                                         }.frame(maxWidth:.infinity,alignment:.leading).contentShape(Rectangle()).onTapGesture { openOrSelect(project) }
                                         Menu {
-                                            Button(project.organization?.favorite == true ? "Remove favorite" : "Mark favorite",systemImage:"heart") { Task { await library.organize(project,favorite:project.organization?.favorite != true) } }
-                                            Menu("Rate",systemImage:"star") {
-                                                Button("No rating") { Task { await library.organize(project,rating:0) } }
-                                                ForEach(1...5,id:\.self) { value in Button("\(value) \(value == 1 ? "star" : "stars")") { Task { await library.organize(project,rating:value) } } }
-                                            }
-                                            Button("Delete Studio copy",systemImage:"trash",role:.destructive) { deletion = project }
-                                        } label: { Image(systemName:"ellipsis").frame(width:32,height:32) }.accessibilityLabel("Manage \(project.name)").disabled(selecting)
+                                            projectActions(project)
+                                        } label: { Image(systemName:"ellipsis").frame(width:32,height:32) }.accessibilityLabel("Manage \(project.name)").disabled(selecting || deletingProjects || importingBatch)
                                     }
                                 }.foregroundStyle(.white)
                             }
@@ -226,8 +239,11 @@ enum StudioStyle {
             .onChange(of:scenePhase) { _,phase in if phase != .active { importTask?.cancel() } }
 
             .alert("Unable to complete",isPresented: Binding(get: { library.error != nil },set: { if !$0 { library.error = nil } })) { Button("OK") { library.error = nil } } message: { Text(library.error ?? "") }
+            .confirmationDialog("Move \(deleteIDs.count) projects to Recently Deleted?",isPresented:$confirmBulkDelete,titleVisibility:.visible) {
+                Button("Delete \(deleteIDs.count) projects",role:.destructive) { deleteProjects(deleteIDs) }
+            } message: { Text("These Studio copies can be restored for 30 days. Originals in Photos and Files remain untouched.") }
             .confirmationDialog("Move this project to Recently Deleted?",isPresented: Binding(get: { deletion != nil },set: { if !$0 { deletion = nil } }),titleVisibility: .visible) {
-                Button("Delete Studio copy",role: .destructive) { if let deletion { Task { await library.remove(deletion) } }; deletion = nil }
+                Button("Delete Studio copy",role: .destructive) { if let deletion { deleteProjects([deletion.id]) }; deletion = nil }
             } message: { Text("Your original in Photos or Files will remain. The Studio copy and its edits can be restored for 30 days.") }
         }
     }
@@ -242,12 +258,36 @@ enum StudioStyle {
                 Menu {
                     ForEach(LibraryFilter.allCases) { item in Button { filterRaw = item.rawValue } label: { HStack { Text(item.rawValue);if filter == item { Image(systemName:"checkmark") } } } }
                 } label: { Label(filter.rawValue,systemImage:"line.3.horizontal.decrease").font(.caption).padding(.vertical,8) }.accessibilityLabel("Filter workspace").accessibilityValue(filter.rawValue)
-                Button { searchFocused = false;recovery = true } label: { Image(systemName:"trash.arrow.up").frame(width:36,height:36) }.accessibilityLabel("Recently Deleted")
                 Spacer()
                 Menu {
                     ForEach(LibrarySort.allCases) { item in Button { sortRaw = item.rawValue } label: { HStack { Text(item.rawValue);if sort == item { Image(systemName:"checkmark") } } } }
                 } label: { Label(sort.rawValue,systemImage:"arrow.up.arrow.down").font(.caption).padding(.vertical,8) }.accessibilityLabel("Sort workspace").accessibilityValue(sort.rawValue)
             }
+            HStack {
+                Button { searchFocused = false;recovery = true } label: { Label("Recently Deleted",systemImage:"trash.arrow.up") }.accessibilityLabel("Recently Deleted")
+                Spacer()
+                Menu {
+                    Button("Delete selected",role:.destructive) { deleteIDs = selection;confirmBulkDelete = true }.disabled(selection.isEmpty)
+                    Button("Delete all projects…",role:.destructive) { deleteIDs = Set(library.projects.map(\.id));confirmBulkDelete = true }.disabled(library.projects.isEmpty)
+                } label: { Label(deletingProjects ? "Deleting…" : "Delete",systemImage:"trash") }.disabled(deletingProjects || importingBatch)
+            }.font(.caption).buttonStyle(.bordered)
+        }
+    }
+    @ViewBuilder private func projectActions(_ project:Project) -> some View {
+        Button("Select project",systemImage:"checkmark.circle") { searchFocused = false;selecting = true;selection.insert(project.id) }
+        Button(project.organization?.favorite == true ? "Remove favorite" : "Mark favorite",systemImage:"heart") { Task { await library.organize(project,favorite:project.organization?.favorite != true) } }
+        Menu("Rate",systemImage:"star") {
+            Button("No rating") { Task { await library.organize(project,rating:0) } }
+            ForEach(1...5,id:\.self) { value in Button("\(value) \(value == 1 ? "star" : "stars")") { Task { await library.organize(project,rating:value) } } }
+        }
+        Button("Delete Studio copy",systemImage:"trash",role:.destructive) { deletion = project }
+    }
+    private func deleteProjects(_ ids:Set<UUID>) {
+        let projects = library.projects.filter { ids.contains($0.id) }
+        deletingProjects = true
+        Task { @MainActor in
+            defer { deletingProjects = false }
+            for project in projects { await library.remove(project);if library.error != nil { break } }
         }
     }
     private var hero: some View {
@@ -264,13 +304,13 @@ enum StudioStyle {
                 } label: {
                     HStack(spacing: 8) { if demoBusy { ProgressView() } else { Image(systemName: "slider.horizontal.3") }; Text("Explore the editor"); Image(systemName: "arrow.up.right") }
                         .font(.subheadline.weight(.semibold)).padding(.horizontal,16).padding(.vertical,12).background(.ultraThinMaterial,in: Capsule()).overlay(Capsule().stroke(.white.opacity(0.16)))
-                }.disabled(demoBusy || library.importing || importingBatch).buttonStyle(.plain)
+                }.disabled(demoBusy || library.importing || importingBatch || deletingProjects).buttonStyle(.plain)
                 Text("Illustrative sample · not a camera capture").font(.system(size: 9)).foregroundStyle(.white.opacity(0.55))
             }.padding(24)
         }.frame(height: 360).clipShape(RoundedRectangle(cornerRadius: 28)).overlay(RoundedRectangle(cornerRadius: 28).stroke(.white.opacity(0.09)))
     }
     private var importBar: some View {
-        let isImporting = library.importing || importingBatch
+        let isImporting = library.importing || importingBatch || deletingProjects
         return HStack(spacing: 12) {
             PhotosPicker(selection: $picker,maxSelectionCount:20,matching:.any(of:[.images,.videos]),preferredItemEncoding: .current) {
                 HStack(spacing: 9) { Image(systemName: "plus"); Text(isImporting ? "Importing…" : "Open photo or video").fontWeight(.semibold) }.frame(maxWidth: .infinity).frame(height: 54).background(StudioStyle.blue,in: Capsule()).foregroundStyle(.white)
@@ -285,7 +325,7 @@ enum StudioStyle {
     }
     private enum ImportSource { case photo(PhotosPickerItem),file(URL) }
     private func openOrSelect(_ project:Project) {
-        guard !importingBatch else { return }
+        guard !importingBatch && !deletingProjects else { return }
         searchFocused = false
         if selecting {
             if selection.contains(project.id) { selection.remove(project.id) }
@@ -294,7 +334,7 @@ enum StudioStyle {
         } else { selected = project }
     }
     private func beginImport(_ sources:[ImportSource]) {
-        guard !importingBatch,!sources.isEmpty else { return }
+        guard !importingBatch,!deletingProjects,!sources.isEmpty else { return }
         guard sources.count<=20 else { library.error = "Choose up to 20 items at a time.";return }
         importingBatch = true;searchFocused = false
         if sources.count>1 { workspaceSearch = "";filterRaw = LibraryFilter.all.rawValue;sortRaw = LibrarySort.newest.rawValue }
@@ -354,7 +394,7 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Batch workflow & recovery · 0.21.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Project gestures & library actions · 0.22.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
                     Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export JPEG/PNG photographs or trimmed HEVC video with audio in SDR or 10-bit HLG HDR.")
                     Text("Levels sets black, white and midtones. Mark favorites, rate projects and search or filter your workspace. Dehaze reduces a washed-out veil or adds soft haze. Texture brings out fine surfaces or softens them; Clarity changes broader definition. The preview stays large, and Expand preview hides adjustments. Tap video to show playback controls. Use Scopes to inspect brightness and color. Drag crop corners to resize and drag inside to reposition. Fixed ratios stay locked; Free lets each edge change. Flips and perspective help refine your composition; every change stays reversible.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Open up to 20 photos or clips together. Select projects in the workspace to export their saved edits in one batch. Recently Deleted keeps Studio copies restorable for 30 days. Local settings recovery can repair a damaged project index, but does not replace a backup of your media. In Curves, tap Edit curve points to adjust the graph; otherwise swipe it to scroll.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
