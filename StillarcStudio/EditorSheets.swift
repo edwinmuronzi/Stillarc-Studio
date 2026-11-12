@@ -98,6 +98,7 @@ import UniformTypeIdentifiers
         } catch { self.error = error.localizedDescription }
     }
 }
+private struct ColorLUTRequest:Identifiable { let id = UUID();let recipe:Recipe }
 @MainActor struct PresetsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var session: EditSession
@@ -109,6 +110,14 @@ import UniformTypeIdentifiers
     @State private var loadingLUT = false
     @State private var shareURL: URL?
     @State private var error: String?
+    @State private var query = ""
+    @State private var renameLook:SavedLook?
+    @State private var renameText = ""
+    @State private var colorLUTRequest:ColorLUTRequest?
+    private var visibleLooks:[SavedLook] {
+        let q = query.trimmingCharacters(in:.whitespacesAndNewlines)
+        return q.isEmpty ? library.looks : library.looks.filter { $0.name.localizedCaseInsensitiveContains(q) }
+    }
     var body: some View {
         NavigationStack {
             List {
@@ -116,11 +125,12 @@ import UniformTypeIdentifiers
                     Button { naming = true } label: { Label("Save current adjustments",systemImage: "plus.circle") }
                     Button { importingLUT = true } label: { Label("Import .cube LUT",systemImage:"cube.transparent") }.disabled(loadingLUT)
                     if loadingLUT { ProgressView("Preparing LUT…") }
+                    Button { colorLUTRequest = ColorLUTRequest(recipe:session.recipe) } label: { Label("Export current color as LUT",systemImage:"square.and.arrow.up") }
                     Button { importing = true } label: { Label("Import Studio preset",systemImage: "square.and.arrow.down") }
                 } footer: { Text("Presets save light, color, film and the LUT itself. Input conversion, crop and rotation stay with the source. Import a display-sRGB LUT, then adjust its strength under Film.") }
                 Section("Your presets") {
                     if library.looks.isEmpty { Text("Your signature looks will live here.").foregroundStyle(StudioStyle.secondary) }
-                    ForEach(library.looks) { look in
+                    ForEach(visibleLooks) { look in
                         HStack {
                             Button {
                                 session.change { recipe in let framing = recipe; recipe = look.recipe; recipe.copyFraming(from: framing); recipe.input = framing.input;recipe.video = framing.video;recipe.masks = framing.masks }
@@ -128,6 +138,9 @@ import UniformTypeIdentifiers
                             } label: { Label(look.name,systemImage: "camera.filters").foregroundStyle(.white) }
                             Spacer()
                             Menu {
+                                Button("Rename preset",systemImage:"pencil") { renameText = look.name;renameLook = look }
+                                Button("Duplicate preset",systemImage:"plus.square.on.square") { Task { if !(await library.saveLook(name:look.name+" copy",recipe:look.recipe)) { error = library.error } } }
+                                Button("Export color as LUT",systemImage:"cube") { colorLUTRequest = ColorLUTRequest(recipe:look.recipe) }.disabled(loadingLUT)
                                 Button("Export preset",systemImage: "square.and.arrow.up") { Task { await exportLook(look) } }
                                 Button("Delete preset",systemImage: "trash",role: .destructive) { Task { await library.removeLook(look) } }
                             } label: { Image(systemName: "ellipsis.circle").frame(width: 44,height: 44) }.accessibilityLabel("Manage \(look.name)")
@@ -138,8 +151,15 @@ import UniformTypeIdentifiers
                     Section { ShareLink(item: shareURL) { Label("Share exported preset",systemImage: "square.and.arrow.up") } }
                 }
                 if let error { Section { Text(error).foregroundStyle(.orange) } }
-            }.scrollContentBackground(.hidden).background(StudioStyle.ink).navigationTitle("Your looks").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { dismiss() }.disabled(loadingLUT) }
+            }.disabled(library.looksBusy).searchable(text:$query,prompt:"Search presets and LUTs").scrollContentBackground(.hidden).background(StudioStyle.ink).navigationTitle("Your looks").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { dismiss() }.disabled(loadingLUT) }
                 .interactiveDismissDisabled(loadingLUT)
+                .sheet(item:$colorLUTRequest) { request in ColorLUTExportSheet(recipe:request.recipe) }
+                .alert("Rename preset",isPresented:Binding(get:{ renameLook != nil },set:{ if !$0 { renameLook = nil } })) {
+                    TextField("Preset name",text:$renameText)
+                    Button("Cancel",role:.cancel) { renameLook = nil }
+                    Button("Save") { if let look = renameLook { Task { if !(await library.renameLook(look,name:renameText)) { error = library.error } } };renameLook = nil }.disabled(renameText.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty)
+                }
+                .onDisappear { if let shareURL { Task.detached(priority:.utility) { if shareURL.deletingLastPathComponent().lastPathComponent.hasPrefix("StudioColorLUT-") { try? FileManager.default.removeItem(at:shareURL.deletingLastPathComponent()) } else { try? FileManager.default.removeItem(at:shareURL) } } } }
                 .alert("Save preset",isPresented: $naming) {
                     TextField("Preset name",text: $name)
                     Button("Cancel",role: .cancel) {}
@@ -181,6 +201,7 @@ import UniformTypeIdentifiers
                 try encoder.encode(PresetDocument(name: look.name,recipe: look.recipe)).write(to: url,options: .atomic)
                 return url
             }.value
+            if let old = shareURL,old != url { Task.detached(priority:.utility) { try? FileManager.default.removeItem(at:old) } }
             shareURL = url
         } catch { self.error = error.localizedDescription }
     }

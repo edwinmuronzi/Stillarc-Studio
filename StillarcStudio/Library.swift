@@ -127,6 +127,7 @@ actor ProjectVault {
 @MainActor @Observable final class StudioLibrary {
     var projects: [Project] = []
     var looks: [SavedLook] = []
+    var looksBusy = false
     var adjustmentClipboard:AdjustmentClipboard?
     var recoveryMessage:String?
     var loading = true
@@ -179,12 +180,21 @@ actor ProjectVault {
         do { try await vault.remove(project); projects.removeAll { $0.id == project.id } } catch { self.error = error.localizedDescription }
     }
     @discardableResult func saveLook(name: String, recipe: Recipe) async -> Bool {
+        guard !looksBusy else { return false };looksBusy = true;defer { looksBusy = false }
         let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { return false }
         let updated = looks + [SavedLook(name: cleaned, recipe: recipe.colorPreset)]
         do { try await vault.saveLooks(updated); looks = updated; return true } catch { self.error = error.localizedDescription; return false }
     }
+    @discardableResult func renameLook(_ look:SavedLook,name:String) async -> Bool {
+        guard !looksBusy else { return false };looksBusy = true;defer { looksBusy = false }
+        let name = String(name.trimmingCharacters(in:.whitespacesAndNewlines).prefix(100))
+        guard !name.isEmpty,let index = looks.firstIndex(where:{ $0.id == look.id }) else { return false }
+        var updated = looks;updated[index].name = name
+        do { try await vault.saveLooks(updated);looks = updated;return true } catch { self.error = error.localizedDescription;return false }
+    }
     func removeLook(_ look: SavedLook) async {
+        guard !looksBusy else { return };looksBusy = true;defer { looksBusy = false }
         let updated = looks.filter { $0.id != look.id }
         do { try await vault.saveLooks(updated); looks = updated } catch { self.error = error.localizedDescription }
     }

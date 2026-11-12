@@ -1,0 +1,9 @@
+# Studio 0.27.0 (28) verification
+
+12 November 2026. Simulator and iPhone 17 Pro checks passed for published Sony/Panasonic black/middle-gray values, 32 CPU/GPU transfer/gamut vectors across Apple Log/Log 2/S-Log3/V-Log, exposure/alpha, SDR shoulder, persistence and Standard bypass. Native generated clips for both new manual profiles matched preview/export within the test tolerance and retained audio, duration and size. These are synthetic fixtures, not real camera certification.
+
+33/65-point identity LUTs passed order/gamma checks. Color-only cube text reimport passed. Maximum tested display-sRGB error against the direct compatible grade was 0.00291 with an active creative LUT on the final simulator run (test gate 0.012); the earlier native run without that active LUT measured 0.00160. Spatial/source edits were excluded, recipes stayed unchanged, and preset rename/duplicate persistence passed. Full processing regression passed on the simulator after the shared input-kernel change.
+
+Preset search/rename/duplicate UI passed in the library run. The final profile/LUT UI rerun passed for selecting Sony and Panasonic, toolbar Reset, applying a searched LUT preset and generating a shareable current color LUT. Earlier checks exposed a picker accessibility-query mismatch, an offscreen reset and an offscreen Share action; the picker now has a stable identifier, Reset is in the input toolbar, and LUT Create/Share stay in a fixed bottom bar.
+
+LUT array/string generation was tightened to reserve capacity and avoid per-sample array/locale allocation. File writing periodically checks cancellation. Rendering remains one cached input kernel and one on-request color-lattice render, with no per-slider LUT rebuild. No new sustained thermal/battery claim is made. Broader real camera files and receiving-app LUT interpolation still require manual coverage.

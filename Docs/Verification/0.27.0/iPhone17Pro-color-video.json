@@ -1,0 +1,30 @@
+{
+  "passed" : true,
+  "video" : {
+    "profiles" : 2,
+    "previewExportMatch" : true,
+    "passed" : true,
+    "audioTimingSize" : true
+  },
+  "color" : {
+    "identity33And65" : true,
+    "cubeRedFastestAndGamma" : true,
+    "colorMatchMaxError" : 0.0016001611948013306,
+    "excludedEffects" : true,
+    "passed" : true,
+    "roundTrip" : true,
+    "immutableRecipe" : true,
+    "renameDuplicatePersistence" : true,
+    "logReferences" : {
+      "persistence" : true,
+      "presetInputIsolation" : true,
+      "exposureAlpha" : true,
+      "standardBypass" : true,
+      "highlightShoulder" : true,
+      "curveVectors" : 32,
+      "bothGamuts" : true,
+      "passed" : true
+    }
+  },
+  "version" : "0.27.0"
+}

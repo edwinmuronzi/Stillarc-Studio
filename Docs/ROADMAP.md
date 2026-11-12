@@ -32,7 +32,9 @@ Implemented in 0.5: one display-sRGB 3D .cube LUT, strict size/domain/value vali
 
 Implemented in 0.6: explicit Apple Log/Log 2 input conversion, per-source exposure and an optional SDR shoulder before creative grading.
 
-Next: other camera Log and wide-gamut input/output transforms, 1D shapers, LUT stacking, LUT export for compatible global color operations, and separate full-recipe export for effects that LUTs cannot carry. Build film density/print response, luminance-aware grain and physically motivated halation independently of bloom. Measure effect scale consistency across preview/export. Define a versioned Camera/Studio shared-look contract before either app claims exchange compatibility.
+Implemented in 0.27: manual Sony S-Log3/S-Gamut3.Cine and Panasonic V-Log/V-Gamut input transforms; display-sRGB color-only 33/65-point .cube export with explicit exclusions; preset/LUT preset search, rename and duplicate.
+
+Next: more camera Log and wide-gamut input/output transforms, 1D shapers and LUT stacking. Continue testing full-recipe export for effects that LUTs cannot carry. Build film density/print response, luminance-aware grain and physically motivated halation independently of bloom. Measure effect scale consistency across preview/export. Define a versioned Camera/Studio shared-look contract before either app claims exchange compatibility.
 
 ## 4 — Selective edits and workflow
 
@@ -88,7 +90,7 @@ Next: HDR still-photo export, improved HDR creative-tool modeling, scopes and H.
 
 1. Finish Home workflow: copy/paste/revert, selection actions and recovery regression checks.
 2. Export controls (0.26 implemented): metadata/privacy policy, format clarity and interruption/failure handling; continue broader real-world source testing.
-3. Color tools: additional Log transforms, LUT management and compatible color-LUT export.
+3. Color tools (0.27 implemented): two additional Log transforms, LUT/preset management and compatible color-LUT export; broader camera-file validation continues.
 4. Photo refinement: assess lens corrections; refine film grain and halation with preview/export matching.
 5. Release preparation: layout/accessibility review, larger libraries, sustained device performance, documentation and listing material.
 

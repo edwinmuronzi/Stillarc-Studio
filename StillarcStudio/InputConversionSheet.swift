@@ -9,9 +9,9 @@ struct InputConversionSheet:View {
                 Section {
                     Picker("Recorded profile",selection:Binding(get:{ session.recipe.input.profile },set:{ profile in session.change { $0.input.profile = profile } })) {
                         ForEach(CameraLogProfile.allCases) { Text($0.title).tag($0) }
-                    }.disabled(session.project.isRAW)
+                    }.disabled(session.project.isRAW).accessibilityIdentifier("inputProfilePicker")
                     if let detected = session.project.video?.detectedLog { Text("File metadata identifies \(detected.shortTitle). You can override it if the clip was already converted.").font(.caption).foregroundStyle(.secondary) }
-                } footer: { Text(session.project.isRAW ? "RAW photos are already developed to linear color. No Log conversion is needed." : "Choose the profile used to record this file. Log conversion restores normal contrast and color before your edits and creative LUT. Leave already-converted media on Standard.") }
+                } footer: { Text(session.project.isRAW ? "RAW photos are already developed to linear color. No Log conversion is needed." : "Choose the profile used to record this file. Log conversion restores normal contrast and color before your edits and creative LUT. Sony and Panasonic profiles are manual choices: match the exact recorded gamut. Leave already-converted media on Standard.") }
                 if session.project.isVideo {
                     Section {
                         Toggle("HDR preview & export",isOn:Binding(get:{ session.recipe.video.hdr },set:{ value in session.change { $0.video.hdr = value } }))
@@ -24,10 +24,12 @@ struct InputConversionSheet:View {
                         Slider(value:$session.recipe.input.exposure,in:-4...4,onEditingChanged:{ $0 ? session.begin() : session.end() }).sliderReset { session.change { $0.input.exposure = 0 } }
                         Toggle("Soft highlight roll-off",isOn:Binding(get:{ session.recipe.input.softHighlights },set:{ value in session.change { $0.input.softHighlights = value } }))
                         if session.project.isVideo && session.recipe.video.hdr { Text("HDR output preserves highlight headroom; the SDR soft roll-off is bypassed.").font(.caption).foregroundStyle(.secondary) }
-                    } footer: { Text("Source exposure changes brightness before converting bright Log highlights to SDR. Soft roll-off gently fits highlights and saturated colors into the display range; it is Studio’s rendering, not Apple’s official Rec.709 LUT.") }
-                    Button("Reset input conversion") { session.change { $0.input = InputConversion() } }
+                    } footer: { Text("Source exposure changes brightness before converting bright Log highlights to SDR. Soft roll-off gently fits highlights and saturated colors into the display range; it is Studio’s rendering, not a manufacturer’s official display LUT.") }
                 }
-            }.navigationTitle("Input conversion").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { dismiss() } }
+            }.navigationTitle("Input conversion").navigationBarTitleDisplayMode(.inline).toolbar {
+                ToolbarItem(placement:.confirmationAction) { Button("Done") { dismiss() } }
+                ToolbarItem(placement:.cancellationAction) { Button("Reset") { session.change { $0.input = InputConversion() } }.disabled(session.project.isRAW || session.recipe.input.profile == .standard).accessibilityLabel("Reset input conversion") }
+            }
         }.tint(StudioStyle.blue).presentationDetents([.medium,.large])
     }
 }

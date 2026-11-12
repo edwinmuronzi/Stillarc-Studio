@@ -33,7 +33,7 @@ enum VideoFixtures {
         var buffer:CVPixelBuffer?
         guard CVPixelBufferCreate(nil,width,height,format,attributes as CFDictionary,&buffer) == kCVReturnSuccess,let buffer else { throw StudioError.render }
         let values = linear ?? scene
-        let rgb = profile == .standard ? values.map { v in v <= 0.0031308 ? v*12.92 : 1.055*pow(v,1/2.4)-0.055 } : values.map(LogConversion.encode)
+        let rgb = profile == .standard ? values.map { v in v <= 0.0031308 ? v*12.92 : 1.055*pow(v,1/2.4)-0.055 } : values.map { LogConversion.encode($0,profile:profile) }
         let y = rgb[0]*0.2627+rgb[1]*0.6780+rgb[2]*0.0593,u = (rgb[2]-y)/(2*(1-0.0593)),v = (rgb[0]-y)/(2*(1-0.2627))
         CVPixelBufferLockBaseAddress(buffer,[])
         if CVPixelBufferIsPlanar(buffer) {
@@ -56,7 +56,7 @@ enum VideoFixtures {
         CVBufferSetAttachment(buffer,kCVImageBufferYCbCrMatrixKey,kCVImageBufferYCbCrMatrix_ITU_R_2020,.shouldPropagate)
         CVBufferSetAttachment(buffer,kCVImageBufferColorPrimariesKey,kCVImageBufferColorPrimaries_ITU_R_2020,.shouldPropagate)
         CVBufferSetAttachment(buffer,kCVImageBufferTransferFunctionKey,kCVImageBufferTransferFunction_ITU_R_709_2,.shouldPropagate)
-        if #available(iOS 17.2,*),profile != .standard {
+        if #available(iOS 17.2,*),(profile == .appleLog || profile == .appleLog2) {
             CVBufferRemoveAttachment(buffer,kCVImageBufferTransferFunctionKey)
             if #available(iOS 27,*) { CVBufferSetAttachment(buffer,kCVImageBufferLogTransferFunctionKey,profile == .appleLog ? kCVImageBufferLogTransferFunction_AppleLog : kCVImageBufferLogTransferFunction_AppleLog2,.shouldPropagate) }
             else { CVBufferSetAttachment(buffer,kCVImageBufferLogTransferFunctionKey,kCVImageBufferLogTransferFunction_AppleLog,.shouldPropagate) }
@@ -72,7 +72,7 @@ enum VideoFixtures {
             ImageEngine.context().render(image,to:buffer,bounds:image.extent,colorSpace:hdr == "PQ" ? CGColorSpace(name:CGColorSpace.itur_2100_PQ)! : HDRPipeline.hlg)
         }
         var settings:[String:Any] = [AVVideoCodecKey:AVVideoCodecType.hevc,AVVideoWidthKey:width,AVVideoHeightKey:height,AVVideoCompressionPropertiesKey:[AVVideoAverageBitRateKey:3_000_000]]
-        if #available(iOS 27,*),profile != .standard {
+        if #available(iOS 27,*),(profile == .appleLog || profile == .appleLog2) {
             var color:[String:Any] = [AVVideoYCbCrMatrixKey:AVVideoYCbCrMatrix_ITU_R_2020,AVVideoLogTransferFunctionKey:profile == .appleLog ? AVVideoLogTransferFunction_AppleLog : AVVideoLogTransferFunction_AppleLog2]
             if profile == .appleLog { color[AVVideoColorPrimariesKey] = AVVideoColorPrimaries_ITU_R_2020 }
             settings[AVVideoColorPropertiesKey] = color

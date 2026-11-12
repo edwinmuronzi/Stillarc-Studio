@@ -108,6 +108,35 @@ final class GestureTests:XCTestCase {
         if !card.isHittable { app.scrollViews.firstMatch.swipeUp() };card.tap()
         XCTAssertTrue(app.buttons["Remove favorite"].exists)
     }
+    func testNewLogProfilesAndColorLUTExport() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = ["--demo-editor","--neutral-demo","--color-tools-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Input conversion"].waitForExistence(timeout:30));app.buttons["Input conversion"].tap()
+        app.descendants(matching:.any)["inputProfilePicker"].tap();app.buttons["Sony S-Log3 · S-Gamut3.Cine"].tap()
+        XCTAssertTrue(app.buttons["Reset input conversion"].waitForExistence(timeout:5))
+        app.descendants(matching:.any)["inputProfilePicker"].tap();app.buttons["Panasonic V-Log · V-Gamut"].tap()
+        app.buttons["Reset input conversion"].tap();app.navigationBars["Input conversion"].buttons["Done"].tap()
+        app.buttons["Looks"].tap();app.buttons["Looks & presets"].tap()
+        let search = app.searchFields.firstMatch;XCTAssertTrue(search.waitForExistence(timeout:5));search.tap();search.typeText("QA Color LUT");app.keyboards.buttons["Search"].tap()
+        app.buttons["QA Color LUT"].tap()
+        app.buttons["Looks"].tap();app.buttons["Looks & presets"].tap();app.buttons["Export current color as LUT"].tap()
+        let create = app.buttons["createColorLUT"];XCTAssertTrue(create.waitForExistence(timeout:5));create.tap()
+        XCTAssertTrue(app.buttons["Share color LUT"].waitForExistence(timeout:25))
+        let shot = XCTAttachment(screenshot:app.screenshot());shot.name = "Color LUT export";shot.lifetime = .keepAlways;add(shot)
+    }
+    func testPresetSearchRenameDuplicate() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = ["--demo-editor","--neutral-demo","--color-tools-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Looks"].waitForExistence(timeout:30));app.buttons["Looks"].tap();app.buttons["Looks & presets"].tap()
+        let search = app.searchFields.firstMatch;XCTAssertTrue(search.waitForExistence(timeout:5));search.tap();search.typeText("QA Color LUT");app.keyboards.buttons["Search"].tap()
+        app.buttons["Manage QA Color LUT"].tap();app.buttons["Rename preset"].tap()
+        let name = app.alerts.textFields["Preset name"];name.tap();name.typeText(String(repeating:XCUIKeyboardKey.delete.rawValue,count:12)+"QA Renamed")
+        app.alerts.buttons["Save"].tap()
+        search.tap();search.typeText(String(repeating:XCUIKeyboardKey.delete.rawValue,count:12)+"QA Renamed");app.keyboards.buttons["Search"].tap()
+        let manage = app.buttons["Manage QA Renamed"];XCTAssertTrue(manage.waitForExistence(timeout:5));manage.tap();app.buttons["Duplicate preset"].tap()
+        XCTAssertTrue(app.buttons["Manage QA Renamed copy"].waitForExistence(timeout:5))
+        manage.tap();app.buttons["Export color as LUT"].tap();XCTAssertTrue(app.buttons["createColorLUT"].waitForExistence(timeout:5))
+    }
     func testBatchExportPrivacyChoicesAndRetry() throws {
         let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments = ["--batch-demo","--privacy-demo"];app.launch()

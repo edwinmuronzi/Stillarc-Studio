@@ -1,0 +1,25 @@
+{
+  "passed" : true,
+  "color" : {
+    "cubeRedFastestAndGamma" : true,
+    "passed" : true,
+    "excludedEffects" : true,
+    "renameDuplicatePersistence" : true,
+    "immutableRecipe" : true,
+    "colorMatchMaxError" : 0.0029076188802719116,
+    "roundTrip" : true,
+    "activeLUTBaked" : true,
+    "logReferences" : {
+      "bothGamuts" : true,
+      "presetInputIsolation" : true,
+      "curveVectors" : 32,
+      "exposureAlpha" : true,
+      "passed" : true,
+      "standardBypass" : true,
+      "persistence" : true,
+      "highlightShoulder" : true
+    },
+    "identity33And65" : true
+  },
+  "version" : "0.27.0"
+}

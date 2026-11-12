@@ -2,7 +2,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.26 export metadata and privacy milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.27 Log conversion and color LUT milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -77,7 +77,7 @@ No sign-in, server processing, analytics SDK or upload is required. Imported pro
 1. Save [Studio Cool.cube](Docs/Examples/Studio-Cool.cube) to Files on your iPhone, or use your own display-sRGB creative LUT.
 2. Open a photo, tap **Looks → Looks & presets → Import .cube LUT**, and choose the file. It is applied to the current edit and saved in Your presets for later use.
 3. Open **Film → LUT strength** and drag to blend the effect. Zero leaves the other adjustments active; Remove detaches the LUT.
-4. Use **Looks → Looks & presets → Save current adjustments** to keep the LUT together with your other edits. Use a preset's menu to export the portable Studio JSON or delete it. Exporting a preset does not produce a new `.cube` file.
+4. Use **Looks → Looks & presets → Save current adjustments** to keep the LUT together with your other edits. Use a preset's menu to export the portable Studio JSON or delete it. Use Export color as LUT separately to produce a color-only `.cube`.
 
 The included Studio Cool LUT is a subtle original demonstration, not a camera conversion or measured film emulation.
 
@@ -86,12 +86,12 @@ The included Studio Cool LUT is a subtle original demonstration, not a camera co
 ## Convert and grade a Log clip
 
 1. Use **Open photo or video** or the Files button. Studio copies the original into its local workspace.
-2. Tap the **INPUT** badge. Choose Apple Log or Apple Log 2 if the source metadata did not identify it. Standard leaves normal footage color-managed without a Log transform. Do not guess the input profile from how flat a clip looks.
+2. Tap the **INPUT** badge. Choose the exact recorded profile if metadata did not identify it: Apple Log/Log 2, Sony S-Log3 with S-Gamut3.Cine, or Panasonic V-Log with V-Gamut. Standard leaves normal footage color-managed without a Log transform. Do not guess the input profile from how flat a clip looks.
 3. Adjust input exposure/soft highlights, then grade with Light, Color, Curves, Mix, Wheels and Film. Tap the video to reveal Play/pause and scrubbing; hold Compare for the unconverted original.
 4. Tap **scissors** beside Play to choose start/end points. The trim sheet previews the retained range; adjust an endpoint to inspect it. Undo or **Use entire clip** restores the previous/full range.
 5. Choose **HDR preview & export** in INPUT, or **HDR video · HLG** in Export. HDR always uses 10-bit HEVC, Rec.2020 primaries and HLG transfer. SDR offers 10-bit or 8-bit HEVC, Rec.709 primaries and sRGB transfer. Share/save to Files or add a new copy to Photos. Frame cadence and audio are retained within the chosen range, with a zero-based exported timeline. Source dimensions stay full-size unless framing changes them, with even pixel dimensions for HEVC.
 
-Only Apple Log and Log 2 camera Log conversion are supported currently; HLG/PQ video is color-managed automatically. Videos larger than 4K are rejected with an explanation. HDR output is HLG, not Dolby Vision, HDR10+ or Log. Source conversion, trim and HDR choice are saved with the project and excluded from creative presets. A source that was already SDR does not gain missing highlight detail simply by choosing HDR.
+Apple Log/Log 2 plus manual Sony S-Log3/S-Gamut3.Cine and Panasonic V-Log/V-Gamut conversion are supported; HLG/PQ video is color-managed automatically. Videos larger than 4K are rejected with an explanation. HDR output is HLG, not Dolby Vision, HDR10+ or Log. Source conversion, trim and HDR choice are saved with the project and excluded from creative presets. A source that was already SDR does not gain missing highlight detail simply by choosing HDR.
 
 HDR grading keeps per-pixel highlight headroom outside the display-referred creative tools and restores it after grading. The SDR input shoulder is bypassed for HDR output. Curves, creative looks and LUTs can still intentionally alter/compress highlight appearance. HDR display brightness depends on the device, display settings and available headroom. Choosing SDR contains output to SDR; it is not a Dolby Vision tone-map match.
 
@@ -121,7 +121,7 @@ RGB curves use bounded cached 1024-sample float tables. Selective color, wheels 
 
 The preview is decoded once, capped at 1600 pixels on its long edge and rendered directly with Core Image/Metal. The view draws on changes, with one GPU submission in flight and newest-state coalescing; it has no perpetual display loop. Import and full-resolution export run away from the main actor. The preview pauses behind export/preset sheets and when the scene is inactive. Photo export reopens the original, so preview sizing does not reduce exported dimensions.
 
-LUT files are parsed and validated away from the UI actor. Immutable float tables are shared by undo states, not rebuilt or hashed during slider moves. LUTs run after built-in looks and before texture/detail; zero strength skips the LUT stage. Input/output numbers are interpreted as display sRGB, with explicit transfer curves around the cube in the linear working pipeline. Non-default input domains are normalized, and inputs outside the domain clamp to its edges. One LUT can be active at a time. Camera input conversion is separate and happens before creative grading. Creative LUTs still need to target display sRGB; a camera conversion LUT would double-convert an input already set to Apple Log/Log 2. 1D shapers, combined shaper/3D files, LUT stacking and LUT-file export are not supported yet.
+LUT files are parsed and validated away from the UI actor. Immutable float tables are shared by undo states, not rebuilt or hashed during slider moves. LUTs run after built-in looks and before texture/detail; zero strength skips the LUT stage. Input/output numbers are interpreted as display sRGB, with explicit transfer curves around the cube in the linear working pipeline. Non-default input domains are normalized, and inputs outside the domain clamp to its edges. One LUT can be active at a time. Camera input conversion is separate and happens before creative grading. Creative LUTs still need to target display sRGB; a camera conversion LUT would double-convert an input already set to Apple Log/Log 2. 1D shapers, combined shaper/3D files and LUT stacking remain planned. Color-only LUT-file export is available separately.
 
 Video playback runs up to 30 preview frames per second and grades a bounded 1280-pixel preview with at most one GPU submission in flight. Playback pauses when covered/inactive; paused settled frames stop rendering. Export processes the full source, uses progress/cancellation, yields more at fair thermal state and pauses at serious/critical state without reducing output resolution or skipping frames. Backgrounding cancels an active export safely.
 
@@ -234,3 +234,12 @@ Choices are remembered on this device and shared between single and batch export
 JPEG remains 96% quality, PNG remains lossless 8-bit sRGB, and video keeps the existing HEVC SDR/HLG path and source timing. Metadata is attached during the existing encode, without a second compression/grading pass. Save to Photos or Share uses the same completed file. **Change export options** discards the temporary export and lets you create another; share/save completed files before changing options or closing the sheet. Errors retain project edits and originals.
 
 [Implementation and validation references](Docs/EXPORT-PRIVACY.md)
+
+### Log conversion, color LUT export and library tools (0.27)
+
+- **INPUT → Recorded profile** now offers Sony S-Log3/S-Gamut3.Cine and Panasonic V-Log/V-Gamut. These are manual choices: check the recording settings and select the exact gamut. They are not Sony S-Gamut3, S-Log2, HLG, or RAW. Leave already-converted footage on Standard to avoid converting twice. Source exposure and soft SDR highlights use the same reversible pipeline; the toolbar Reset returns to Standard.
+- **Looks → Looks & presets → Export current color as LUT** creates a display-sRGB SDR `.cube`, with Standard 33-point or Fine 65-point precision. A saved preset’s options menu can also export its color as a LUT. Apply it after input conversion, with neutral creative edits, to avoid applying the grade twice.
+- A color LUT includes compatible exposure, white balance, contrast, saturation/vibrance, Levels/RGB curves, tone shaping/fade, color mix, wheels/mixer, built-in creative look and active creative LUT. It is a sampled approximation limited to display sRGB 0–1. Input conversion, Highlights/Shadows, detail/spatial tools, grain, bloom, vignette, masks, framing, clip settings and HDR output are excluded. The export sheet lists active excluded edits. Use Studio JSON for reusable recipe settings and Saved versions for a complete source-specific edit.
+- Search **Your looks** by name. Each preset/LUT preset now has **Rename preset**, **Duplicate preset**, full JSON export, color LUT export and deletion. Renaming preserves the preset’s identity and grade; duplicates are independent entries. Large LUT data is still shared immutably while editing.
+
+[Color transform references, supported scope and validation](Docs/COLOR-BATCH.md)
