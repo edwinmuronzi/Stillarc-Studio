@@ -60,6 +60,8 @@ Implemented in 0.23: bin thumbnails/enlarged poster previews and days remaining;
 
 Implemented in 0.24: immediate selection taps, Home copy/paste with section choices, and selection-aware ellipsis actions including bulk ratings and unfavourite.
 
+Implemented in 0.25: confirmed Home revert to imported source defaults, with a before-revert version and retained detected video input/HDR settings.
+
 Next: more robust tracking, changing-pose segmentation, healing and carefully bounded advanced noise reduction. Explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
 
 ## 5 — Video grading
@@ -79,3 +81,13 @@ Next: HDR still-photo export, improved HDR creative-tool modeling, scopes and H.
 - Test 12/24/48MP photos, multiple supported RAW cameras, interrupted imports/exports, low storage and limited/denied permissions.
 - Sustained editing and export tests from a cool device; compare energy/thermal behavior across devices, not just a simulator.
 - No guarantee of zero heat or lag; measurements determine supported performance claims.
+
+## Remaining delivery batches
+
+1. Finish Home workflow: copy/paste/revert, selection actions and recovery regression checks.
+2. Export controls: metadata/privacy policy, format clarity and interruption/failure handling.
+3. Color tools: additional Log transforms, LUT management and compatible color-LUT export.
+4. Photo refinement: assess lens corrections; refine film grain and halation with preview/export matching.
+5. Release preparation: layout/accessibility review, larger libraries, sustained device performance, documentation and listing material.
+
+Later tools remain subject to fixture validation and device performance checks; unavailable features should not be advertised as working.

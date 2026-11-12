@@ -95,6 +95,15 @@ enum Batch021Verification {
         try check(prior == pasteProject.recipe,"Batch paste checkpoint lost prior edit")
         let unchanged = try await vault.pasteCopiedAdjustments(pasteProject.id,clipboard:clipboard,sections:[.light])
         try check(unchanged.versions?.count == 1,"No-op batch paste created another version")
+        let reverted = try await vault.revertToOriginal(pasted.id)
+        try check(reverted.recipe == Recipe() && reverted.versions?.count == 2,"Home revert did not reset complete edit with a checkpoint")
+        let beforeRevert = try await vault.loadVersion(reverted,version:reverted.versions!.last!)
+        try check(beforeRevert == pasted.recipe,"Home revert lost prior edit")
+        let revertedAgain = try await vault.revertToOriginal(pasted.id)
+        try check(revertedAgain.versions?.count == 2,"No-op revert created another version")
+        var videoBaseline = reverted
+        videoBaseline.video = VideoDescriptor(width:64,height:48,duration:1,frameRate:30,transform:[1,0,0,1,0,0],detectedLog:.appleLog,hdrTransfer:"HLG")
+        try check(videoBaseline.originalRecipe.input.profile == .appleLog && videoBaseline.originalRecipe.video.hdr,"Revert lost detected video input/HDR baseline")
         var full = pasted;full.versions = (0..<20).map { EditVersion(name:"Version \($0)") };_ = try await vault.save(full)
         do { _ = try await vault.pasteCopiedAdjustments(full.id,clipboard:clipboard,sections:[.whiteBalance]);throw StudioError.render }
         catch let error as NSError { try check(error.domain == "BatchPaste","Batch paste silently discarded version history") }
@@ -102,7 +111,7 @@ enum Batch021Verification {
         try check(countdownEntry.daysRemaining(at:now) == 30 && countdownEntry.daysRemaining(at:now.addingTimeInterval(29.5*86400)) == 1 && countdownEntry.daysRemaining(at:now.addingTimeInterval(31*86400)) == 0,"Trash countdown boundaries")
         let deletedSource = await vault.deletedSource(countdownEntry)
         try check(deletedSource.lastPathComponent == pasted.sourceName && deletedSource.path.contains("/trash/"),"Trash preview source path")
-        return ["passed":true,"batchPasteSectionsCheckpointNoOpVersionCap":true,"trashCountdown":true,"originalImportNames":true,"partialBatch":true,"perProjectGradeCrop":true,"uniqueSafeNames":true,"cancellation":true,"indexRecovery":true,"backupThrottle":true,"restoreMediaVersionsRatings":true,"interruptedDeleteRestore":true,"trashExpiry":true,"looksRecovery":true,"originalPreserved":true]
+        return ["passed":true,"homeRevertCheckpointNoOpInputBaseline":true,"batchPasteSectionsCheckpointNoOpVersionCap":true,"trashCountdown":true,"originalImportNames":true,"partialBatch":true,"perProjectGradeCrop":true,"uniqueSafeNames":true,"cancellation":true,"indexRecovery":true,"backupThrottle":true,"restoreMediaVersionsRatings":true,"interruptedDeleteRestore":true,"trashExpiry":true,"looksRecovery":true,"originalPreserved":true]
     }
 }
 #endif

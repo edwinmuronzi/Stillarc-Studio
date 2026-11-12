@@ -58,6 +58,8 @@ enum StudioStyle {
     @State private var batchPaste = false
     @State private var copyProject:Project?
     @State private var pasteProject:Project?
+    @State private var revertProject:Project?
+    @State private var reverting = false
     @State private var recovery = false
     @State private var files = false
     @State private var info = false
@@ -145,7 +147,7 @@ enum StudioStyle {
                                         } preview: {
                                             ProjectThumbnail(project:project,vault:library.vault).scaledToFit().frame(width:300,height:380).clipShape(RoundedRectangle(cornerRadius:22))
                                         }
-                                        .allowsHitTesting(!importingBatch && !deletingProjects)
+                                        .allowsHitTesting(!importingBatch && !deletingProjects && !reverting)
                                     .overlay(alignment:.topLeading) { if selecting { Image(systemName:selection.contains(project.id) ? "checkmark.circle.fill" : "circle").font(.title2).foregroundStyle(selection.contains(project.id) ? StudioStyle.blue : .white).padding(10).allowsHitTesting(false).accessibilityHidden(true) } }
                                     HStack(alignment:.top,spacing:6) {
                                         VStack(alignment:.leading,spacing:5) {
@@ -158,7 +160,7 @@ enum StudioStyle {
                                         }.frame(maxWidth:.infinity,alignment:.leading).contentShape(Rectangle()).onTapGesture { openOrSelect(project) }
                                         Menu {
                                             if selecting && selection.contains(project.id) { selectionActions } else { projectActions(project) }
-                                        } label: { Image(systemName:"ellipsis").frame(width:32,height:32) }.accessibilityLabel("Manage \(project.name)").disabled(deletingProjects || importingBatch || favoritingProjects)
+                                        } label: { Image(systemName:"ellipsis").frame(width:32,height:32) }.accessibilityLabel("Manage \(project.name)").disabled(deletingProjects || importingBatch || favoritingProjects || reverting)
                                     }
                                 }.foregroundStyle(.white)
                             }
@@ -255,6 +257,9 @@ enum StudioStyle {
             .onChange(of:scenePhase) { _,phase in if phase != .active { importTask?.cancel() } }
 
             .alert("Unable to complete",isPresented: Binding(get: { library.error != nil },set: { if !$0 { library.error = nil } })) { Button("OK") { library.error = nil } } message: { Text(library.error ?? "") }
+            .confirmationDialog("Revert to original?",isPresented:Binding(get:{ revertProject != nil },set:{ if !$0 { revertProject = nil } }),titleVisibility:.visible) {
+                Button("Revert to original",role:.destructive) { if let project = revertProject { revert(project) };revertProject = nil }
+            } message: { Text("Reset color, effects, masks, framing and trim to the imported original. The current edit is kept under Looks → Versions as Before revert to original. Ratings, favourites and other saved versions remain.") }
             .confirmationDialog("Move \(deleteIDs.count) projects to Recently Deleted?",isPresented:$confirmBulkDelete,titleVisibility:.visible) {
                 Button("Delete \(deleteIDs.count) projects",role:.destructive) { deleteProjects(deleteIDs) }
             } message: { Text("These Studio copies can be restored for 30 days. Originals in Photos and Files remain untouched.") }
@@ -303,6 +308,7 @@ enum StudioStyle {
     @ViewBuilder private func projectActions(_ project:Project) -> some View {
         Button("Copy adjustments",systemImage:"doc.on.doc") { searchFocused = false;copyProject = project }
         Button("Paste adjustments",systemImage:"doc.on.clipboard") { searchFocused = false;pasteProject = project }.disabled(library.adjustmentClipboard == nil)
+        Button("Revert to original",systemImage:"arrow.uturn.backward",role:.destructive) { searchFocused = false;revertProject = project }.disabled(project.recipe == project.originalRecipe || reverting)
         Button("Select project",systemImage:"checkmark.circle") { searchFocused = false;selecting = true;selection.insert(project.id) }
         Button(project.organization?.favorite == true ? "Remove favorite" : "Mark favorite",systemImage:"heart") { Task { await library.organize(project,favorite:project.organization?.favorite != true) } }
         Menu("Rate",systemImage:"star") {
@@ -310,6 +316,16 @@ enum StudioStyle {
             ForEach(1...5,id:\.self) { value in Button("\(value) \(value == 1 ? "star" : "stars")") { Task { await library.organize(project,rating:value) } } }
         }
         Button("Delete Studio copy",systemImage:"trash",role:.destructive) { deletion = project }
+    }
+    private func revert(_ project:Project) {
+        guard !reverting else { return };reverting = true
+        Task { @MainActor in
+            defer { reverting = false }
+            do {
+                let updated = try await library.vault.revertToOriginal(project.id)
+                if let index = library.projects.firstIndex(where:{ $0.id == updated.id }) { library.projects[index] = updated }
+            } catch { library.error = error.localizedDescription }
+        }
     }
     private func organizeSelected(favorite:Bool? = nil,rating:Int? = nil) {
         guard !favoritingProjects else { return }
@@ -342,13 +358,13 @@ enum StudioStyle {
                 } label: {
                     HStack(spacing: 8) { if demoBusy { ProgressView() } else { Image(systemName: "slider.horizontal.3") }; Text("Explore the editor"); Image(systemName: "arrow.up.right") }
                         .font(.subheadline.weight(.semibold)).padding(.horizontal,16).padding(.vertical,12).background(.ultraThinMaterial,in: Capsule()).overlay(Capsule().stroke(.white.opacity(0.16)))
-                }.disabled(demoBusy || library.importing || importingBatch || deletingProjects).buttonStyle(.plain)
+                }.disabled(demoBusy || library.importing || importingBatch || deletingProjects || reverting).buttonStyle(.plain)
                 Text("Illustrative sample · not a camera capture").font(.system(size: 9)).foregroundStyle(.white.opacity(0.55))
             }.padding(24)
         }.frame(height: 360).clipShape(RoundedRectangle(cornerRadius: 28)).overlay(RoundedRectangle(cornerRadius: 28).stroke(.white.opacity(0.09)))
     }
     private var importBar: some View {
-        let isImporting = library.importing || importingBatch || deletingProjects
+        let isImporting = library.importing || importingBatch || deletingProjects || reverting
         return HStack(spacing: 12) {
             PhotosPicker(selection: $picker,maxSelectionCount:20,matching:.any(of:[.images,.videos]),preferredItemEncoding: .current) {
                 HStack(spacing: 9) { Image(systemName: "plus"); Text(isImporting ? "Importing…" : "Open photo or video").fontWeight(.semibold) }.frame(maxWidth: .infinity).frame(height: 54).background(StudioStyle.blue,in: Capsule()).foregroundStyle(.white)
@@ -434,7 +450,7 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Instant selection & home grading · 0.24.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Home revert & edit recovery · 0.25.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
                     Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export JPEG/PNG photographs or trimmed HEVC video with audio in SDR or 10-bit HLG HDR.")
                     Text("Levels sets black, white and midtones. Mark favorites, rate projects and search or filter your workspace. Dehaze reduces a washed-out veil or adds soft haze. Texture brings out fine surfaces or softens them; Clarity changes broader definition. The preview stays large, and Expand preview hides adjustments. Tap video to show playback controls. Use Scopes to inspect brightness and color. Drag crop corners to resize and drag inside to reposition. Fixed ratios stay locked; Free lets each edge change. Flips and perspective help refine your composition; every change stays reversible.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Open up to 20 photos or clips together. Select projects in the workspace to export their saved edits in one batch. Recently Deleted keeps Studio copies restorable for 30 days. Local settings recovery can repair a damaged project index, but does not replace a backup of your media. In Curves, tap Edit curve points to adjust the graph; otherwise swipe it to scroll.").font(.subheadline).foregroundStyle(StudioStyle.secondary)

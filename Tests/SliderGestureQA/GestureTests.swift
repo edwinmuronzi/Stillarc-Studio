@@ -108,6 +108,19 @@ final class GestureTests:XCTestCase {
         if !card.isHittable { app.scrollViews.firstMatch.swipeUp() };card.tap()
         XCTAssertTrue(app.buttons["Remove favorite"].exists)
     }
+    func testHomeRevertToOriginal() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = ["--batch-demo","--batch-paste-demo"];app.launch()
+        XCTAssertTrue(app.staticTexts["Added 2 of 2."].waitForExistence(timeout:30))
+        let search = app.textFields["workspaceSearch"];search.tap();search.typeText("Studio batch QA");app.keyboards.buttons["Search"].tap();app.scrollViews.firstMatch.swipeUp()
+        app.buttons["Manage Studio batch QA 1"].tap();app.buttons["doc.on.clipboard"].tap()
+        XCTAssertTrue(app.buttons["applyBatchPaste"].waitForExistence(timeout:5));app.buttons["applyBatchPaste"].tap()
+        XCTAssertTrue(app.staticTexts["Applied to 1 of 1."].waitForExistence(timeout:10));app.navigationBars["Paste adjustments"].buttons["Done"].tap()
+        app.buttons["Manage Studio batch QA 1"].tap();app.buttons["Revert to original"].tap()
+        app.buttons["Revert to original"].tap()
+        app.buttons["Open Studio batch QA 1"].tap()
+        XCTAssertTrue(app.buttons["Light"].waitForExistence(timeout:15));XCTAssertEqual(app.buttons["Light"].value as? String,"No adjustments")
+    }
     func testInstantSelectionAndHomeCopyPaste() throws {
         let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments = ["--batch-demo"];app.launch()
