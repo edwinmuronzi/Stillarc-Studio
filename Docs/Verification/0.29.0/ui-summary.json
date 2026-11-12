@@ -1,0 +1,19 @@
+{
+  "fullUI": {
+    "tests": 23,
+    "failures": 0
+  },
+  "finalTargetedUI": {
+    "tests": 2,
+    "failures": 0,
+    "includes": [
+      "preview swipe",
+      "repeated switching",
+      "pool sync",
+      "selection",
+      "relaunch/resume",
+      "independent regions"
+    ]
+  },
+  "compactLayoutReviewed": true
+}

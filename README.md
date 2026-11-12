@@ -2,7 +2,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.28 film refinement and release-candidate milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.29 editing pool and Subject/Background milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -261,3 +261,16 @@ JPEG remains 96% quality, PNG remains lossless 8-bit sRGB, and video keeps the e
 Testing a supplied RAW photo and camera-original HLG video found and fixed darker SDR exports from HDR video. SDR export now matches the intended preview while HLG output retains its existing path. Real-clip resolution, frame timing, both audio tracks and original bytes were preserved. The full native video regression passed. [Results and limits](Docs/Verification/0.28.1/README.md).
 
 [Photo, grading and timeline feature evaluation](Docs/PRODUCT-DIRECTION.md): proposed editing pools, subject/background tools and a separate timeline companion. These are future directions, not newly shipped tools. Beta and App Store work are deferred.
+
+
+### Editing pools and Subject/Background (0.29)
+
+**Home → Select → choose up to 20 projects → Edit together.** Browse by filmstrip, Previous/Next, or swipe sideways on an unzoomed preview. Preview swiping stays off in Crop, Masks and split comparison so it does not steal editing gestures. The editing tool stays selected between items. Hide the filmstrip to give the preview more space.
+
+Edits affect **the current item**. Choose **Sync edits**, then **Selected** or **Entire pool**, and choose adjustment sections to replace. The selection button switches thumbnail taps between selection and browsing; hold it for Select all/Clear selection. A changed destination gets a **Before batch paste** version under Looks → Versions. Crop, masks, source input conversion, trim, audio and HDR choices remain individual. Unchanged destinations do not add a version. Projects at the 20-version limit are reported and skipped; cancellation stops remaining items while keeping completed edits. This is explicit synchronization, not a live inherited master grade.
+
+**Resume editing pool** restores its order, current item, selection and tool on this device. Deleted/unavailable projects are pruned when resuming. A pool is a saved group of existing projects, not another copy of their media. Switching saves before leaving; only the active editor holds a full preview. Filmstrip thumbnails are bounded to 160px with size-specific caching, while previews and exports keep their existing quality.
+
+**Masks → Add mask → Subject & Background → Create Subject & Background.** One on-device foreground analysis creates two named, separately adjustable layers. Choose Subject or Background, then adjust Exposure, Warmth, Saturation, Contrast or Strength. Turn off the red Guide to judge the actual grade. Each layer can be refined, inverted, disabled, deleted and undone. Both share the detected base matte and use two of the four mask slots. These source-specific selections are excluded from reusable grades and pool synchronization.
+
+For video, both selections start from the first kept frame. Position tracking is independent per layer; this is not per-frame segmentation or changing-pose matting. Background removal/replacement and transparent cutout export are not included in this update.

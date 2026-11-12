@@ -1,0 +1,91 @@
+{
+  "encodedAutomaticMask" : true,
+  "version" : "0.29.0",
+  "levelsVideoExport" : true,
+  "encodedCombinedBrushRangeMask" : true,
+  "trimHDR" : {
+    "persistence" : true,
+    "passed" : true,
+    "trimFrames" : 33,
+    "zeroBasedTiming" : true,
+    "headroomVectors" : 5,
+    "presetIsolation" : true,
+    "HDRToSDRPreviewClamp" : true,
+    "audioTracks" : 2,
+    "trimSeconds" : 1.1000000000000001
+  },
+  "encodedColorLuminanceMasks" : true,
+  "clips" : [
+    {
+      "cancellation" : true,
+      "metadata" : true,
+      "audioTracks" : 2,
+      "width" : 640,
+      "projectRoundTrip" : true,
+      "originalPreserved" : true,
+      "frames" : 18,
+      "profile" : "standard",
+      "height" : 360,
+      "color" : true
+    },
+    {
+      "frames" : 18,
+      "profile" : "appleLog",
+      "width" : 360,
+      "projectRoundTrip" : true,
+      "height" : 640,
+      "metadata" : true,
+      "color" : true,
+      "cancellation" : true,
+      "audioTracks" : 1,
+      "originalPreserved" : true
+    },
+    {
+      "originalPreserved" : true,
+      "cancellation" : true,
+      "color" : true,
+      "width" : 640,
+      "height" : 360,
+      "metadata" : true,
+      "frames" : 18,
+      "projectRoundTrip" : true,
+      "profile" : "appleLog2",
+      "audioTracks" : 1
+    },
+    {
+      "height" : 1860,
+      "width" : 1860,
+      "frames" : 3,
+      "cornerResized4KLog" : true
+    }
+  ],
+  "photoInput" : {
+    "bothGamuts" : true,
+    "standardBypass" : true,
+    "presetInputIsolation" : true,
+    "exposureAlpha" : true,
+    "highlightShoulder" : true,
+    "passed" : true,
+    "persistence" : true,
+    "curveVectors" : 32
+  },
+  "passed" : true,
+  "dehazeVideoExport" : true,
+  "encodedAutomaticCropRepair" : true,
+  "boundedTrackingDecode" : true,
+  "maskTracking" : {
+    "passed" : true,
+    "cancellation" : true,
+    "pointCounts" : [
+      30,
+      30
+    ],
+    "portraitLandscape" : true,
+    "encodedTracking" : true,
+    "exportFramesPerClip" : 60,
+    "movingTargetErrors" : [
+      0.0051411703706012168,
+      0.0033422505339212594
+    ]
+  }
+}

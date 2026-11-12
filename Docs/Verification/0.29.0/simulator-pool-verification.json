@@ -1,0 +1,11 @@
+{
+  "sharedMatte" : true,
+  "recoverableSyncNoOp" : true,
+  "independentRegions" : true,
+  "thermal" : 0,
+  "selectiveSyncSourceIsolation" : true,
+  "capacityAndPersistence" : true,
+  "passed" : true,
+  "poolOrderRestorePruning" : true,
+  "version" : "0.29.0"
+}

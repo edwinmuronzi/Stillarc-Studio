@@ -48,6 +48,8 @@ enum StudioStyle {
     @Bindable var library: StudioLibrary
     @Environment(\.scenePhase) private var scenePhase
     @State private var selected: Project?
+    @State private var editingPool:EditingPool?
+    @AppStorage(EditingPool.storageKey) private var savedPoolData=Data()
     @State private var picker:[PhotosPickerItem] = []
     @State private var importingBatch = false
     @State private var importStatus:String?
@@ -98,6 +100,9 @@ enum StudioStyle {
                         Text("\(items.count) of \(library.projects.count)").font(.caption.monospaced()).foregroundStyle(StudioStyle.secondary)
                     }
                     workspaceControls
+                    if !selecting,let state=try? JSONDecoder().decode(EditingPoolState.self,from:savedPoolData),state.available(library.projects) != nil {
+                        Button("Resume editing pool",systemImage:"rectangle.stack") {if let available=state.available(library.projects) {searchFocused=false;editingPool=EditingPool(available)}}.font(.caption).buttonStyle(.bordered)
+                    }
                     if let status = importStatus {
                         HStack { if importingBatch { ProgressView() };Text(status).font(.caption);Spacer();if importingBatch { Button("Cancel remaining") { importTask?.cancel() }.font(.caption) } }
                     }
@@ -106,6 +111,7 @@ enum StudioStyle {
                         HStack {
                             Button(items.count>20 ? "Select first 20 shown" : "Select shown") { selection = Set(items.prefix(20).map(\.id)) }
                             Spacer()
+                            Button("Edit together") {openPool()}.disabled(selection.isEmpty || importingBatch)
                             Button("Export \(selection.count)") { batchExport = true }.disabled(selection.isEmpty || importingBatch)
                         }.font(.caption).buttonStyle(.bordered)
                         HStack {
@@ -178,7 +184,7 @@ enum StudioStyle {
             .task {
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("--privacy-demo") { ExportPrivacy().save() }
-                let qa = ProcessInfo.processInfo.arguments.contains("--verify-real-video") || ProcessInfo.processInfo.arguments.contains("--verify-real-media") || ProcessInfo.processInfo.arguments.contains("--verify-refinement") || ProcessInfo.processInfo.arguments.contains("--verify-color-batch") || ProcessInfo.processInfo.arguments.contains("--verify-export-privacy") || ProcessInfo.processInfo.arguments.contains("--verify-video-suite") || ProcessInfo.processInfo.arguments.contains("--verify-studio") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") || ProcessInfo.processInfo.arguments.contains("--verify-automatic-only")
+                let qa = ProcessInfo.processInfo.arguments.contains("--verify-pool") || ProcessInfo.processInfo.arguments.contains("--verify-real-video") || ProcessInfo.processInfo.arguments.contains("--verify-real-media") || ProcessInfo.processInfo.arguments.contains("--verify-refinement") || ProcessInfo.processInfo.arguments.contains("--verify-color-batch") || ProcessInfo.processInfo.arguments.contains("--verify-export-privacy") || ProcessInfo.processInfo.arguments.contains("--verify-video-suite") || ProcessInfo.processInfo.arguments.contains("--verify-studio") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") || ProcessInfo.processInfo.arguments.contains("--verify-automatic-only")
                 let oldIdle = UIApplication.shared.isIdleTimerDisabled
                 if qa { UIApplication.shared.isIdleTimerDisabled = true }
                 defer { if qa { UIApplication.shared.isIdleTimerDisabled = oldIdle } }
@@ -208,6 +214,8 @@ enum StudioStyle {
                     do { let report = try await Task.detached { try await TrackingVerification.video() }.value;try JSONSerialization.data(withJSONObject:report,options:.prettyPrinted).write(to:reportURL,options:.atomic) }
                     catch { try? JSONSerialization.data(withJSONObject:["passed":false,"error":error.localizedDescription],options:.prettyPrinted).write(to:reportURL,options:.atomic) }
                 }
+                if ProcessInfo.processInfo.arguments.contains("--verify-pool") {await PoolVerification.writeReport()}
+                if ProcessInfo.processInfo.arguments.contains("--pool-demo") {editingPool=await PoolVerification.demo(library)}
                 if ProcessInfo.processInfo.arguments.contains("--verify-real-media") { await RealMediaVerification.writeReport() }
                 if ProcessInfo.processInfo.arguments.contains("--verify-real-video") { await RealMediaVerification.writeVideoReport() }
                 if ProcessInfo.processInfo.arguments.contains("--verify-refinement") { await RefinementVerification.writeReport() }
@@ -260,6 +268,7 @@ enum StudioStyle {
                 case .failure(let error):library.error = error.localizedDescription
                 }
             }
+            .fullScreenCover(item:$editingPool) {pool in EditingPoolEditor(pool:pool,library:library)}
             .fullScreenCover(item: $selected) { project in PhotoEditor(project: project, library: library) }
             .sheet(isPresented:$info) { StudioAbout() }
             .sheet(isPresented:$recovery) { RecentlyDeletedSheet(library:library) }
@@ -316,6 +325,7 @@ enum StudioStyle {
             ForEach(1...5,id:\.self) { value in Button("\(value) \(value == 1 ? "star" : "stars")") { organizeSelected(rating:value) } }
         }.disabled(favoritingProjects)
         Button("Paste adjustments",systemImage:"doc.on.clipboard") { batchPaste = true }.disabled(library.adjustmentClipboard == nil)
+        Button("Edit together",systemImage:"rectangle.stack") {openPool()}
         Button("Export selected",systemImage:"square.and.arrow.up") { batchExport = true }
         Button("Delete selected",systemImage:"trash",role:.destructive) { deleteIDs = selection;confirmBulkDelete = true }
     }
@@ -392,6 +402,12 @@ enum StudioStyle {
             .accessibilityIdentifier("floatingImportPanel")
     }
     private enum ImportSource { case photo(PhotosPickerItem),file(URL) }
+    private func openPool() {
+        let visibleIDs=Set(visibleProjects.map(\.id))
+        let ordered=visibleProjects.filter {selection.contains($0.id)}+library.projects.filter {selection.contains($0.id) && !visibleIDs.contains($0.id)}
+        let projects=ordered.isEmpty ? library.projects.filter {selection.contains($0.id)}:ordered
+        guard !projects.isEmpty else {return};searchFocused=false;editingPool=EditingPool(projects:projects)
+    }
     private func openOrSelect(_ project:Project) {
         guard !importingBatch && !deletingProjects else { return }
         searchFocused = false
@@ -441,6 +457,7 @@ enum StudioStyle {
     let project: Project
     let vault: ProjectVault
     var deletedEntry:DeletedProject? = nil
+    var maxDimension:Double = 450
     @State private var image: UIImage?
     var body: some View {
         GeometryReader { geometry in
@@ -452,7 +469,7 @@ enum StudioStyle {
         }.task(id: project.modified) {
             let url:URL
             if let deletedEntry { url = await vault.deletedSource(deletedEntry) } else { url = await vault.source(project) }
-            image = await ThumbnailCache.shared.image(url: url, project: project)
+            image = await ThumbnailCache.shared.image(url: url, project: project,maxDimension:maxDimension)
         }
     }
 }
@@ -464,7 +481,8 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Film refinement & release checks · 0.28.1").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Editing pools & regional color · 0.29.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Select projects on Home and choose Edit together. Swipe between items or use the filmstrip; edits stay individual until you choose Sync edits. Sync selected sections to selected items or the entire pool, with recoverable before versions. Resume the pool later. In Masks → Add mask, Subject & Background creates two independent regions from one on-device analysis.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export JPEG/PNG photographs or trimmed HEVC video with audio in SDR or 10-bit HLG HDR.")
                     Text("Levels sets black, white and midtones. Mark favorites, rate projects and search or filter your workspace. Dehaze reduces a washed-out veil or adds soft haze. Texture brings out fine surfaces or softens them; Clarity changes broader definition. The preview stays large, and Expand preview hides adjustments. Tap video to show playback controls. Use Scopes to inspect brightness and color. Drag crop corners to resize and drag inside to reposition. Fixed ratios stay locked; Free lets each edge change. Flips and perspective help refine your composition; every change stays reversible.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Open up to 20 photos or clips together. Select projects in the workspace to export their saved edits in one batch. Recently Deleted keeps Studio copies restorable for 30 days. Local settings recovery can repair a damaged project index, but does not replace a backup of your media. In Curves, tap Edit curve points to adjust the graph; otherwise swipe it to scroll.").font(.subheadline).foregroundStyle(StudioStyle.secondary)

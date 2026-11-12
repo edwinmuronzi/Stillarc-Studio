@@ -214,16 +214,20 @@ actor ProjectVault {
     var transaction: Recipe?
     var sourceURL: URL?
     private var saveTask: Task<Void, Never>?
+    private var retired=false
     init(_ project: Project) { self.project = project; recipe = project.recipe }
     func open(library: StudioLibrary) async {
         let url = await library.vault.source(project); sourceURL = url
         do {
             let video = project.video,maskLayers = recipe.masks
-            source = try await Task.detached(priority:.userInitiated) {
+            let worker = Task.detached(priority:.userInitiated) {
                 AutomaticMaskBitmap.warm(maskLayers)
                 if let video { return try await VideoEngine.poster(url,descriptor:video) }
                 return try ImageEngine.open(url,maxDimension:1600)
-            }.value
+            }
+            let loaded = try await withTaskCancellationHandler(operation:{try await worker.value},onCancel:{worker.cancel()})
+            guard !Task.isCancelled,!retired else {return}
+            source = loaded
             if source?.isRAW == true { recipe.input = InputConversion() }
         }
         catch { self.error = error.localizedDescription }
@@ -261,13 +265,20 @@ actor ProjectVault {
         else { project.versions = previous }
     }
     func scheduleSave(_ library: StudioLibrary) {
+        guard !retired else {return}
         saved = false; saveTask?.cancel()
         saveTask = Task { [weak self] in
             do { try await Task.sleep(for: .milliseconds(500)) } catch { return }
             guard let self else { return }; await self.persist(library)
         }
     }
+    func retire(_ library:StudioLibrary) async -> Bool {
+        saveTask?.cancel();saveTask=nil;end()
+        guard await persist(library) else {return false}
+        retired=true;source=nil;return true
+    }
     @discardableResult func persist(_ library: StudioLibrary) async -> Bool {
+        guard !retired else {return true}
         project.recipe = recipe; project.modified = Date()
         let snapshot = project
         let success = await library.save(snapshot)
@@ -283,13 +294,14 @@ actor ThumbnailCache {
     private let cache = NSCache<NSString, UIImage>()
     init() { cache.countLimit = 40; cache.totalCostLimit = 24 * 1024 * 1024 }
     func clear() { cache.removeAllObjects(); context.clearCaches() }
-    func image(url: URL, project: Project) async -> UIImage? {
+    func image(url: URL, project: Project,maxDimension:Double = 450) async -> UIImage? {
         guard !Task.isCancelled else { return nil }
-        let key = "\(project.id)-\(project.modified.timeIntervalSince1970)" as NSString
+        let dimension=min(450,max(96,maxDimension.isFinite ? maxDimension:450))
+        let key = "\(project.id)-\(project.modified.timeIntervalSince1970)-\(Int(dimension))" as NSString
         if let cached = cache.object(forKey: key) { return cached }
         let prepared:PreparedPhoto?
-        if let video = project.video { prepared = try? await VideoEngine.poster(url,descriptor:video,maxDimension:450) }
-        else { prepared = try? ImageEngine.open(url,maxDimension:450) }
+        if let video = project.video { prepared = try? await VideoEngine.poster(url,descriptor:video,maxDimension:dimension) }
+        else { prepared = try? ImageEngine.open(url,maxDimension:dimension) }
         return autoreleasepool {
             guard let source = prepared,!Task.isCancelled else { return nil }
             let adjusted = ImageEngine.apply(source.source(for:project.recipe),recipe:project.recipe)

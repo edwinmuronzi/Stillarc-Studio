@@ -1,5 +1,48 @@
 import XCTest
 final class GestureTests:XCTestCase {
+    func testEditingPoolSyncBrowseAndResume() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--pool-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Next pool item"].waitForExistence(timeout:30))
+        let slider=app.sliders["Exposure"];slider.doubleTap();slider.adjust(toNormalizedSliderPosition:0.65)
+        let changed=slider.value as? String
+        app.buttons["Next pool item"].tap();XCTAssertTrue(app.staticTexts["Pool sample 2"].waitForExistence(timeout:15))
+        XCTAssertNotEqual(app.sliders["Exposure"].value as? String,changed)
+        app.buttons["Previous pool item"].tap();XCTAssertTrue(app.staticTexts["Pool sample 1"].waitForExistence(timeout:15))
+        XCTAssertEqual(app.sliders["Exposure"].value as? String,changed)
+        app.buttons["syncPoolEdits"].tap();XCTAssertTrue(app.buttons["applyBatchPaste"].waitForExistence(timeout:10));app.buttons["applyBatchPaste"].tap()
+        XCTAssertTrue(app.staticTexts["Applied to 3 of 3."].waitForExistence(timeout:15));app.buttons["Done"].tap()
+        app.buttons["Next pool item"].tap();XCTAssertTrue(app.staticTexts["Pool sample 2"].waitForExistence(timeout:15));XCTAssertEqual(app.sliders["Exposure"].value as? String,changed)
+        let swipe=app.coordinate(withNormalizedOffset:CGVector(dx:0.65,dy:0.30))
+        swipe.press(forDuration:0.05,thenDragTo:swipe.withOffset(CGVector(dx:-120,dy:0)))
+        XCTAssertTrue(app.staticTexts["Pool sample 3"].waitForExistence(timeout:15))
+        app.buttons["Previous pool item"].tap();XCTAssertTrue(app.staticTexts["Pool sample 2"].waitForExistence(timeout:15))
+        for _ in 0..<4 {
+            app.buttons["Previous pool item"].tap();XCTAssertTrue(app.staticTexts["Pool sample 1"].waitForExistence(timeout:15))
+            app.buttons["Next pool item"].tap();XCTAssertTrue(app.staticTexts["Pool sample 2"].waitForExistence(timeout:15))
+        }
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Editing pool and filmstrip";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Select pool items"].tap();app.buttons["Pool item Pool sample 3"].tap()
+        XCTAssertEqual(app.buttons["Pool item Pool sample 3"].value as? String,"Not selected")
+        app.buttons["Select pool items"].tap();app.buttons["Back to workspace"].tap()
+        XCTAssertTrue(app.buttons["Resume editing pool"].waitForExistence(timeout:10));app.terminate();app.launchArguments=[];app.launch()
+        XCTAssertTrue(app.buttons["Resume editing pool"].waitForExistence(timeout:15));app.buttons["Resume editing pool"].tap()
+        XCTAssertTrue(app.staticTexts["Pool sample 2"].waitForExistence(timeout:20));XCTAssertEqual(app.sliders["Exposure"].value as? String,changed)
+    }
+    func testSubjectBackgroundIndependentControls() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--pool-demo","--paired-fixture","--tool","Masks"];app.launch()
+        XCTAssertTrue(app.buttons["1 · Subject"].waitForExistence(timeout:30))
+        let exposure=app.sliders["Exposure"];exposure.doubleTap();exposure.adjust(toNormalizedSliderPosition:0.7);let subject=exposure.value as? String
+        app.buttons["2 · Background"].tap();XCTAssertNotEqual(exposure.value as? String,subject)
+        exposure.doubleTap();exposure.adjust(toNormalizedSliderPosition:0.3);let background=exposure.value as? String
+        app.buttons["1 · Subject"].tap();XCTAssertEqual(exposure.value as? String,subject)
+        app.buttons["2 · Background"].tap();XCTAssertEqual(exposure.value as? String,background)
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Independent Subject and Background";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Add mask"].tap();app.buttons["Subject & Background"].tap()
+        XCTAssertTrue(app.buttons["createAutomaticMask"].waitForExistence(timeout:15));app.buttons["Done"].tap()
+        XCTAssertTrue(app.buttons["2 · Background"].waitForExistence(timeout:10))
+    }
     private func resumeCrop(_ app:XCUIApplication) {
         if app.buttons["Adjust crop"].exists { app.buttons["Adjust crop"].tap() }
     }

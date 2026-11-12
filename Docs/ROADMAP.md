@@ -95,3 +95,10 @@ Next: HDR still-photo export, improved HDR creative-tool modeling, scopes and H.
 5. Release preparation (0.28 candidate): compact/iPad/large-text layout review, regression tests, sustained device performance, privacy manifest, documentation and listing drafts. Broader real-world camera files, older physical devices and public beta remain release gates.
 
 Later tools remain subject to fixture validation and device performance checks; unavailable features should not be advertised as working.
+
+
+## 0.29 — Editing pool and paired regions
+
+Implemented: persistent pools of up to 20 existing projects, filmstrip/swipe/arrow browsing, per-item editing, selected/all-pool selective sync with recovery versions, safe preview retirement and 160px filmstrip thumbnails. Subject & Background creates two independently adjustable layers from one inference/shared matte, with existing refinement, undo, persistence and export. Video remains first-kept-frame selection plus independent position tracking.
+
+Next: background cutout/removal and clean alpha export; richer local controls and deeper RAW/photo finishing. A live inherited master-grade model, timeline companion and video matting remain separate future work. Beta and App Store preparation remain deferred.

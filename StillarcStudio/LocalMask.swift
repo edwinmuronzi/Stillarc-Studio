@@ -8,6 +8,8 @@ enum MaskCombination:String,Codable,CaseIterable,Identifiable,Sendable {
 struct LocalMask:Identifiable,Codable,Equatable,Sendable {
     var id = UUID()
     var kind:LocalMaskKind
+    var region:MaskRegion? = nil
+    var title:String {region?.rawValue ?? kind.rawValue}
     var brush:BrushDrawing? = nil
     var selection:MaskSelection? = nil
     var combination:MaskCombination? = nil

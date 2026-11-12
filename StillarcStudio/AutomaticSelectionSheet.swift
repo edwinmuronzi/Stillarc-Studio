@@ -4,6 +4,7 @@ struct AutomaticSelectionTarget:Identifiable {
     let id = UUID()
     let kind:LocalMaskKind
     let maskID:UUID?
+    var paired=false
 }
 struct AutomaticSelectionSheet:View {
     @Bindable var session:EditSession
@@ -11,6 +12,8 @@ struct AutomaticSelectionSheet:View {
     let didSave:(UUID)->Void
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
+    private var background:Bool {session.recipe.masks.first(where:{$0.id==target.maskID})?.region == .background}
+    private var selectionTitle:String {target.paired ? "Subject & Background" : (background ? "Background" : target.kind.rawValue)}
     @State private var image:CGImage?
     @State private var busy = false
     @State private var message:String?
@@ -22,16 +25,18 @@ struct AutomaticSelectionSheet:View {
                 VStack(alignment:.leading,spacing:20) {
                     if let image { Image(decorative:image,scale:1).resizable().scaledToFit().frame(maxWidth:.infinity,maxHeight:330).background(.black,in:RoundedRectangle(cornerRadius:16)) }
                     else if message == nil { ProgressView("Preparing analysis preview…").frame(maxWidth:.infinity).frame(height:240) }
-                    Text(target.kind == .subject ? "Select foreground subjects" : "Select the sky").font(.title2.weight(.semibold))
+                    Text(target.paired ? "Subject & Background" : (background ? "Select the background" : (target.kind == .subject ? "Select foreground subjects" : "Select the sky"))).font(.title2.weight(.semibold))
                     Text(target.kind == .subject ? "Finds foreground subjects and saves a soft selection. It can include more than one object. Review the red Guide, then adjust exposure, color or contrast just in that area." : "Finds likely sky and saves a soft selection, including cloudy sky where recognized. Review the red Guide; buildings, reflections or detailed clouds can confuse a small model. Refine the edge or combine it with a brush when needed.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
+                    if background {Text("Detects the foreground once, then uses the inverse selection for the background. Existing background adjustments are preserved when recreating its selection.").font(.caption).foregroundStyle(StudioStyle.secondary)}
+                    if target.paired { Text("One analysis creates two independently editable regions. Choose Subject or Background in Masks, then adjust its exposure, warmth, saturation and contrast. This edits the background; it does not remove it.").font(.subheadline).foregroundStyle(StudioStyle.secondary) }
                     if session.project.isVideo { Text("This analyzes the first kept frame once. It does not segment every video frame. A Subject mask can use position tracking afterward; changing poses or camera movement may need a new selection.").font(.subheadline).foregroundStyle(StudioStyle.secondary) }
                     if busy { HStack { ProgressView();Text("Analyzing on device…").font(.subheadline) } }
                     if let message { Text(message).font(.caption).foregroundStyle(StudioStyle.secondary) }
                     if image == nil && message != nil { Button("Reload preview") { Task { await load() } }.disabled(inputJob != nil) }
-                    Button(action:analyze) { Label("Create \(target.kind.rawValue.lowercased()) mask",systemImage:target.kind == .subject ? "person.crop.rectangle" : "cloud.sun").frame(maxWidth:.infinity).padding(12) }.buttonStyle(.borderedProminent).disabled(image == nil || busy).accessibilityIdentifier("createAutomaticMask")
+                    Button(action:analyze) { Label(target.paired ? "Create Subject & Background" : "Create \(target.kind.rawValue.lowercased()) mask",systemImage:target.kind == .subject ? "person.crop.rectangle" : "cloud.sun").frame(maxWidth:.infinity).padding(12) }.buttonStyle(.borderedProminent).disabled(image == nil || busy).accessibilityIdentifier("createAutomaticMask")
                     Text("Runs only when requested. No photos are uploaded. Results stay editable and save with this project. Canceling or leaving Studio keeps the previous masks unchanged. Automatic selections are estimates; fine hair, translucent edges, low contrast or night scenes may need a brush or range-mask refinement.").font(.caption).foregroundStyle(StudioStyle.secondary)
                 }.padding(20)
-            }.navigationTitle("\(target.kind.rawValue) selection").navigationBarTitleDisplayMode(.inline)
+            }.navigationTitle("\(selectionTitle) selection").navigationBarTitleDisplayMode(.inline)
                 .toolbar { Button(busy ? "Cancel analysis" : "Done") { inputJob?.cancel();job?.cancel();dismiss() } }
                 .interactiveDismissDisabled(busy)
         }.tint(StudioStyle.blue).presentationDetents([.large])
@@ -60,7 +65,11 @@ struct AutomaticSelectionSheet:View {
                 let stored = try await task.value
                 guard !task.isCancelled,phase == .active,stored.matches(session.recipe) else { return }
                 var id:UUID?
-                if let previous = target.maskID,let index = session.recipe.masks.firstIndex(where:{ $0.id == previous }) {
+                if target.paired {
+                    var updated = session.recipe
+                    id = try updated.addSubjectBackground(stored)
+                    session.change { $0 = updated }
+                } else if let previous = target.maskID,let index = session.recipe.masks.firstIndex(where:{ $0.id == previous }) {
                     session.change { $0.masks[index].automatic = stored;$0.masks[index].motion = nil };id = previous
                 } else if session.recipe.masks.count<4 {
                     var layer = LocalMask(kind:kind);layer.automatic = stored;layer.refinement = AutomaticRefinement()

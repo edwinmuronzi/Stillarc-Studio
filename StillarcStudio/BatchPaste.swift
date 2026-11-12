@@ -20,6 +20,9 @@ struct BatchPasteSheet:View {
     @Bindable var library:StudioLibrary
     let projects:[Project]
     let clipboard:AdjustmentClipboard
+    var pool:EditingPool? = nil
+    @State private var entirePool=false
+    private var targets:[Project] {if let pool {return pool.projects(library,selected: !entirePool)};return projects}
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
     @State private var sections = Set<AdjustmentSection>()
@@ -30,20 +33,26 @@ struct BatchPasteSheet:View {
     var body:some View {
         NavigationStack {
             List {
+                if let pool {
+                    Section("Apply current edits to") {
+                        Picker("Pool scope",selection:$entirePool) {Text("Selected (\(pool.state.selected.count))").tag(false);Text("Entire pool (\(pool.state.ids.count))").tag(true)}.pickerStyle(.segmented)
+                        Text("Choose the sections below. Crops, masks, input conversion and clip settings stay individual. Review each item afterward; syncing replaces only the chosen adjustment sections.").font(.caption)
+                    }.disabled(busy || finished)
+                }
                 Section {
-                    Text("Apply copied adjustments from \(clipboard.sourceName) to \(projects.count) selected projects. Each keeps its crop, input conversion, masks, trim and audio. A ‘Before batch paste’ version preserves each changed project's previous edit under Looks → Versions.").font(.subheadline)
+                    Text("Apply copied adjustments from \(clipboard.sourceName) to \(targets.count) selected projects. Each keeps its crop, input conversion, masks, trim and audio. A ‘Before batch paste’ version preserves each changed project's previous edit under Looks → Versions.").font(.subheadline)
                 }
                 Section("Adjustments to apply") {
                     ForEach(clipboard.sections) { section in
                         Toggle(isOn:Binding(get:{ sections.contains(section) },set:{ if $0 { sections.insert(section) } else { sections.remove(section) } })) { VStack(alignment:.leading) { Text(section.title);Text(section.help).font(.caption).foregroundStyle(StudioStyle.secondary) } }
                     }
                 }.disabled(busy || finished)
-            }.navigationTitle("Paste adjustments").navigationBarTitleDisplayMode(.inline)
+            }.navigationTitle(pool == nil ? "Paste adjustments" : "Sync pool edits").navigationBarTitleDisplayMode(.inline)
                 .toolbar { Button("Done") { dismiss() }.disabled(busy) }
                 .safeAreaInset(edge:.bottom) {
                     VStack(spacing:10) {
                         if busy { HStack { ProgressView();Button("Cancel remaining") { task?.cancel() } } }
-                        else if !finished { Button("Apply to selected") { apply() }.disabled(sections.isEmpty).buttonStyle(.borderedProminent).accessibilityIdentifier("applyBatchPaste") }
+                        else if !finished { Button(pool != nil && entirePool ? "Apply to entire pool" : "Apply to selected") { apply() }.disabled(sections.isEmpty || targets.isEmpty).buttonStyle(.borderedProminent).accessibilityIdentifier("applyBatchPaste") }
                         if let status { Text(status).font(.caption).lineLimit(4) }
                     }.frame(maxWidth:.infinity).padding(14).background(.regularMaterial)
                 }
@@ -53,6 +62,7 @@ struct BatchPasteSheet:View {
         .onDisappear { task?.cancel() }
     }
     private func apply() {
+        let projects = targets
         busy = true
         task = Task { @MainActor in
             defer { busy = false;finished = true;task = nil }

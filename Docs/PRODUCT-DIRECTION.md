@@ -35,3 +35,8 @@ Use proxy playback and render caching for complex sequences while exporting from
 ## Immediate next implementation recommendation
 
 The editing pool comes first, then paired subject/background controls. This directly addresses the user's stated workflow while building on tested project/copy-paste infrastructure. No timeline project or new advertised feature was implemented by this evaluation.
+
+
+### Implementation status after this evaluation
+
+0.29 implements the editing-pool workflow and paired Subject/Background controls described above. Sync explicitly writes selected adjustment sections to destination recipes with recovery versions; a live inherited master grade is not implemented. The source-specific masks/crop/input/clip settings stay individual. Background removal, replacement, video matting and the proposed timeline companion remain future work.

@@ -9,6 +9,10 @@ import UniformTypeIdentifiers
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var session: EditSession
     @Bindable var library: StudioLibrary
+    var pool:EditingPool? = nil
+    @State private var poolChanging=false
+    @State private var poolSync=false
+    @State private var poolClipboard:AdjustmentClipboard?
     @State private var scopesVisible = false
     @State private var scopeMode = ScopeMode.histogram
     @State private var scopeSampler = ScopeSampler()
@@ -50,7 +54,7 @@ import UniformTypeIdentifiers
     @GestureState private var pinch = 1.0
     @State private var offset = CGSize.zero
     @GestureState private var drag = CGSize.zero
-    init(project: Project, library: StudioLibrary) { _session = State(initialValue: EditSession(project)); self.library = library }
+    init(project: Project, library: StudioLibrary,pool:EditingPool? = nil) { _session = State(initialValue: EditSession(project)); self.library = library;self.pool=pool;_tool=State(initialValue:pool?.tool ?? .light) }
     var body: some View {
         EditorSafeArea { VStack(spacing: 0) {
             header.background {
@@ -73,8 +77,10 @@ import UniformTypeIdentifiers
                     }
                 }
             }
+            if let pool {poolBar(pool)}
         }
         }.background(StudioStyle.ink).tint(StudioStyle.blue)
+        .disabled(poolChanging)
         .task {
             await session.open(library: library)
             #if DEBUG
@@ -161,12 +167,13 @@ import UniformTypeIdentifiers
         }
         .task(id:cropSettleKey) { await settleCropAndMasks() }
         .onChange(of:MaskMotion.signature(session.recipe)) { _,_ in cropAwaitingAdjustment = false;cropDisplayFinal = false;cropFocused = false }
-        .onChange(of:tool) { _,_ in curveEditing = false; cropAwaitingAdjustment = false;cropDisplayFinal = false;cropFocused = false }
+        .onChange(of:tool) { _,_ in curveEditing = false; pool?.tool=tool; cropAwaitingAdjustment = false;cropDisplayFinal = false;cropFocused = false }
         .onChange(of:scopesActive) { _,value in scopeSampler.setEnabled(value) }
         .onDisappear { scopeSampler.setEnabled(false) }
         .onChange(of: session.recipe) { _, _ in if !diagnosticsRunning { session.scheduleSave(library) } }
         .onChange(of: phase) { _, phase in if phase != .active { curveEditing = false;session.end();Task { await session.persist(library) } } }
         .onDisappear { Task { await session.persist(library) } }
+        .sheet(isPresented:$poolSync) {if let pool,let clipboard=poolClipboard {BatchPasteSheet(library:library,projects:pool.projects(library),clipboard:clipboard,pool:pool)}}
         .sheet(isPresented: $export) { ExportSheet(session: session) }
         .sheet(item:$transferSheet) { mode in AdjustmentTransferSheet(mode:mode,session:session,library:library) }
         .sheet(isPresented:$versionsSheet) { VersionsSheet(session:session,library:library) }
@@ -318,9 +325,62 @@ import UniformTypeIdentifiers
         } catch is CancellationError {} catch { /* Export retries repair and provides an actionable error if needed. */ }
     }
     private func resumeCrop() { cropAwaitingAdjustment = true;cropDisplayFinal = false;withAnimation(reduceMotion ? nil : .easeOut(duration:0.3)) { cropFocused = false };cropResumeID += 1 }
+    private func browsePool(_ step:Int) {
+        guard let pool else {return};let next=pool.index+step
+        guard pool.state.ids.indices.contains(next) else {return};switchPool(pool.state.ids[next])
+    }
+    private func switchPool(_ id:UUID) {
+        guard let pool,id != pool.state.active,!poolChanging,!session.busy else {return}
+        poolChanging=true
+        Task { @MainActor in
+            if await session.retire(library) {pool.activate(id)}
+            else {session.error=library.error ?? "Could not save this item. Try again.";poolChanging=false}
+        }
+    }
+    private func syncPool() {
+        guard pool != nil,!poolChanging,!session.busy else {return}
+        poolChanging=true
+        Task { @MainActor in
+            session.end()
+            if await session.persist(library) {
+                poolClipboard=AdjustmentClipboard(name:session.project.name,recipe:session.recipe,sections:Set(AdjustmentSection.allCases));poolSync=true
+            } else {session.error=library.error ?? "Could not save this item."}
+            poolChanging=false
+        }
+    }
+    private func poolBar(_ pool:EditingPool) -> some View {
+        VStack(spacing:4) {
+            HStack(spacing:10) {
+                Button {browsePool(-1)} label:{Image(systemName:"chevron.left").frame(width:28,height:30)}.disabled(pool.index==0 || session.busy).accessibilityLabel("Previous pool item")
+                Text("\(pool.index+1) / \(pool.state.ids.count)").font(.caption.monospaced()).accessibilityIdentifier("poolPosition")
+                Button {browsePool(1)} label:{Image(systemName:"chevron.right").frame(width:28,height:30)}.disabled(pool.index+1==pool.state.ids.count || session.busy).accessibilityLabel("Next pool item")
+                Spacer(minLength:0)
+                Button {pool.selecting.toggle()} label:{Label("\(pool.state.selected.count)",systemImage:pool.selecting ? "checkmark.circle.fill":"checkmark.circle")}.accessibilityLabel("Select pool items").accessibilityValue(pool.selecting ? "Selecting":"Browsing").contextMenu {
+                    Button("Select all pool items") {pool.state.selected=Set(pool.state.ids);pool.save()}
+                    Button("Clear pool selection") {pool.state.selected=[];pool.save()}
+                }
+                Button("Sync edits",action:syncPool).disabled(session.busy).accessibilityIdentifier("syncPoolEdits")
+                Button {pool.collapsed.toggle()} label:{Image(systemName:pool.collapsed ? "chevron.down":"chevron.up").frame(width:24,height:30)}.accessibilityLabel(pool.collapsed ? "Show filmstrip":"Hide filmstrip")
+            }.font(.caption).contentShape(Rectangle()).simultaneousGesture(DragGesture(minimumDistance:40).onEnded {v in if abs(v.translation.width)>abs(v.translation.height)*2 {browsePool(v.translation.width<0 ? 1:-1)}})
+            if !pool.collapsed {
+                ScrollViewReader {reader in
+                    ScrollView(.horizontal,showsIndicators:false) {
+                        LazyHStack(spacing:8) {ForEach(pool.projects(library)) {project in
+                            Button {if pool.selecting {pool.toggle(project.id)} else {switchPool(project.id)}} label:{
+                                ProjectThumbnail(project:project,vault:library.vault,maxDimension:160).frame(width:44,height:48).clipShape(RoundedRectangle(cornerRadius:8))
+                                    .overlay(RoundedRectangle(cornerRadius:8).stroke(project.id==pool.state.active ? StudioStyle.blue:Color.clear,lineWidth:2))
+                                    .overlay(alignment:.topTrailing) {if pool.state.selected.contains(project.id) {Image(systemName:"checkmark.circle.fill").font(.caption2).foregroundStyle(.white,StudioStyle.blue)}}
+                            }.buttonStyle(.plain).disabled(session.busy).accessibilityLabel("Pool item \(project.name)").accessibilityValue(pool.state.selected.contains(project.id) ? "Selected":"Not selected").id(project.id)
+                        }}.padding(.horizontal,3).padding(.vertical,3)
+                    }.frame(height:54).onAppear {reader.scrollTo(pool.state.active,anchor:.center)}
+                }
+                if pool.selecting {Text("Tap thumbnails to select; tap the selection button again to browse.").font(.caption2).foregroundStyle(StudioStyle.secondary)}
+            }
+        }.padding(.horizontal,12).padding(.vertical,4).background(StudioStyle.panel)
+    }
     private var header: some View {
         HStack(spacing: 8) {
-            Button { Task { if await session.persist(library) { dismiss() } else { session.error = library.error ?? "Your edit could not be saved. Keep this screen open and try again." } } } label: { Image(systemName: "chevron.left").frame(width: 44,height: 44) }.accessibilityLabel("Back to workspace")
+            Button { Task { if await (pool == nil ? session.persist(library) : session.retire(library)) { dismiss() } else { session.error = library.error ?? "Your edit could not be saved. Keep this screen open and try again." } } } label: { Image(systemName: "chevron.left").frame(width: 44,height: 44) }.accessibilityLabel("Back to workspace")
             VStack(alignment: .leading,spacing: 3) {
                 Text(session.project.name).font(.subheadline.weight(.semibold)).lineLimit(1)
                 Text(session.saved ? "ALL CHANGES SAVED" : "SAVING ADJUSTMENTS").font(.system(size: 8,weight: .medium,design: .monospaced)).tracking(1).foregroundStyle(StudioStyle.secondary)
@@ -346,9 +406,9 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && !poolSync && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
                         } else {
-                            LivePreview(source:source.image,recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && trackingMask == nil && automaticTarget == nil,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
+                            LivePreview(source:source.image,recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && !poolSync && !export && !presets && !versionsSheet && transferSheet == nil && trackingMask == nil && automaticTarget == nil,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
                         }
                     }
                         .padding(tool == .crop ? (cropDisplayFinal ? 8 : 22) : 0)
@@ -356,6 +416,7 @@ import UniformTypeIdentifiers
                         .gesture(MagnifyGesture().updating($pinch) { value,state,_ in if !splitComparison && tool != .masks && tool != .crop { state = value.magnification } }.onEnded { value in guard !splitComparison && tool != .masks && tool != .crop else { return };zoom = min(4,max(1,zoom * value.magnification)); if zoom == 1 { offset = .zero } })
                         .simultaneousGesture(DragGesture(minimumDistance: 4).updating($drag) { value,state,_ in if zoom > 1 && tool != .crop { state = value.translation } }.onEnded { value in
                             if zoom > 1 && tool != .crop { offset.width += value.translation.width; offset.height += value.translation.height }
+                            else if pool != nil && tool != .crop && tool != .masks && !splitComparison && abs(value.translation.width)>70 && abs(value.translation.width)>abs(value.translation.height)*2 {browsePool(value.translation.width<0 ? 1:-1)}
                         })
                         .onTapGesture(count: 2) { guard !splitComparison && tool != .masks && tool != .crop else { return };withAnimation(.easeOut(duration: 0.2)) { zoom = zoom > 1 ? 1 : 2; offset = .zero } }
                         .accessibilityElement(children:.contain)
@@ -405,7 +466,7 @@ import UniformTypeIdentifiers
             }.coordinateSpace(name:"comparisonPreview").frame(width: geometry.size.width,height: geometry.size.height).clipped()
         }
     }
-    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil && !inputSheet }
+    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && !poolSync && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil && !inputSheet }
     @ViewBuilder private var scopePanel:some View {
         if scopesVisible && tool != .crop { ScopePanel(sampler:scopeSampler,mode:$scopeMode) }
     }
@@ -558,6 +619,7 @@ import UniformTypeIdentifiers
     private var maskControls:some View {
         VStack(alignment:.leading,spacing:12) {
             Menu {
+                Button("Subject & Background") {automaticTarget=AutomaticSelectionTarget(kind:.subject,maskID:nil,paired:true)}.disabled(session.recipe.masks.count>2)
                 ForEach(LocalMaskKind.allCases) { kind in
                     Button(kind.rawValue) {
                         guard session.recipe.masks.count<4 else { return }
@@ -567,9 +629,10 @@ import UniformTypeIdentifiers
                     }
                 }
             } label: { Label("Add mask",systemImage:"plus.circle") }.buttonStyle(.bordered).font(.caption).disabled(session.recipe.masks.count>=4)
+            if session.recipe.masks.count>2 {Text("Subject & Background needs two free mask slots. Remove a mask to create both regions.").font(.caption).foregroundStyle(StudioStyle.secondary)}
             if let layer = selectedMask {
                 ScrollView(.horizontal) {
-                    HStack { ForEach(Array(session.recipe.masks.enumerated()),id:\.element.id) { index,mask in Button("\(index+1) · \(mask.kind.rawValue)") { selectedMaskID = mask.id }.buttonStyle(.bordered).tint(mask.id == layer.id ? StudioStyle.blue : .gray) } }
+                    HStack { ForEach(Array(session.recipe.masks.enumerated()),id:\.element.id) { index,mask in Button("\(index+1) · \(mask.title)") { selectedMaskID = mask.id }.buttonStyle(.bordered).tint(mask.id == layer.id ? StudioStyle.blue : .gray) } }
                 }
                 if let index = session.recipe.masks.firstIndex(where:{ $0.id == layer.id }),index>0 {
                     Picker("Combine with previous mask",selection:Binding(get:{ layer.combination ?? .independent },set:{ mode in updateMask { $0.combination = mode == .independent ? nil : mode } })) {
@@ -595,7 +658,7 @@ import UniformTypeIdentifiers
                     Button { updateMask { $0.inverted.toggle() } } label: { Label("Invert",systemImage:"circle.lefthalf.filled").font(.caption) }.tint(layer.inverted ? StudioStyle.blue : .gray).accessibilityValue(layer.inverted ? "On" : "Off")
                 }.buttonStyle(.bordered)
                 if layer.kind.isAutomatic {
-                    Button("Recreate \(layer.kind.rawValue.lowercased()) selection",systemImage:"arrow.clockwise") { automaticTarget = AutomaticSelectionTarget(kind:layer.kind,maskID:layer.id) }.font(.caption)
+                    Button("Recreate \(layer.title.lowercased()) selection",systemImage:"arrow.clockwise") { automaticTarget = AutomaticSelectionTarget(kind:layer.kind,maskID:layer.id) }.font(.caption)
                     if let stored = layer.automatic,!stored.matches(session.recipe) { Text("Updating the selection for the new framing. Export also updates it automatically.").font(.caption).foregroundStyle(StudioStyle.secondary) }
                     DisclosureGroup("Refine automatic selection",isExpanded:$automaticRefineExpanded) {
                         automaticSlider("Selection threshold",key:\.threshold,range:0.05...0.95).id("automaticThreshold")
@@ -685,7 +748,7 @@ import UniformTypeIdentifiers
             Slider(value:Binding(get:{ min(range.upperBound,max(range.lowerBound,selectedMask?[keyPath:key] ?? range.lowerBound)) },set:{ value in
                 guard let layer = selectedMask,let index = session.recipe.masks.firstIndex(where:{ $0.id == layer.id }) else { return };session.recipe.masks[index][keyPath:key] = value
             }),in:range,onEditingChanged:{ $0 ? session.begin() : session.end() })
-                .sliderReset { updateMask { SliderDefaults.reset(&$0,key:key) } }
+                .accessibilityLabel(name).sliderReset { updateMask { SliderDefaults.reset(&$0,key:key) } }
         }
     }
     private var colorControls: some View {
