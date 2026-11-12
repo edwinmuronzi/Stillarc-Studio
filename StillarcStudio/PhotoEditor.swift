@@ -17,6 +17,7 @@ import UniformTypeIdentifiers
     @State private var scopeMode = ScopeMode.histogram
     @State private var scopeSampler = ScopeSampler()
     @State private var automaticTarget:AutomaticSelectionTarget?
+    @State private var correctionMask:LocalMask?
     @State private var trackingMask:LocalMask?
     @State private var selectedMaskID:UUID?
     @State private var showMask = true
@@ -95,6 +96,13 @@ import UniformTypeIdentifiers
             if let pool {let id=session.project.id;session.historyRecorder={before,after in pool.recordEdit(id:id,before:before,after:after)}}
             #if DEBUG
             let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("--correction-demo") {
+                let end=session.project.video?.duration ?? 2
+                var layer=LocalMask(kind:.radial);layer.centerX=0.35;layer.width=0.2;layer.height=0.3;layer.exposure=0.7
+                layer.motion=MaskMotion(framing:MaskMotion.signature(session.recipe),start:0,end:end,points:[.init(time:0,x:0,y:0),.init(time:end,x:0.15,y:0)])
+                session.change {$0.masks=[layer]};selectedMaskID=layer.id;tool = .masks
+                try? await Task.sleep(for:.milliseconds(600));correctionMask=layer
+            }
             if arguments.contains("--tracking-demo") {
                 var layer = LocalMask(kind:.radial);layer.centerX = 0.3;layer.width = 0.14;layer.height = 0.14;layer.exposure = 0.5
                 session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks
@@ -201,6 +209,7 @@ import UniformTypeIdentifiers
         .sheet(item:$transferSheet) { mode in AdjustmentTransferSheet(mode:mode,session:session,library:library) }
         .sheet(isPresented:$versionsSheet) { VersionsSheet(session:session,library:library) }
         .sheet(item:$automaticTarget) { target in AutomaticSelectionSheet(session:session,target:target) { id in selectedMaskID = id;showMask = !target.removeBackground } }
+        .sheet(item:$correctionMask) { mask in MaskCorrectionSheet(session:session,maskID:mask.id,pool:pool,undoAction:{undoEdit()},redoAction:{undoEdit(redo:true)},initialTime:videoPosition.time,onFinish:{videoPosition.seek($0)}) }
         .sheet(item:$trackingMask) { mask in MaskTrackingSheet(session:session,maskID:mask.id) }
         .sheet(isPresented: $presets) { PresetsSheet(session: session,library: library) }
         .sheet(isPresented:$trimSheet) { VideoTrimSheet(session:session) }
@@ -451,9 +460,9 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,position:videoPosition)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,position:videoPosition)
                         } else {
-                            LivePreview(source:PhotoRendering.rawPreview(source,recipe:session.recipe),recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && !retouchSheet && !detailSheet && !backgroundSheet && !photoDevelopment && transferSheet == nil && trackingMask == nil && automaticTarget == nil,hdr:session.recipe.photoHDR == true && !sdrProof,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
+                            LivePreview(source:PhotoRendering.rawPreview(source,recipe:session.recipe),recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && !retouchSheet && !detailSheet && !backgroundSheet && !photoDevelopment && transferSheet == nil && trackingMask == nil && correctionMask == nil && automaticTarget == nil,hdr:session.recipe.photoHDR == true && !sdrProof,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
                         }
                     }
                         .padding(tool == .crop ? (cropDisplayFinal ? 8 : 22) : 0)
@@ -514,7 +523,7 @@ import UniformTypeIdentifiers
             }.coordinateSpace(name:"comparisonPreview").frame(width: geometry.size.width,height: geometry.size.height).clipped()
         }
     }
-    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil && !inputSheet }
+    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil && !inputSheet }
     @ViewBuilder private var scopePanel:some View {
         if scopesVisible && tool != .crop { ScopePanel(sampler:scopeSampler,mode:$scopeMode) }
     }
@@ -708,8 +717,15 @@ import UniformTypeIdentifiers
                 }
                 if session.project.isVideo && (layer.kind == .radial || layer.kind == .brush || layer.kind == .subject) {
                     HStack {
-                        Button { if layer.kind == .brush { brushMode = .view };trackingMask = layer } label: { Label(layer.motion == nil ? "Track mask" : "Track again",systemImage:"viewfinder") }.disabled(layer.kind.isAutomatic && layer.automatic?.matches(session.recipe) != true)
-                        if layer.motion != nil { Button("Clear tracking",role:.destructive) { updateMask { $0.motion = nil } } }
+                        if let motion=layer.motion {
+                            Button("Correct tracking",systemImage:"point.topleft.down.to.point.bottomright.curvepath"){correctionMask=layer}.disabled(!motion.matches(session.recipe,duration:session.project.video?.duration ?? 0)).accessibilityIdentifier("correctMaskTracking")
+                            Menu("Tracking",systemImage:"ellipsis") {
+                                Button("Track again",systemImage:"viewfinder"){if layer.kind == .brush {brushMode = .view};trackingMask=layer}.disabled(layer.kind.isAutomatic && layer.automatic?.matches(session.recipe) != true)
+                                Button("Clear tracking",role:.destructive){updateMask {$0.motion=nil}}
+                            }
+                        } else {
+                            Button {if layer.kind == .brush {brushMode = .view};trackingMask=layer} label:{Label("Track mask",systemImage:"viewfinder")}.disabled(layer.kind.isAutomatic && layer.automatic?.matches(session.recipe) != true)
+                        }
                     }.buttonStyle(.bordered).font(.caption)
                     if let motion = layer.motion {
                         Text(motion.matches(session.recipe,duration:session.project.video?.duration ?? 0) ? "Tracked position · \(motion.points.count) motion points. Play the clip to review." : "Crop or kept clip changed. Track again or clear tracking before exporting.").font(.caption).foregroundStyle(StudioStyle.secondary)

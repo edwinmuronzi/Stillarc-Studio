@@ -1,5 +1,35 @@
 import XCTest
 final class GestureTests:XCTestCase {
+    func testTrackingCorrectionsUndoExport() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        XCUIDevice.shared.orientation = .portrait
+        app.launchArguments=["--video-demo","--correction-demo"];app.launch()
+        let set=app.buttons["setTrackingCorrection"];XCTAssertTrue(set.waitForExistence(timeout:30))
+        set.tap();XCTAssertTrue(app.staticTexts["1/32 points"].exists)
+        app.buttons["End"].tap();app.sliders["Horizontal correction"].adjust(toNormalizedSliderPosition:0.56)
+        XCTAssertTrue(app.staticTexts["2/32 points"].waitForExistence(timeout:10))
+        app.buttons["correctionUndo"].tap();XCTAssertTrue(app.staticTexts["1/32 points"].exists)
+        app.buttons["correctionRedo"].tap();XCTAssertTrue(app.staticTexts["2/32 points"].exists)
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Tracking corrections";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["closeTrackingCorrection"].tap();app.buttons["Export video"].tap();app.buttons["Create export"].tap();XCTAssertTrue(app.buttons["Change export options"].waitForExistence(timeout:40))
+    }
+    func testTrackingCorrectionDragLandscapeReset() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        XCUIDevice.shared.orientation = .portrait
+        app.launchArguments=["--video-demo","--correction-demo"];app.launch()
+        XCTAssertTrue(app.buttons["setTrackingCorrection"].waitForExistence(timeout:30))
+        XCUIDevice.shared.orientation = .landscapeLeft;defer {XCUIDevice.shared.orientation = .portrait}
+        let toggle=app.switches["Move mask in preview"];XCTAssertTrue(toggle.waitForExistence(timeout:10));toggle.tap()
+        let handle=app.descendants(matching:.any).matching(NSPredicate(format:"label == %@","Move tracked mask")).firstMatch;XCTAssertTrue(handle.waitForExistence(timeout:10))
+        let wide=expectation(for:NSPredicate {_,_ in app.frame.width>app.frame.height},evaluatedWith:nil);wait(for:[wide],timeout:8)
+        handle.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).press(forDuration:0.1,thenDragTo:handle.coordinate(withNormalizedOffset:CGVector(dx:1.8,dy:0.8)))
+        XCTAssertTrue(app.staticTexts["1/32 points"].waitForExistence(timeout:10))
+        XCTAssertNotEqual(app.sliders["Horizontal correction"].value as? String,"50%")
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Landscape tracking correction";shot.lifetime = .keepAlways;add(shot)
+        app.swipeUp();app.buttons["Clear corrections"].tap();XCTAssertTrue(app.staticTexts["0/32 points"].waitForExistence(timeout:10))
+        app.buttons["correctionUndo"].tap();XCTAssertTrue(app.staticTexts["1/32 points"].exists)
+        app.buttons["closeTrackingCorrection"].tap()
+    }
     func testVideoAnimationPointsAndUndo() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments=["--video-demo"];app.launch()

@@ -4,7 +4,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.36 video-animation milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.37 tracking-correction milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -359,3 +359,12 @@ Each target supports 32 points. Smooth gently eases; Linear changes at a steady 
 Points use original source seconds, so trimming does not silently move them. Changing crop can still require existing mask repair/tracking validation; scalar fades do not run segmentation. Missing/deleted-mask tracks are harmless and can be cleaned from the panel. Animation is source-specific: project/complete versions, .stillarc backups and queued exports keep it; reusable presets, adjustment copy/sync and color-only LUT export exclude it. Applying a static look preserves the destination clip’s animation. New backups require Studio 0.36 or newer; older backup files still open. Queue records migrate from schema 1 to 2, which older versions should not overwrite.
 
 Evaluation runs inside the existing frame-time grading path, using small bounded scalar tracks and no new image pass, decoder loop or per-frame inference. Only the visible player runs; hidden editor playback/scopes pause. Interpolation is not optical motion tracking, a video timeline or arbitrary effect keyframing.
+
+
+### Correct a drifting video mask (0.37)
+
+After **Masks → Track mask**, choose **Correct tracking**. Pause or scrub to a moment where the selection has drifted. Turn on **Move mask in preview** and drag the blue handle, or use the horizontal/vertical correction sliders. This shifts the existing mask at that moment; it does not analyze the video again. Turn Move off to use normal playback.
+
+Each change makes a source-time correction point. The first edit after the tracking start adds a zero anchor there, changes blend linearly between points, and the last correction holds. There are up to 32 points including the anchor. Tap a point to review it; delete it or **Clear corrections** to restore the original measured path. Undo/Redo work for sliders, whole drags and clearing, including editing pools. Double-tap either slider to zero that axis at the current time.
+
+Corrections survive saved projects/versions, backups and direct/queued video exports; cropping automatic Subject masks scales both paths together where compatible. Other crop changes or extending the trim still require new tracking. This is position correction, not shape/scale/rotation tracking or changing-pose video matting. Masks and their motion stay source-specific and out of reusable grades/LUTs. New backups require build 41 or later; earlier backups and queue records remain readable.

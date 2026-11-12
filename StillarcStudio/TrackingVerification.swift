@@ -9,6 +9,20 @@ enum TrackingVerification {
         let recipe = Recipe(),signature = MaskMotion.signature(recipe)
         let motion = MaskMotion(framing:signature,start:0,end:2,points:[.init(time:0,x:0,y:0),.init(time:1,x:0.2,y:0.1),.init(time:2,x:0.3,y:0)])
         try check(motion.isValid && abs(motion.offset(at:0.5).x-0.1)<0.0001 && abs(motion.offset(at:0.5).y-0.05)<0.0001,"Motion interpolation")
+        var corrected=motion
+        corrected.setCorrection(time:1,x:0.1,y:-0.1,tolerance:0.001)
+        try check(corrected.corrections?.count==2 && abs(corrected.offset(at:0.5).x-0.15)<0.000001 && abs(corrected.offset(at:1).y)<0.000001,"Correction interpolation/anchor/axes")
+        try check(corrected.offset(at:2).x==0.4 && corrected.baseOffset(at:2).x==0.3,"Held correction/unaltered base")
+        let old=try JSONEncoder().encode(motion),oldObject=try JSONSerialization.jsonObject(with:old) as! [String:Any]
+        try check(oldObject["corrections"]==nil && (try JSONDecoder().decode(MaskMotion.self,from:old)).corrections==nil,"Legacy correction default")
+        let correctedData=try JSONEncoder().encode(corrected)
+        try check(try JSONDecoder().decode(MaskMotion.self,from:correctedData)==corrected,"Correction persistence")
+        var malformed=corrected;malformed.corrections=[.init(time:1,x:20,y:0)]
+        try check((try JSONDecoder().decode(MaskMotion.self,from:JSONEncoder().encode(malformed))).corrections==nil,"Invalid corrections sanitized")
+        var capped=motion
+        for i in 0..<40 {capped.setCorrection(time:Double(i)/20,x:0.1,y:0,tolerance:0)}
+        try check(capped.corrections?.count==32 && capped.validCorrections,"Correction bound")
+        corrected.corrections=nil;try check(corrected==motion,"Clear corrections preserves analysis")
         let extent = CGRect(x:0,y:0,width:100,height:100),context = ImageEngine.context()
         var radial = LocalMask(kind:.radial);radial.centerX = 0.3;radial.width = 0.1;radial.height = 0.1;radial.motion = motion;radial.exposure = 1
         func sample(_ image:CIImage,_ x:Int,_ y:Int) -> Float { var p = [Float](repeating:0,count:4);context.render(image,toBitmap:&p,rowBytes:16,bounds:CGRect(x:x,y:y,width:1,height:1),format:.RGBAf,colorSpace:ImageEngine.working);return p[0] }
@@ -29,7 +43,15 @@ enum TrackingVerification {
         var bad = motion;bad.points.reverse()
         let decoded = try JSONDecoder().decode(MaskMotion.self,from:JSONEncoder().encode(bad))
         try check(decoded.points.isEmpty,"Invalid tracking data not sanitized")
-        return ["passed":true,"interpolation":true,"timestampAxes":true,"inversionEdges":true,"persistence":true,"cropTrimInvalidation":true,"legacyDefaults":true,"invalidData":true]
+        return ["passed":true,"interpolation":true,"timestampAxes":true,"inversionEdges":true,"persistence":true,"cropTrimInvalidation":true,"legacyDefaults":true,"invalidData":true,"correctionInterpolationAnchorHoldingBounds":true,"correctionPersistenceLegacyAndReset":true]
+    }
+    static func writeCorrectionReport() async {
+        let url=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("tracking-correction-verification.json")
+        try? FileManager.default.removeItem(at:url)
+        var result=await Task.detached(priority:.utility) {()->[String:Any] in do {return ["passed":true,"math":try math(),"video":try await video()]} catch {return ["passed":false,"error":error.localizedDescription]}}.value
+        result["version"]=Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String
+        result["thermal"]=ProcessInfo.processInfo.thermalState.rawValue
+        if let data=try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted){try? data.write(to:url,options:.atomic)}
     }
     static func fixture(rotated:Bool = false,frames:Int = 60) async throws -> URL {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("TrackingFixture-\(UUID())")
@@ -71,6 +93,13 @@ enum TrackingVerification {
             try check(error<0.05,"Moving target tracking/orientation error: \(error), \(last)")
             errors.append(error);counts.append(motion.points.count)
             var trackedRecipe = Recipe();var mask = LocalMask(kind:.radial);mask.centerX = seed.x;mask.centerY = seed.y;mask.width = 0.14;mask.height = 0.14;mask.feather = 0.1;mask.exposure = 1;mask.motion = motion;trackedRecipe.masks = [mask]
+            // Deliberately wrong base path repaired by source-time points. Encoded pixels must follow the actual target again.
+            let measured=motion
+            var drifted=motion;drifted.points=motion.points.map {.init(time:$0.time,x:$0.x+0.12,y:$0.y-0.08)}
+            drifted.setCorrection(time:drifted.start,x:-0.12,y:0.08,tolerance:0.001)
+            drifted.setCorrection(time:drifted.end,x:-0.12,y:0.08,tolerance:0.001)
+            trackedRecipe.masks[0].motion=drifted
+            try check(abs(drifted.offset(at:1).x-measured.offset(at:1).x)<0.000001,"Corrected measured path")
             VerificationProgress.record("Tracking export \(rotated ? "portrait" : "landscape")")
             let output = try await VideoEngine.export(source:url,descriptor:descriptor,recipe:trackedRecipe,tenBit:false,progress:{ _ in })
             defer { try? FileManager.default.removeItem(at:output.url) }
@@ -98,7 +127,7 @@ enum TrackingVerification {
             let task = Task { try await MaskTracker.analyze(url:url,descriptor:descriptor,recipe:recipe,seed:seed,progress:{ _ in }) };task.cancel()
             do { _ = try await task.value;throw StudioError.render } catch is CancellationError {}
         }
-        return ["passed":true,"movingTargetErrors":errors,"pointCounts":counts,"portraitLandscape":true,"cancellation":true,"encodedTracking":true,"exportFramesPerClip":60]
+        return ["passed":true,"movingTargetErrors":errors,"pointCounts":counts,"portraitLandscape":true,"cancellation":true,"encodedTracking":true,"encodedCorrections":true,"exportFramesPerClip":60]
     }
 }
 #endif

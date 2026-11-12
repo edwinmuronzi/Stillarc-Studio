@@ -67,7 +67,8 @@ enum MaskFramingRepair {
                 result.masks[i].automatic = moved
                 if var motion = result.masks[i].motion,let previous = snapshot(motion.framing),sameField(previous,recipe) {
                     let field = PhotoFraming.orientedSize(size,recipe:recipe),a = PhotoFraming.window(in:field,recipe:previous),b = PhotoFraming.window(in:field,recipe:recipe)
-                    motion.points = motion.points.map { .init(time:$0.time,x:$0.x*a.width/b.width,y:$0.y*a.height/b.height) };motion.framing = MaskMotion.signature(recipe)
+                    motion.points = motion.points.map { .init(time:$0.time,x:$0.x*a.width/b.width,y:$0.y*a.height/b.height) }
+                    motion.corrections = motion.corrections?.map { .init(time:$0.time,x:$0.x*a.width/b.width,y:$0.y*a.height/b.height) };motion.framing = MaskMotion.signature(recipe)
                     result.masks[i].motion = motion
                 }
             } else {

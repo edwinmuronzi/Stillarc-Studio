@@ -1,3 +1,7 @@
+## 0.37.0, build 41 — Tracking corrections
+
+Native corrected portrait/landscape video exports, animation/HDR/audio, versions, backups and queued/direct exports passed. Three UI workflows and a compact-screen repeat passed, including a repaired slider Undo defect. The sustained native run rendered 1,885 frames with 24.67 ms p95 GPU completion, zero failures/idle frames and nominal sampled thermal state throughout. [Reports and limits](Verification/0.37.0/README.md).
+
 ## 0.36.0, build 40 — Video keyframes
 
 Native math/HDR/video/audio, animated backup/queue and compatibility regressions passed, plus four UI workflows and a compact-screen repeat. The sustained animation run completed 1,882 frames with 24.49 ms p95 completion, no GPU failures/idle frames, and fair thermal state throughout sampled checks. [Reports and limits](Verification/0.36.0/README.md).

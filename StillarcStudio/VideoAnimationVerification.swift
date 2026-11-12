@@ -35,7 +35,10 @@ enum VideoAnimationVerification {
         let descriptor=try await VideoEngine.describe(movie)
         var video=Recipe();video.video.start=0.2;video.video.end=1.4;video.rotation=1;video.look = .daylight;video.lookAmount=0.8
         video.lut=try LUTVerification.example(dimension:33);video.lutAmount=0.25
-        var mask=LocalMask(kind:.radial);mask.exposure=0.4;video.masks=[mask]
+        var mask=LocalMask(kind:.radial);mask.exposure=0.4
+        mask.motion=MaskMotion(framing:MaskMotion.signature(video),start:0,end:2,points:[.init(time:0,x:0,y:0),.init(time:2,x:0.1,y:0)])
+        mask.motion?.setCorrection(time:0,x:0,y:0,tolerance:0.001);mask.motion?.setCorrection(time:1.3,x:0.1,y:-0.1,tolerance:0.001)
+        video.masks=[mask]
         func fade(_ target:AnimationTarget,_ a:Double,_ b:Double)->AnimationTrack {var t=AnimationTrack(target:target);t.points=[AnimationPoint(time:0.2,value:a),AnimationPoint(time:1.3,value:b)];return t}
         video.videoAnimation=VideoAnimation(tracks:[fade(.exposure,-0.5,0.5),fade(.look,0,1),fade(.lut,1,0),fade(.mask(mask.id),0,1)])
         let output=try await VideoEngine.export(source:movie,descriptor:descriptor,recipe:video,progress:{_ in})
@@ -46,7 +49,7 @@ enum VideoAnimationVerification {
         for seconds in [0.0,0.4,0.9] {
             let source=try await VideoEngine.poster(movie,descriptor:descriptor,maxDimension:320,time:seconds+0.2)
             let fixed=VideoAnimation.resolve(video,time:seconds+0.2)
-            let expected=HDRPipeline.grade(source.image,recipe:fixed,hdr:false)
+            let expected=MaskMotion.$frame.withValue(.init(time:seconds+0.2,framing:MaskMotion.signature(fixed))){HDRPipeline.grade(source.image,recipe:fixed,hdr:false)}
             let actual=try await VideoEngine.poster(output.url,descriptor:out,maxDimension:320,time:seconds)
             let error=zip(pixel(expected),pixel(actual.image)).map {abs($0-$1)}.max() ?? 99;errors.append(error)
             try check(error<0.035,"Animated preview/export mismatch at \(seconds): \(error)")
@@ -61,13 +64,13 @@ enum VideoAnimationVerification {
         var project=try await vault.importPhoto(movie);project.recipe=video;project=try await vault.save(project)
         let version=EditVersion(name:"Animated");try await vault.saveVersion(project,version:version,recipe:video)
         project.versions=[version];project=try await vault.save(project)
-        let stored=try await vault.loadVersion(project,version:version);try check(stored.videoAnimation==video.videoAnimation,"Version persistence")
+        let stored=try await vault.loadVersion(project,version:version);try check(stored.masks==video.masks && stored.videoAnimation==video.videoAnimation,"Version persistence")
         let loaded=try await vault.load().0.first!;try check(loaded.recipe.videoAnimation==video.videoAnimation,"Reopen persistence")
         let blob=try JSONEncoder().encode(loaded);let same=try JSONDecoder().decode(Project.self,from:blob);try check(same.recipe.videoAnimation==video.videoAnimation,"Queue snapshot serialization")
         VerificationProgress.record("Animation backup start")
         let package=try await vault.writeArchive([project.id]);defer {try? FileManager.default.removeItem(at:package.deletingLastPathComponent())}
-        let manifest=try ProjectArchive.inspect(package);try check(manifest.minimumReader==40,"Backup reader version")
-        let restored=try await vault.restoreArchive(package);try check(restored[0].recipe.videoAnimation==video.videoAnimation,"Animated backup")
+        let manifest=try ProjectArchive.inspect(package);try check(manifest.minimumReader==41,"Backup reader version")
+        let restored=try await vault.restoreArchive(package);try check(restored[0].recipe.masks==video.masks && restored[0].recipe.videoAnimation==video.videoAnimation,"Animated backup")
         VerificationProgress.record("Animated queue start")
         let queue=await MainActor.run {StudioExportQueue(vault:vault,root:folder.appendingPathComponent("delivery-queue"))}
         let added=await queue.enqueue([project],format:.jpeg,privacy:ExportPrivacy(),delivery:DeliverySettings());try check(added,"Animated queue enqueue")

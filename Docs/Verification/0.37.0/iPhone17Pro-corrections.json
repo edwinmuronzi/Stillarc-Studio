@@ -1,0 +1,33 @@
+{
+  "thermal" : 0,
+  "passed" : true,
+  "math" : {
+    "timestampAxes" : true,
+    "correctionPersistenceLegacyAndReset" : true,
+    "passed" : true,
+    "persistence" : true,
+    "invalidData" : true,
+    "cropTrimInvalidation" : true,
+    "inversionEdges" : true,
+    "interpolation" : true,
+    "correctionInterpolationAnchorHoldingBounds" : true,
+    "legacyDefaults" : true
+  },
+  "version" : "0.37.0",
+  "video" : {
+    "passed" : true,
+    "portraitLandscape" : true,
+    "exportFramesPerClip" : 60,
+    "encodedCorrections" : true,
+    "pointCounts" : [
+      30,
+      30
+    ],
+    "movingTargetErrors" : [
+      0.0051411703706012168,
+      0.0033422505339212594
+    ],
+    "cancellation" : true,
+    "encodedTracking" : true
+  }
+}

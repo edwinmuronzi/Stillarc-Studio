@@ -133,3 +133,7 @@ Fixed backup asset paths across canonical/symlink directory aliases, with an agg
 
 ### 0.36 checkpoint
 Source-time video animation now covers exposure offsets and look/LUT/local-mask strength fades, with bounded points, Linear/Smooth interpolation, live slider preview, seek/add/update/delete/move, source/pool Undo/Redo and portrait/landscape layouts. Frame-time grading is shared by preview, direct/queued export, references and saved-source work. Animation stays out of reusable grades/LUTs; versions and backups retain it. New packages require reader build 40; queue schema 2 preserves animation while still loading earlier records. Additional camera transforms, source relinking, richer tracking correction and shared Camera/Studio look interchange remain separate scope.
+
+
+### 0.37 checkpoint
+Tracked video masks gain up to 32 manual source-time position corrections, a live preview handle, horizontal/vertical sliders, point deletion/clear and source/pool Undo/Redo. Linear correction offsets preserve the original measured path and travel with versions, backups and direct/queued exports. Compatible automatic-mask crop repair scales corrections with the base track. Adaptive portrait/landscape preview pauses behind sheets and when inactive. New archives require reader build 41; queue schema 3 still reads schemas 1–2. Shape/scale/rotation tracking, video matting, source relinking and shared Camera/Studio look interchange remain later scope. No timeline, beta or App Store work.

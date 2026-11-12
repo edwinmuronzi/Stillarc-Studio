@@ -1,4 +1,4 @@
-# Stillarc Studio · 0.36
+# Stillarc Studio · 0.37
 
 A local, reversible photo and single-clip video editor for iPhone and iPad. Black-and-blue controls keep the image central.
 
@@ -46,3 +46,6 @@ Fixed backup asset paths across canonical/symlink directory aliases, with an agg
 
 ### 0.36 checkpoint
 Source-time video animation now covers exposure offsets and look/LUT/local-mask strength fades, with bounded points, Linear/Smooth interpolation, live slider preview, seek/add/update/delete/move, source/pool Undo/Redo and portrait/landscape layouts. Frame-time grading is shared by preview, direct/queued export, references and saved-source work. Animation stays out of reusable grades/LUTs; versions and backups retain it. New packages require reader build 40; queue schema 2 preserves animation while still loading earlier records. Additional camera transforms, source relinking, richer tracking correction and shared Camera/Studio look interchange remain separate scope.
+
+
+**Tracking corrections:** pause a video and shift a drifting tracked mask with a preview handle or two sliders. Source-time points blend those nudges without another analysis; clear them to return to the measured path. Whole drags support Undo/Redo and the same path is used in exports. Position only; review the clip for changes in shape or scale.

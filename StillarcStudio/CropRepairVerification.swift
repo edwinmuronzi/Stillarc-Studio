@@ -29,6 +29,7 @@ enum CropRepairVerification {
         let matte = AutomaticMaskBitmap.image(restored.masks[0].automatic,extent:extent,preview:false)!
         try check(sample(matte,90,100)>0.99 && sample(matte,20,20)<0.001,"Expanded crop lost original matte")
         var tracked = base;tracked.masks[0].motion = MaskMotion(framing:MaskMotion.signature(base),start:0,end:2,points:[.init(time:0,x:0,y:0),.init(time:2,x:0.8,y:0)])
+        tracked.masks[0].motion?.setCorrection(time:0,x:0.2,y:0.1,tolerance:0.001)
         tracked.crop = .square;tracked.geometry.cropScale = 0.6
         var unused = base;unused.rotation = 1;unused.masks[0].enabled = false
         let ignored = try await MaskFramingRepair.repair(recipe:unused,url:source,video:nil,prepared:nil)
@@ -36,6 +37,7 @@ enum CropRepairVerification {
         let moved = try await MaskFramingRepair.repair(recipe:tracked,url:source,video:nil,prepared:nil)
         try MaskMotion.validateExport(moved,duration:2)
         try check(abs(moved.masks[0].motion!.points[1].x-0.8*100/60)<0.0001,"Tracked subject motion not scaled with crop")
+        try check(abs(moved.masks[0].motion!.corrections![0].x-0.2*100/60)<0.0001,"Tracking correction not scaled with crop")
         try check(try JSONDecoder().decode(Recipe.self,from:JSONEncoder().encode(repaired)) == repaired,"Anchored selection save/reopen")
         try check(AutomaticSelectionEngine.analysisCount == analyses && (try Data(contentsOf:source)) == bytes,"Crop ran inference or modified source")
         return ["passed":true,"immediateCropExport":true,"selectedPixelsPreserved":true,"expandedCropRestoresAnchor":true,"trackingReframed":true,"legacyMaskSupported":true,"inactiveMasksNeverBlockExport":true,"noInferenceForCrop":true,"persistence":true]

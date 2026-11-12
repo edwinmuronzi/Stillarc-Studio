@@ -1,0 +1,26 @@
+{
+  "passed": true,
+  "tests": [
+    {
+      "test": "TrackingCorrectionsUndoExport",
+      "device": "iPhone 18 Pro simulator",
+      "passed": true
+    },
+    {
+      "test": "TrackingCorrectionDragLandscapeReset",
+      "device": "iPhone 18 Pro simulator",
+      "passed": true
+    },
+    {
+      "test": "VideoAnimationPointsAndUndo",
+      "device": "iPhone 18 Pro simulator",
+      "passed": true
+    },
+    {
+      "test": "TrackingCorrectionsUndoExport",
+      "device": "iPhone 13 mini simulator",
+      "passed": true
+    }
+  ],
+  "notes": "Initial slider Undo defect corrected by beginning the gesture transaction before its first value write. Landscape handle query corrected to use its accessibility label; parent preview identifiers propagate to nested images. Both targeted checks then passed."
+}
