@@ -61,6 +61,7 @@ enum StudioStyle {
     @State private var pasteProject:Project?
     @State private var revertProject:Project?
     @State private var reverting = false
+    @State private var queueSheet=false
     @State private var archives=false
     @State private var archiveIDs=Set<UUID>()
     @State private var recovery = false
@@ -102,6 +103,7 @@ enum StudioStyle {
                         Text("\(items.count) of \(library.projects.count)").font(.caption.monospaced()).foregroundStyle(StudioStyle.secondary)
                     }
                     workspaceControls
+                    if !library.exportQueue.jobs.isEmpty {Button("Export queue (\(library.exportQueue.jobs.count))",systemImage:"list.bullet.rectangle"){searchFocused=false;queueSheet=true}.font(.caption).buttonStyle(.bordered).accessibilityIdentifier("homeExportQueue")}
                     if !selecting,let state=try? JSONDecoder().decode(EditingPoolState.self,from:savedPoolData),state.available(library.projects) != nil {
                         Button("Resume editing pool",systemImage:"rectangle.stack") {if let available=state.available(library.projects) {searchFocused=false;editingPool=EditingPool(available)}}.font(.caption).buttonStyle(.bordered)
                     }
@@ -186,12 +188,12 @@ enum StudioStyle {
             .task {
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("--privacy-demo") { ExportPrivacy().save() }
-                let qa = ProcessInfo.processInfo.arguments.contains("--verify-archive-performance") || ProcessInfo.processInfo.arguments.contains("--verify-project-archive") || ProcessInfo.processInfo.arguments.contains("--verify-color-delivery") || ProcessInfo.processInfo.arguments.contains("--verify-reference-match") || ProcessInfo.processInfo.arguments.contains("--verify-photo-development") || ProcessInfo.processInfo.arguments.contains("--verify-cutout-history") || ProcessInfo.processInfo.arguments.contains("--verify-pool") || ProcessInfo.processInfo.arguments.contains("--verify-real-video") || ProcessInfo.processInfo.arguments.contains("--verify-real-media") || ProcessInfo.processInfo.arguments.contains("--verify-refinement") || ProcessInfo.processInfo.arguments.contains("--verify-color-batch") || ProcessInfo.processInfo.arguments.contains("--verify-export-privacy") || ProcessInfo.processInfo.arguments.contains("--verify-video-suite") || ProcessInfo.processInfo.arguments.contains("--verify-studio") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") || ProcessInfo.processInfo.arguments.contains("--verify-automatic-only")
+                let qa = ProcessInfo.processInfo.arguments.contains("--verify-live-archive-paths") || ProcessInfo.processInfo.arguments.contains("--verify-export-queue") || ProcessInfo.processInfo.arguments.contains("--verify-archive-performance") || ProcessInfo.processInfo.arguments.contains("--verify-project-archive") || ProcessInfo.processInfo.arguments.contains("--verify-color-delivery") || ProcessInfo.processInfo.arguments.contains("--verify-reference-match") || ProcessInfo.processInfo.arguments.contains("--verify-photo-development") || ProcessInfo.processInfo.arguments.contains("--verify-cutout-history") || ProcessInfo.processInfo.arguments.contains("--verify-pool") || ProcessInfo.processInfo.arguments.contains("--verify-real-video") || ProcessInfo.processInfo.arguments.contains("--verify-real-media") || ProcessInfo.processInfo.arguments.contains("--verify-refinement") || ProcessInfo.processInfo.arguments.contains("--verify-color-batch") || ProcessInfo.processInfo.arguments.contains("--verify-export-privacy") || ProcessInfo.processInfo.arguments.contains("--verify-video-suite") || ProcessInfo.processInfo.arguments.contains("--verify-studio") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") || ProcessInfo.processInfo.arguments.contains("--verify-automatic-only")
                 let oldIdle = UIApplication.shared.isIdleTimerDisabled
                 if qa { UIApplication.shared.isIdleTimerDisabled = true }
                 defer { if qa { UIApplication.shared.isIdleTimerDisabled = oldIdle } }
                 #endif
-                await library.load()
+                await library.load();await library.exportQueue.load()
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("--color-tools-demo") {
                     let ids = Set(UserDefaults.standard.stringArray(forKey:"qa.color.looks") ?? [])
@@ -216,6 +218,12 @@ enum StudioStyle {
                     do { let report = try await Task.detached { try await TrackingVerification.video() }.value;try JSONSerialization.data(withJSONObject:report,options:.prettyPrinted).write(to:reportURL,options:.atomic) }
                     catch { try? JSONSerialization.data(withJSONObject:["passed":false,"error":error.localizedDescription],options:.prettyPrinted).write(to:reportURL,options:.atomic) }
                 }
+                if ProcessInfo.processInfo.arguments.contains("--verify-live-archive-paths") {
+                    var report=(try? await library.vault.auditArchivePaths(library.projects.map(\.id))) ?? ["passed":false]
+                    report["version"]=Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String
+                    if let data=try? JSONSerialization.data(withJSONObject:report,options:.prettyPrinted){try? data.write(to:FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("archive-path-audit.json"),options:.atomic)}
+                }
+                if ProcessInfo.processInfo.arguments.contains("--verify-export-queue"){await ExportQueueVerification.writeReport()}
                 if ProcessInfo.processInfo.arguments.contains("--verify-archive-performance"){await ProjectArchiveVerification.writePerformanceReport()}
                 if ProcessInfo.processInfo.arguments.contains("--verify-project-archive") {await ProjectArchiveVerification.writeReport()}
                 if ProcessInfo.processInfo.arguments.contains("--verify-color-delivery") {await ColorDeliveryVerification.writeReport()}
@@ -279,13 +287,14 @@ enum StudioStyle {
             }
             .fullScreenCover(item:$editingPool) {pool in EditingPoolEditor(pool:pool,library:library)}
             .fullScreenCover(item: $selected) { project in PhotoEditor(project: project, library: library) }
+            .sheet(isPresented:$queueSheet){ExportQueueSheet(queue:library.exportQueue)}
             .fullScreenCover(isPresented:$archives){ProjectArchiveSheet(library:library,initialSelection:archiveIDs)}
             .sheet(isPresented:$info) { StudioAbout() }
             .sheet(isPresented:$recovery,onDismiss:{emptyBinRequested=false}) { RecentlyDeletedSheet(library:library,requestEmpty:emptyBinRequested) }
             .sheet(item:$copyProject) { project in HomeCopyAdjustmentsSheet(project:project,library:library) }
             .sheet(item:$pasteProject) { project in if let clipboard = library.adjustmentClipboard { BatchPasteSheet(library:library,projects:[project],clipboard:clipboard) } }
             .sheet(isPresented:$batchPaste) { if let clipboard = library.adjustmentClipboard { BatchPasteSheet(library:library,projects:library.projects.filter { selection.contains($0.id) },clipboard:clipboard) } }
-            .sheet(isPresented:$batchExport) { BatchExportSheet(projects:library.projects.filter { selection.contains($0.id) },vault:library.vault) }
+            .sheet(isPresented:$batchExport) { BatchExportSheet(projects:library.projects.filter { selection.contains($0.id) },vault:library.vault,queue:library.exportQueue) }
             .onChange(of:library.projects.map(\.id)) { _,ids in selection.formIntersection(ids) }
             .onChange(of:scenePhase) { _,phase in if phase != .active { importTask?.cancel() } }
 
@@ -502,8 +511,9 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Project backups · 0.34.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
-                    Text("Project backups on Home saves originals, current edits, masks, stored reference/background images and saved versions into one .stillarc file. Choose Save to Files to keep it. Restore makes new editable copies, leaving existing projects untouched. Backups include original metadata and private images; use finished exports for public sharing. Global preset libraries, editing pools and app settings are separate.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
+                    Text("Stillarc Studio · Backups & export queue · 0.35.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Add to export queue on a photo/video or batch Export page keeps your chosen edits, size, quality and privacy settings. Start the queue when ready; it renders one delivery at a time. Closing the queue or leaving Studio pauses unfinished work. Completed exports stay available after reopening, with Share and Save to Photos. Queued source projects must remain available.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
+                    Text("Project backups on Home saves originals, current edits, masks, stored reference/background images and saved versions into .stillarc files. Back up all includes every active project, using numbered parts when there are more than 20. The picker shows photo/video thumbnails. Choose Save to Files to keep it. Restore makes new editable copies, leaving existing projects untouched. Backups include original metadata and private images; use finished exports for public sharing. Global preset libraries, editing pools and app settings are separate.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Select projects on Home and choose Edit together. Swipe between items or use the filmstrip; edits stay individual until you choose Sync edits. Sync selected sections to selected items or the entire pool, with recoverable before versions. Resume the pool later. In Masks → Add mask, Subject & Background creates two independent regions from one on-device analysis.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Remove a photo background, then choose Replace background for a solid color, your own image, or a blurred version of the scene. Position, resize and soften it separately from your subject. Transparent backgrounds export as PNG; opaque replacements can use JPEG, PNG or HDR HEIF. Check hair and translucent edges with the saved mask controls. Duplicate a mask for another adjustment, invert it to edit the other side, or use the extra local light, tint, clarity and blur controls.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Detail → Photo development gives supported RAW files their own white balance, exposure, rendering boost, decoder noise controls and supported camera lens/highlight-recovery switches. Manual optics controls reduce color fringing. In Detail's menu, Heal repairs small spots by matching a clean patch; Clone copies it directly. Inspect detail loads a full-resolution tile on demand. HDR development keeps available bright detail; SDR proof previews the JPEG/PNG tone mapping. Choose HDR HEIF for a 10-bit HLG still on compatible screens. From an editing pool, Export pool items lets you deliver everything or select individual items.").font(.subheadline).foregroundStyle(StudioStyle.secondary)

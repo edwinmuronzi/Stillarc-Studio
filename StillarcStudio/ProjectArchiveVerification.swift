@@ -79,9 +79,22 @@ enum ProjectArchiveVerification {
         let midBackup=Task.detached {try await vault.writeArchive([p.id,v.id],progress:{_,_ in cancelBackup.cancel()})};cancelBackup.set(midBackup)
         do {_ = try await midBackup.value;throw ProjectArchive.fail("QA mid-backup cancellation ignored")} catch is CancellationError {}
         let stillCount=try await vault.load().0.count;try check(stillCount==before,"Interrupted operation changed projects")
+        // File enumeration resolves symlink aliases on iOS (/var vs /private/var).
+        let actual=folder.appendingPathComponent("actual-vault"),alias=folder.appendingPathComponent("alias-vault")
+        try FileManager.default.createDirectory(at:actual,withIntermediateDirectories:true)
+        try FileManager.default.createSymbolicLink(at:alias,withDestinationURL:actual)
+        let aliased=ProjectVault(root:alias);var ids:[UUID]=[]
+        for _ in 0..<21 {ids.append(try await aliased.importPhoto(file).id)}
+        let parts=try await aliased.writeArchiveSet(ids);defer {if let first=parts.first {try? FileManager.default.removeItem(at:first.deletingLastPathComponent())}}
+        try check(parts.count==2,"Backup all part count")
+        let restoredPart1=try await aliased.restoreArchive(parts[0]),restoredPart2=try await aliased.restoreArchive(parts[1])
+        try check(restoredPart1.count==20 && restoredPart2.count==1,"Backup all skipped projects")
+        let restoredBytes=try Data(contentsOf:await aliased.source(restoredPart2[0]))
+        try check(restoredBytes==bytes,"Aliased-root byte roundtrip")
+        do {_ = try ProjectArchive.relativePath(folder.deletingLastPathComponent().appendingPathComponent("outside.png"),inside:actual);throw ProjectArchive.fail("QA outside root accepted")} catch {if error.localizedDescription.contains("QA outside") {throw error}}
         let current=try JSONDecoder().decode(Project.self,from:Data(contentsOf:vault.root.appendingPathComponent(p.id.uuidString+".json")))
         try check(current==p && Data(contentsOf:file)==bytes,"Existing source/project changed")
-        return ["passed":true,"photoVideoSourceBytes":true,"editsMasksLUTWarp":true,"privateReferenceBackground":true,"versionsAndRatings":true,"newIdentitiesAndRepeatedRestore":true,"restoredExport":true,"corruptionTruncationTrailing":true,"traversalDuplicateFutureRejected":true,"cancelledRestoreSafe":true,"midStreamCancellation":true,"projectCount":after,"packageBytes":data.count]
+        return ["passed":true,"photoVideoSourceBytes":true,"editsMasksLUTWarp":true,"privateReferenceBackground":true,"versionsAndRatings":true,"newIdentitiesAndRepeatedRestore":true,"restoredExport":true,"corruptionTruncationTrailing":true,"traversalDuplicateFutureRejected":true,"cancelledRestoreSafe":true,"midStreamCancellation":true,"symlinkRootRoundtrip":true,"backupAll21ProjectsTwoParts":true,"projectCount":after,"packageBytes":data.count]
     }
     static func writeReport() async {
         let url=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("project-archive-verification.json")

@@ -138,7 +138,8 @@ actor ProjectVault {
     var organizationBusy = Set<UUID>()
     var error: String?
     let vault:ProjectVault
-    init(vault:ProjectVault = ProjectVault()) { self.vault = vault }
+    let exportQueue:StudioExportQueue
+    init(vault:ProjectVault = ProjectVault()) { self.vault = vault;exportQueue=StudioExportQueue(vault:vault) }
     func load() async {
         do { (projects, looks) = try await vault.load();adjustmentClipboard = try await vault.loadClipboard();recoveryMessage = await vault.recoveryNotice() } catch { self.error = error.localizedDescription }
         loading = false
@@ -205,6 +206,8 @@ actor ProjectVault {
 }
 
 @MainActor @Observable final class EditSession {
+    var projectWithCurrentRecipe:Project {var value=project;value.recipe=recipe;return value}
+
     var project: Project
     var recipe: Recipe
     var source: PreparedPhoto?

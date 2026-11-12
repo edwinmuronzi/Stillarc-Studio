@@ -1,0 +1,14 @@
+{
+  "pauseResumeAndNoAutoStart" : true,
+  "seconds" : 2.7374980449676514,
+  "explicitStartAndSnapshot" : true,
+  "reorderCancelRetry" : true,
+  "interruptedProcessRecovery" : true,
+  "missingSourceHandled" : true,
+  "thermal" : 1,
+  "passed" : true,
+  "serialPhotoVideoExports" : true,
+  "outputRemoval" : true,
+  "completedFilesSurviveReload" : true,
+  "version" : "0.35.0"
+}

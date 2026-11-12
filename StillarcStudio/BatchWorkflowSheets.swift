@@ -4,6 +4,9 @@ import Photos
 struct BatchExportSheet:View {
     let projects:[Project]
     let vault:ProjectVault
+    var queue:StudioExportQueue?=nil
+    @State private var queueSheet=false
+    @State private var addingQueue=false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
     @State private var delivery=DeliverySettings.load()
@@ -42,6 +45,10 @@ struct BatchExportSheet:View {
                         }.disabled(saving)
                         ForEach(Array(result.failures.enumerated()),id:\.offset) { _,failure in Text(failure).font(.caption).foregroundStyle(.orange) }
                     }
+                    if let queue {
+                        Button("Add batch to export queue",systemImage:"list.bullet.rectangle"){Task {addingQueue=true;defer {addingQueue=false};if await queue.enqueue(projects,format:format,privacy:privacy,delivery:delivery){message="Added to queue. Open it to start delivery."} else {error=queue.error}}}.disabled(busy || saving || addingQueue || result != nil).accessibilityIdentifier("enqueueBatchExport")
+                        Button("Open export queue"){queueSheet=true}.disabled(busy || saving).accessibilityIdentifier("openExportQueue")
+                    }
                     if let error { Text(error).font(.caption).foregroundStyle(.orange) }
                     if let message { Text(message).font(.caption).foregroundStyle(StudioStyle.blue) }
                     Text("Leaving the app cancels an unfinished batch. Export may pause to cool the phone. Completed files remain available here until you change options or close this sheet.").font(.caption).foregroundStyle(StudioStyle.secondary)
@@ -53,6 +60,7 @@ struct BatchExportSheet:View {
                 }
             }.navigationTitle("Batch export").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { dismiss() }.disabled(busy || saving) }
         }.tint(StudioStyle.blue).interactiveDismissDisabled(busy || saving)
+        .sheet(isPresented:$queueSheet){if let queue {ExportQueueSheet(queue:queue)}}
         .onChange(of:phase) { _,value in if value != .active && busy { task?.cancel() } }
         .onDisappear { task?.cancel();if let folder = result?.folder { Task.detached(priority:.utility) { try? FileManager.default.removeItem(at:folder) } } }
     }

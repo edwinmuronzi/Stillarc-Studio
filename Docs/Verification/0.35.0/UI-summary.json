@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "distinctWorkflows": 5,
+  "tests": [
+    "BackupAllAndPreviews",
+    "ExportQueueDelivery",
+    "PoolDeliveryAllAndSelected",
+    "ProjectBackupCreateInspectRestore",
+    "ProjectBackupSelectionAndFilePickerCancel"
+  ],
+  "notes": "UI retests corrected fixed-footer visibility, full-row thumbnail hit targets and an ambiguous nested Done selector. Thumbnail selection test scrolls the chosen row fully above the fixed action bar. Only final passing feature screenshots are included."
+}

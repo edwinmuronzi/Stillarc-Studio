@@ -25,6 +25,6 @@ struct PoolDeliverySheet:View {
                 .safeAreaInset(edge:.bottom) {Button("Export selected (\(chosen.count))"){exporting=true}.buttonStyle(.borderedProminent).disabled(chosen.isEmpty || !saved).padding(16).accessibilityIdentifier("exportChosenPoolItems")}
         }.tint(StudioStyle.blue)
         .task {chosen=pool.state.selected;session.pauseAutosave();saved=await session.persist(library)}
-        .sheet(isPresented:$exporting) {BatchExportSheet(projects:pool.projects(library).filter {chosen.contains($0.id)},vault:library.vault)}
+        .sheet(isPresented:$exporting) {BatchExportSheet(projects:pool.projects(library).filter {chosen.contains($0.id)},vault:library.vault,queue:library.exportQueue)}
     }
 }

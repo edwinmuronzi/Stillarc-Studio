@@ -3,7 +3,7 @@ import ImageIO
 import AVFoundation
 import SwiftUI
 
-struct ExportPrivacy:Equatable,Sendable {
+struct ExportPrivacy:Codable,Equatable,Sendable {
     var captureDate = false
     var camera = false
     var location = false

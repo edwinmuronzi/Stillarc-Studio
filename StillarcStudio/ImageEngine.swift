@@ -191,4 +191,4 @@ enum ImageEngine {
         }
     }
 }
-enum ExportFormat: String, CaseIterable, Identifiable { case jpeg = "JPEG", png = "PNG",hdrHEIF = "HDR HEIF"; var id: String { rawValue }; var ext: String { self == .jpeg ? "jpg" : (self == .png ? "png":"heic") } }
+enum ExportFormat: String, Codable, CaseIterable, Identifiable { case jpeg = "JPEG", png = "PNG",hdrHEIF = "HDR HEIF"; var id: String { rawValue }; var ext: String { self == .jpeg ? "jpg" : (self == .png ? "png":"heic") } }

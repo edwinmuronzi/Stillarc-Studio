@@ -1,3 +1,7 @@
+## 0.35.0, build 39 — Backup fix and export queue
+
+Actual-device path audit: 4/4 previously rejected asset paths now pass. Symlink-root 21-project/two-part backup, native queue lifecycle and core regressions passed, with five UI workflows passing across targeted retests. The native queue run ended at fair iOS thermal state after repeated tests; no no-heat guarantee is made. [Reports and limits](Verification/0.35.0/README.md).
+
 ## 0.34.0, build 38 — Portable project backups
 
 Native/compact backup round-trip, damaged-file rejection and mid-stream cancellation checks passed, together with native core regression and the corrected backup UI workflows. The 128 MiB native streaming check retained nominal iOS thermal state, with 27.36 ms maximum main-actor wake interval including the requested 16 ms sleep. [Reports and limits](Verification/0.34.0/README.md).

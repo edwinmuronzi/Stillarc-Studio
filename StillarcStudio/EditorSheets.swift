@@ -8,6 +8,8 @@ import UniformTypeIdentifiers
     var library:StudioLibrary? = nil
     var pool:EditingPool? = nil
     @State private var delivery=DeliverySettings.load()
+    @State private var queueSheet=false
+    @State private var addingQueue=false
     @State private var poolDelivery=false
     @State private var privacy = ExportPrivacy.load()
     @State private var format: ExportFormat = .jpeg
@@ -53,6 +55,10 @@ import UniformTypeIdentifiers
                         Button("Change export options") { discardExport(); message = nil }.font(.subheadline).frame(maxWidth: .infinity)
                     }
                     if busy && session.project.isVideo { ProgressView(value:videoProgress);if coolingVideo { Text("Paused to cool your iPhone. Export resumes when thermal state improves.").font(.caption).foregroundStyle(StudioStyle.secondary) };Button("Cancel export",role:.cancel) { exportTask?.cancel() } }
+                    if let library {
+                        Button("Add to export queue",systemImage:"list.bullet.rectangle"){Task {addingQueue=true;defer {addingQueue=false};let snapshot=session.projectWithCurrentRecipe;if await library.exportQueue.enqueue([snapshot],format:session.recipe.hasTransparentCutout ? .png:format,privacy:privacy,delivery:delivery,tenBit:tenBitVideo){message="Added to queue. Open it to start delivery."} else {error=library.exportQueue.error}}}.disabled(busy || saving || addingQueue || result != nil).accessibilityIdentifier("enqueueExport")
+                        Button("Open export queue"){queueSheet=true}.disabled(busy || saving).accessibilityIdentifier("openExportQueue")
+                    }
                     if let message { Label(message,systemImage: "checkmark.circle").font(.subheadline).foregroundStyle(StudioStyle.blue) }
                     if let error { Text(error).font(.subheadline).foregroundStyle(.orange) }
                     Text("Your full-resolution source is graded before the chosen export resize. Large RAW files can take longer to develop; you can continue editing after closing this sheet.").font(.caption).foregroundStyle(StudioStyle.secondary).lineSpacing(3)
@@ -68,6 +74,7 @@ import UniformTypeIdentifiers
                 .toolbar { Button("Done") { dismiss() }.disabled(saving || busy) }
                 .interactiveDismissDisabled(saving || busy)
         }.tint(StudioStyle.blue)
+        .sheet(isPresented:$queueSheet){if let library {ExportQueueSheet(queue:library.exportQueue)}}
         .sheet(isPresented:$poolDelivery) {if let pool,let library {PoolDeliverySheet(pool:pool,library:library,session:session)}}
         .onChange(of:format) {_,value in if value == .hdrHEIF {session.change {$0.photoHDR=true}}}
         .onAppear {if session.recipe.hasTransparentCutout {format = .png}}

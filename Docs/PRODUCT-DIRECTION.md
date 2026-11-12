@@ -57,3 +57,7 @@ Color Warp adds up to four soft hue/richness controls in the fused GPU color pas
 
 ### 0.34 checkpoint
 Portable .stillarc backups now package up to 20 projects with exact originals, source-specific edits/assets, LUTs, masks/tracking, organization and saved versions. Home offers labelled Home Backups button and single/selected-project entry points, separate Back up/Restore modes, persistent progress/cancel controls and safe new-copy restoration. Streaming integrity checks reject damaged/truncated/traversal/unsupported files before commit. Preset libraries, editing-pool membership, global preferences, cloud sync, an export queue, additional camera transforms and grade keyframes remain separate scope. No beta/store work or timeline companion is included.
+
+
+### 0.35 checkpoint
+Fixed backup asset paths across canonical/symlink directory aliases, with an aggregate-only read-only audit of actual device projects. The picker gains bounded photo/video thumbnails and fixed All/selected actions. Back up all writes complete numbered 20-project parts rather than omitting later projects. A persistent serial export queue snapshots per-delivery settings, supports explicit start, foreground pause/retry, ordering, retained completed files and safe removal, and is available from single/batch/pool delivery and Home. Queue work pauses while hidden or inactive; active unfinished work restarts at job boundaries. Additional camera transforms, grade keyframes, source relinking and Camera/Studio shared-look interchange remain separate scope.

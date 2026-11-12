@@ -5,7 +5,7 @@ final class GestureTests:XCTestCase {
         app.launchArguments=["--archive-ui-test"];app.launch()
         XCTAssertTrue(app.buttons["Project backups"].waitForExistence(timeout:30));app.scrollViews.firstMatch.swipeUp();app.buttons["Project backups"].tap()
         XCTAssertTrue(app.buttons["createProjectBackup"].waitForExistence(timeout:15))
-        let source=app.buttons["Back up Studio sample"];var scrolls=0;while !source.exists && scrolls<12 {app.swipeUp();scrolls+=1};XCTAssertTrue(source.waitForExistence(timeout:10));source.tap()
+        let source=app.buttons["Back up Studio sample"];var scrolls=0;while (!source.exists || source.frame.midY>app.frame.height-190) && scrolls<12 {app.swipeUp();scrolls+=1};XCTAssertTrue(source.waitForExistence(timeout:10));source.tap();XCTAssertEqual(source.value as? String,"Selected")
         let create=app.buttons["createProjectBackup"];XCTAssertTrue(create.isEnabled);create.tap()
         XCTAssertTrue(app.buttons["shareProjectBackup"].waitForExistence(timeout:30))
         let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Project backup ready";shot.lifetime = .keepAlways;add(shot)
@@ -20,6 +20,25 @@ final class GestureTests:XCTestCase {
         XCTAssertTrue(app.buttons["createProjectBackup"].waitForExistence(timeout:15));XCTAssertFalse(app.buttons["createProjectBackup"].isEnabled);app.buttons["Select up to 20"].tap();XCTAssertTrue(app.buttons["createProjectBackup"].isEnabled);app.buttons["Clear"].tap();XCTAssertFalse(app.buttons["createProjectBackup"].isEnabled)
         app.buttons["Restore"].tap();app.buttons["chooseProjectBackup"].tap()
         XCTAssertTrue(app.buttons["Cancel"].waitForExistence(timeout:10));app.buttons["Cancel"].tap();XCTAssertTrue(app.buttons["chooseProjectBackup"].exists);app.buttons["Done"].tap()
+    }
+    func testBackupAllAndPreviews() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--archive-ui-test"];app.launch()
+        XCTAssertTrue(app.buttons["Project backups"].waitForExistence(timeout:30));app.scrollViews.firstMatch.swipeUp();app.buttons["Project backups"].tap()
+        XCTAssertTrue(app.buttons["backupAllProjects"].waitForExistence(timeout:15));app.swipeUp()
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Backup thumbnails and all projects";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["backupAllProjects"].tap();XCTAssertTrue(app.buttons["shareProjectBackup"].waitForExistence(timeout:60));app.buttons["Done"].tap()
+    }
+    func testExportQueueDelivery() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--demo-editor","--neutral-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Export photo"].waitForExistence(timeout:30));app.buttons["Export photo"].tap();app.swipeUp()
+        let enqueue=app.buttons["enqueueExport"];XCTAssertTrue(enqueue.waitForExistence(timeout:10));enqueue.tap()
+        XCTAssertTrue(app.staticTexts["Added to queue. Open it to start delivery."].waitForExistence(timeout:15));app.buttons["openExportQueue"].tap()
+        XCTAssertTrue(app.buttons["startExportQueue"].waitForExistence(timeout:10));app.buttons["startExportQueue"].tap()
+        XCTAssertTrue(app.staticTexts["Ready"].firstMatch.waitForExistence(timeout:40))
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Completed export queue";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["closeExportQueue"].tap()
     }
     func testColorWarpResetUndoAndPersistence() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")

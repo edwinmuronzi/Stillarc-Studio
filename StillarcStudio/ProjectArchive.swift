@@ -21,6 +21,12 @@ enum ProjectArchive {
         else {guard c[1]=="media",c.count==3 || c[2]=="versions" else {throw fail("Invalid project asset path.")}}
         return c
     }
+    static func relativePath(_ file:URL,inside folder:URL) throws ->String {
+        let base=folder.standardizedFileURL.resolvingSymlinksInPath().pathComponents
+        let components=file.standardizedFileURL.resolvingSymlinksInPath().pathComponents
+        guard components.count>base.count,Array(components.prefix(base.count))==base else {throw fail("A project asset is outside its project folder.")}
+        return components.dropFirst(base.count).joined(separator:"/")
+    }
     static func readExactly(_ handle:FileHandle,_ count:Int) throws ->Data {
         var data=Data();data.reserveCapacity(count)
         while data.count<count {try Task.checkCancellation();guard let part=try handle.read(upToCount:count-data.count),!part.isEmpty else {throw fail("The backup is incomplete or damaged.")};data.append(part)}
@@ -103,7 +109,7 @@ extension ProjectVault {
                 let values=try file.resourceValues(forKeys:[.isRegularFileKey,.isSymbolicLinkKey,.fileSizeKey])
                 guard values.isSymbolicLink != true else {throw ProjectArchive.fail("Linked files cannot be included in a project backup.")}
                 guard values.isRegularFile==true else {continue}
-                let relative=String(file.path.dropFirst(folder.path.count+1)),path=id.uuidString+"/media/"+relative
+                let relative=try ProjectArchive.relativePath(file,inside:folder),path=id.uuidString+"/media/"+relative
                 _ = try ProjectArchive.components(path,ids:Set(ids))
                 let size=UInt64(max(0,values.fileSize ?? 0));guard size>0 else {continue}
                 files.append((path,file,size));guard files.count<=4096 else {throw ProjectArchive.fail("Too many stored project assets.")}
@@ -172,5 +178,24 @@ extension ProjectVault {
             throw error
         }
         progress(1,"Projects restored");return projects
+    }
+}
+
+extension ProjectVault {
+    func writeArchiveSet(_ ids:[UUID],progress:@Sendable(Double,String)->Void={_,_ in}) throws ->[URL] {
+        guard !ids.isEmpty,Set(ids).count==ids.count else {throw ProjectArchive.fail("Choose projects to back up.")}
+        let folder=FileManager.default.temporaryDirectory.appendingPathComponent("StudioBackupSet-\(UUID())")
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        var success=false;defer {if !success {try? FileManager.default.removeItem(at:folder)}}
+        let count=(ids.count+19)/20;var outputs:[URL]=[]
+        for index in 0..<count {
+            try Task.checkCancellation()
+            let chunk=Array(ids[(index*20)..<min(ids.count,(index+1)*20)])
+            let part=try writeArchive(chunk) {value,status in progress((Double(index)+value)/Double(count),"Part \(index+1) of \(count) · "+status)}
+            defer {try? FileManager.default.removeItem(at:part.deletingLastPathComponent())}
+            let target=folder.appendingPathComponent(String(format:"Stillarc-Projects-%03d-of-%03d.stillarc",index+1,count))
+            try FileManager.default.moveItem(at:part,to:target);outputs.append(target)
+        }
+        try Task.checkCancellation();success=true;progress(1,"All backup parts are ready");return outputs
     }
 }
