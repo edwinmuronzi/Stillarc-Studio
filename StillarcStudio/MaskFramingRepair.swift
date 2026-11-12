@@ -38,6 +38,16 @@ enum MaskFramingRepair {
         var result = try AutomaticMaskBitmap.make(selected,recipe:recipe,videoStart:stored.videoStart);result.anchor = anchor
         return result
     }
+    /// Adopt repaired geometry without overwriting controls changed while the worker ran.
+    static func merge(_ repaired:Recipe,snapshot:Recipe,current:Recipe) -> [LocalMask] {
+        guard MaskMotion.signature(current)==MaskMotion.signature(snapshot),current.video.start==snapshot.video.start else {return current.masks}
+        return current.masks.map {layer in
+            guard let old=snapshot.masks.first(where:{$0.id==layer.id}),let new=repaired.masks.first(where:{$0.id==layer.id}),layer.automatic==old.automatic else {return layer}
+            var copy=layer;copy.automatic=new.automatic
+            if layer.motion==old.motion {copy.motion=new.motion}
+            return copy
+        }
+    }
     static func repair(recipe:Recipe,url:URL,video:VideoDescriptor?,prepared:PreparedPhoto?) async throws -> Recipe {
         guard recipe.masks.contains(where:{ $0.kind.isAutomatic && $0.automatic?.matches(recipe) == false }) else { return recipe }
         var result = recipe

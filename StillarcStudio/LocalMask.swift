@@ -9,6 +9,7 @@ struct LocalMask:Identifiable,Codable,Equatable,Sendable {
     var id = UUID()
     var kind:LocalMaskKind
     var region:MaskRegion? = nil
+    var cutout:Bool? = nil
     var title:String {region?.rawValue ?? kind.rawValue}
     var brush:BrushDrawing? = nil
     var selection:MaskSelection? = nil
@@ -31,7 +32,8 @@ struct LocalMask:Identifiable,Codable,Equatable,Sendable {
     var saturation = 0.0
     var contrast = 0.0
     init(kind:LocalMaskKind) { self.kind = kind;angle = kind == .linear ? 90 : 0;if kind == .brush { width = 0.06;brush = BrushDrawing() };if isRange { selection = MaskSelection() } }
-    var hasEffect:Bool { enabled && amount>0 && (abs(exposure)>0.000001 || abs(warmth)>0.000001 || abs(saturation)>0.000001 || abs(contrast)>0.000001) }
+    var hasEffect:Bool {enabled && amount>0 && (cutout == true || hasColorEffect)}
+    var hasColorEffect:Bool { enabled && amount>0 && (abs(exposure)>0.000001 || abs(warmth)>0.000001 || abs(saturation)>0.000001 || abs(contrast)>0.000001) }
     func validated() -> Self {
         var r = self
         func limit(_ v:Double,_ range:ClosedRange<Double>,_ fallback:Double) -> Double { v.isFinite ? min(range.upperBound,max(range.lowerBound,v)) : fallback }

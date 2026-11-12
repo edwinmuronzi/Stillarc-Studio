@@ -40,3 +40,6 @@ The editing pool comes first, then paired subject/background controls. This dire
 ### Implementation status after this evaluation
 
 0.29 implements the editing-pool workflow and paired Subject/Background controls described above. Sync explicitly writes selected adjustment sections to destination recipes with recovery versions; a live inherited master grade is not implemented. The source-specific masks/crop/input/clip settings stay individual. Background removal, replacement, video matting and the proposed timeline companion remain future work.
+
+
+0.30 adds reversible photo cutouts, transparent PNG (including mixed batches), and grouped pool Undo/Redo. Subject/background selection still uses an estimated matte; it is not changing-pose video matting. Background replacement and the timeline companion remain future work. No beta or App Store work is included.

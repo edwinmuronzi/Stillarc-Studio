@@ -1,0 +1,24 @@
+{
+  "passed" : true,
+  "version" : "0.30.0",
+  "cutout" : {
+    "transparentPNG" : true,
+    "mixedBatch" : true,
+    "presetIsolation" : true,
+    "softAlphaPremultiplication" : true,
+    "cropRepair" : true,
+    "strengthAndInvert" : true,
+    "passed" : true,
+    "sourcePreserved" : true
+  },
+  "history" : {
+    "wholeSyncUndoRedo" : true,
+    "redoInvalidation" : true,
+    "cancelledSaveIsolation" : true,
+    "chronologicalLocalEdits" : true,
+    "missingProjectPreflight" : true,
+    "sourceSettingsPreserved" : true,
+    "passed" : true
+  },
+  "thermal" : 0
+}

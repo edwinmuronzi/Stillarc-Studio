@@ -15,18 +15,23 @@ struct EditingPoolState:Codable,Equatable,Sendable {
 @MainActor @Observable final class EditingPool:Identifiable {
     static let storageKey="studio.editingPool.state"
     let id=UUID()
+    let persistsState:Bool
     var state:EditingPoolState
     var selecting=false
     var collapsed=false
+    var undoHistory=[PoolHistoryStep]()
+    var redoHistory=[PoolHistoryStep]()
+    var historyBusy=false
+    var historyMessage:String?
     var tool:Tool {get {Tool(rawValue:state.toolName ?? "Light") ?? .light} set {state.toolName=newValue.rawValue;save()}}
-    init(_ state:EditingPoolState) {self.state=state;save()}
-    convenience init?(projects:[Project]) {
+    init(_ state:EditingPoolState,persist:Bool=true) {self.state=state;self.persistsState=persist;save()}
+    convenience init?(projects:[Project],persist:Bool=true) {
         let ids=Array(projects.prefix(20).map(\.id))
         guard let first=ids.first else {return nil}
-        self.init(EditingPoolState(ids:ids,active:first,selected:Set(ids)))
+        self.init(EditingPoolState(ids:ids,active:first,selected:Set(ids)),persist:persist)
     }
     var index:Int {state.ids.firstIndex(of:state.active) ?? 0}
-    func save() {if let data=try? JSONEncoder().encode(state) {UserDefaults.standard.set(data,forKey:Self.storageKey)}}
+    func save() {guard persistsState else {return};if let data=try? JSONEncoder().encode(state) {UserDefaults.standard.set(data,forKey:Self.storageKey)}}
     func activate(_ id:UUID) {guard state.ids.contains(id) else {return};state.active=id;save()}
     func toggle(_ id:UUID) {guard state.ids.contains(id) else {return};if !state.selected.insert(id).inserted {state.selected.remove(id)};save()}
     func projects(_ library:StudioLibrary,selected:Bool=false) -> [Project] {

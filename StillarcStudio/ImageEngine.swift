@@ -144,6 +144,7 @@ enum ImageEngine {
 
     static func export(source: URL, recipe: Recipe, format: ExportFormat, privacy:ExportPrivacy = ExportPrivacy()) throws -> ExportResult {
         try autoreleasepool {
+            if recipe.hasCutout && format != .png {throw NSError(domain:"Cutout",code:1,userInfo:[NSLocalizedDescriptionKey:"Choose PNG to preserve the transparent background."])}
             let automatic = try AutomaticMaskBitmap.prepare(recipe)
             let original = try open(source)
             let framed = PhotoFraming.window(in:PhotoFraming.orientedSize(original.image.extent.size,recipe:recipe),recipe:recipe)

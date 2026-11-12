@@ -25,6 +25,7 @@ struct BatchExportSheet:View {
                     if projects.contains(where:{ !$0.isVideo }) { Picker("Photo format",selection:$format) { ForEach(ExportFormat.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).disabled(busy || result != nil) }
                     ExportPrivacyControls(policy:$privacy,video:projects.contains(where:{ $0.isVideo }),batch:true).disabled(busy || result != nil)
                     Text("\(projects.count) selected · full remaining source resolution").font(.caption).foregroundStyle(StudioStyle.secondary)
+                    if projects.contains(where:{$0.recipe.hasCutout}) {Text("Photo cutouts always export as transparent PNG; other photos use the chosen format.").font(.caption).foregroundStyle(StudioStyle.secondary)}
                     if busy { ProgressView(value:progress);Text(status).font(.caption).lineLimit(2);Button("Cancel batch",role:.cancel) { task?.cancel() } }
                     else if let result {
                         Label("\(result.urls.count) of \(projects.count) exported",systemImage:result.urls.isEmpty ? "exclamationmark.circle" : "checkmark.circle").foregroundStyle(result.urls.isEmpty ? .orange : StudioStyle.blue)

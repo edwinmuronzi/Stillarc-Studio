@@ -80,7 +80,7 @@ enum MaskEngine {
     }
     static func apply(_ source:CIImage,layers:[LocalMask],preview:Bool = false,framing:String? = nil) -> CIImage {
         var image = source
-        for raw in layers.prefix(4) where raw.hasEffect {
+        for raw in layers.prefix(4) where raw.hasColorEffect {
             let m = raw.validated()
             var adjusted = image
             if m.exposure != 0 { adjusted = adjusted.applyingFilter("CIExposureAdjust",parameters:[kCIInputEVKey:m.exposure]) }
@@ -88,7 +88,7 @@ enum MaskEngine {
             if m.saturation != 0 || m.contrast != 0 { adjusted = adjusted.applyingFilter("CIColorControls",parameters:[kCIInputSaturationKey:1+m.saturation,kCIInputContrastKey:1+m.contrast*0.5]) }
             image = adjusted.applyingFilter("CIBlendWithMask",parameters:[kCIInputBackgroundImageKey:image,kCIInputMaskImageKey:combinedWeight(m,layers:layers,extent:image.extent,preview:preview,reference:source,framing:framing)])
         }
-        return image
+        return CutoutRendering.apply(image,layers:layers,preview:preview,framing:framing,reference:source)
     }
     static func overlay(_ image:CIImage,layer:LocalMask?,reference:CIImage? = nil,layers:[LocalMask] = [],framing:String? = nil) -> CIImage {
         guard let layer else { return image }

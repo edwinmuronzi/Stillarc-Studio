@@ -1,4 +1,4 @@
-# Stillarc Studio · 0.29
+# Stillarc Studio · 0.30
 
 A local, reversible photo and single-clip video editor for iPhone and iPad. Black-and-blue controls keep the image central.
 
@@ -15,6 +15,8 @@ These are actual app UI screenshots using an owned illustrative sample, not came
 
 Edit a set in one place: select projects and open an editing pool, browse with a filmstrip, then synchronize chosen color settings across selected items or the whole pool. Refine each image independently afterward. Resume the pool later without duplicating originals.
 
-Subject & Background creates two editable regions with one on-device analysis. Brighten a person while separately dimming or desaturating their surroundings. The red Guide is only a selection overlay. This release edits backgrounds; it does not remove them.
+Subject & Background creates two editable regions with one on-device analysis. Brighten a person while separately dimming or desaturating their surroundings. The red Guide is only a selection overlay. Paired controls edit the two regions separately. Remove background now creates a reversible photo cutout; full-size PNG export preserves transparency.
 
 <img src="Screenshots/EditingPool.png" width="300" alt="Actual Studio editing pool with filmstrip and sync controls using the owned illustrative sample">
+
+Pool sync now has grouped Undo/Redo across the changed items, alongside individual edits. Photo cutouts reuse saved selections and show a checkerboard preview, with edge refinement and alpha-preserving PNG export. Video matting and background replacement remain future work.

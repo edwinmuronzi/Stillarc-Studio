@@ -2,7 +2,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.29 editing pool and Subject/Background milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.30 photo cutouts and pool Undo/Redo milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -274,3 +274,18 @@ Edits affect **the current item**. Choose **Sync edits**, then **Selected** or *
 **Masks → Add mask → Subject & Background → Create Subject & Background.** One on-device foreground analysis creates two named, separately adjustable layers. Choose Subject or Background, then adjust Exposure, Warmth, Saturation, Contrast or Strength. Turn off the red Guide to judge the actual grade. Each layer can be refined, inverted, disabled, deleted and undone. Both share the detected base matte and use two of the four mask slots. These source-specific selections are excluded from reusable grades and pool synchronization.
 
 For video, both selections start from the first kept frame. Position tracking is independent per layer; this is not per-frame segmentation or changing-pose matting. Background removal/replacement and transparent cutout export are not included in this update.
+
+
+### Photo background removal and transparent export (0.30)
+
+**Photo → Masks → Remove background.** Studio reuses a valid foreground selection when available; otherwise choose Remove background in the on-device analysis sheet. The result stays reversible. The checkerboard means transparency and is never baked into the exported image.
+
+Choose the cutout layer, then expand **Refine selection** to adjust the border/softness. **Keep selection as cutout** toggles removal without deleting the selection. Strength blends between the original background and full removal; Invert keeps the opposite area. Other mask types can also keep their selected area as a cutout. Only one cutout is active at a time. Edge quality depends on the photo; hair, glass and complex backgrounds can need manual refinement. The foreground detector can retain multiple objects.
+
+Active photo cutouts export as **full-size transparent PNG**, including in mixed batches. Other batch photos use the selected JPEG/PNG format. The PNG preserves real alpha, not the checkerboard; receiving apps may display transparency over their own background. Original media stays unchanged. This update does not add background replacement or video matting/alpha-video export.
+
+### Undo/Redo for pool sync (0.30)
+
+After a sync changes several pool items, **Undo reverses that sync across all changed destinations as one action**. Redo reapplies it. The source item keeps edits made before the sync. Ordinary edits and syncs share chronological pool history across item navigation: an edit made after a sync is undone first, then the sync. A new edit clears Redo. An unchanged sync creates no action. A canceled/partially successful sync groups only completed changes.
+
+History holds up to 40 actions while the pool stays open. Closing/reopening the pool or restarting the app starts a fresh Undo history; the saved **Before batch paste** versions remain available under Looks → Versions. Sync Undo/Redo changes only the chosen adjustment sections, preserving individual crop, input, masks/cutouts, clip and organization settings. No source media is re-encoded for history. Cutout creation/toggling also supports Undo/Redo.

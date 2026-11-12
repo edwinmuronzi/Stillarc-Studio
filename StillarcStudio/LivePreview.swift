@@ -87,7 +87,8 @@ struct LivePreview: UIViewRepresentable {
             }
             let scale = min(size.width / image.extent.width, size.height / image.extent.height)
             let placed = image.transformed(by: .init(scaleX: scale,y: scale)).transformed(by: .init(translationX: (size.width-image.extent.width*scale)/2, y: (size.height-image.extent.height*scale)/2))
-            let background = CIImage(color: CIColor(red: 0.025, green: 0.03, blue: 0.04)).cropped(to: CGRect(origin: .zero,size: size))
+            var background = CIImage(color: CIColor(red: 0.025, green: 0.03, blue: 0.04)).cropped(to: CGRect(origin: .zero,size: size))
+            if (recipe.hasCutout && !original) || !source.isOpaque {background=CutoutRendering.checkerboard(placed.extent).composited(over:background)}
             context.render(placed.composited(over: background), to: drawable.texture, commandBuffer: command, bounds: CGRect(origin: .zero,size: size), colorSpace: hdr ? ImageEngine.working : ImageEngine.output)
             command.addCompletedHandler { [weak self, weak view] buffer in
                 let ms = (CACurrentMediaTime() - began) * 1000

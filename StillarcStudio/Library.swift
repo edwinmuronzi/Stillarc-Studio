@@ -39,6 +39,9 @@ actor ProjectVault {
         return (projects.sorted { $0.modified > $1.modified }, looks)
     }
     func source(_ project: Project) -> URL { root.appendingPathComponent(project.id.uuidString, isDirectory: true).appendingPathComponent(project.sourceName) }
+    func saveEditorSnapshot(_ project:Project) throws -> Project {
+        try Task.checkCancellation();return try save(project)
+    }
     @discardableResult func save(_ incoming: Project) throws -> Project {
         var project = incoming
         let index = root.appendingPathComponent(project.id.uuidString+".json")
@@ -163,17 +166,18 @@ actor ProjectVault {
     }
     @discardableResult func save(_ project: Project) async -> Bool {
         do {
-            let updated = try await vault.save(project)
-            if let index = projects.firstIndex(where: { $0.id == project.id }) { projects[index] = updated }
+            let updated = try await vault.saveEditorSnapshot(project)
+            if let index = projects.firstIndex(where: { $0.id == project.id }),projects[index].modified<=updated.modified { projects[index] = updated }
             return true
-        } catch { self.error = error.localizedDescription; return false }
+        } catch is CancellationError { return false }
+        catch { self.error = error.localizedDescription; return false }
     }
     func organize(_ project:Project,favorite:Bool? = nil,rating:Int? = nil) async {
         guard organizationBusy.insert(project.id).inserted else { return }
         defer { organizationBusy.remove(project.id) }
         do {
             let updated = try await vault.updateOrganization(project.id,favorite:favorite,rating:rating)
-            if let index = projects.firstIndex(where:{ $0.id == project.id }) { projects[index] = updated }
+            if let index = projects.firstIndex(where:{ $0.id == project.id }),projects[index].modified<=updated.modified { projects[index] = updated }
         } catch { self.error = error.localizedDescription }
     }
     func remove(_ project: Project) async {
@@ -215,6 +219,8 @@ actor ProjectVault {
     var sourceURL: URL?
     private var saveTask: Task<Void, Never>?
     private var retired=false
+    var historyRecorder:((Recipe,Recipe)->Void)?
+    private var historySavedRecipe:Recipe?
     init(_ project: Project) { self.project = project; recipe = project.recipe }
     func open(library: StudioLibrary) async {
         let url = await library.vault.source(project); sourceURL = url
@@ -236,7 +242,7 @@ actor ProjectVault {
     func begin() { if transaction == nil { transaction = recipe } }
     func end() {
         guard let before = transaction else { return }; transaction = nil
-        if before != recipe { undoStack.append(before); if undoStack.count > 80 { undoStack.removeFirst() }; redoStack = [] }
+        if before != recipe {if let historyRecorder {historyRecorder(before,recipe)} else {undoStack.append(before);if undoStack.count>80 {undoStack.removeFirst()}};redoStack=[]}
     }
     func change(_ body: (inout Recipe) -> Void) { begin(); body(&recipe); end() }
     func undo() { guard let previous = undoStack.popLast() else { return }; redoStack.append(recipe); recipe = previous }
@@ -266,11 +272,18 @@ actor ProjectVault {
     }
     func scheduleSave(_ library: StudioLibrary) {
         guard !retired else {return}
+        if historySavedRecipe==recipe {historySavedRecipe=nil;return}
+        historySavedRecipe=nil
         saved = false; saveTask?.cancel()
         saveTask = Task { [weak self] in
             do { try await Task.sleep(for: .milliseconds(500)) } catch { return }
             guard let self else { return }; await self.persist(library)
         }
+    }
+    func pauseAutosave() {saveTask?.cancel();saveTask=nil;end()}
+    func adoptHistory(_ updated:Project) {
+        saveTask?.cancel();saveTask=nil;transaction=nil
+        project=updated;recipe=updated.recipe;historySavedRecipe=recipe;saved=true
     }
     func retire(_ library:StudioLibrary) async -> Bool {
         saveTask?.cancel();saveTask=nil;end()
@@ -279,6 +292,7 @@ actor ProjectVault {
     }
     @discardableResult func persist(_ library: StudioLibrary) async -> Bool {
         guard !retired else {return true}
+        guard !Task.isCancelled else {return false}
         project.recipe = recipe; project.modified = Date()
         let snapshot = project
         let success = await library.save(snapshot)

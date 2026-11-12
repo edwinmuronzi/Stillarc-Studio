@@ -1,0 +1,91 @@
+{
+  "encodedAutomaticCropRepair" : true,
+  "levelsVideoExport" : true,
+  "encodedCombinedBrushRangeMask" : true,
+  "clips" : [
+    {
+      "metadata" : true,
+      "cancellation" : true,
+      "profile" : "standard",
+      "frames" : 18,
+      "originalPreserved" : true,
+      "audioTracks" : 2,
+      "projectRoundTrip" : true,
+      "height" : 360,
+      "width" : 640,
+      "color" : true
+    },
+    {
+      "width" : 360,
+      "profile" : "appleLog",
+      "audioTracks" : 1,
+      "color" : true,
+      "cancellation" : true,
+      "projectRoundTrip" : true,
+      "originalPreserved" : true,
+      "height" : 640,
+      "metadata" : true,
+      "frames" : 18
+    },
+    {
+      "audioTracks" : 1,
+      "projectRoundTrip" : true,
+      "frames" : 18,
+      "cancellation" : true,
+      "color" : true,
+      "width" : 640,
+      "height" : 360,
+      "profile" : "appleLog2",
+      "metadata" : true,
+      "originalPreserved" : true
+    },
+    {
+      "cornerResized4KLog" : true,
+      "frames" : 3,
+      "height" : 1860,
+      "width" : 1860
+    }
+  ],
+  "passed" : true,
+  "maskTracking" : {
+    "movingTargetErrors" : [
+      0.0051411703706012168,
+      0.0033422505339212594
+    ],
+    "exportFramesPerClip" : 60,
+    "pointCounts" : [
+      30,
+      30
+    ],
+    "portraitLandscape" : true,
+    "encodedTracking" : true,
+    "cancellation" : true,
+    "passed" : true
+  },
+  "boundedTrackingDecode" : true,
+  "dehazeVideoExport" : true,
+  "encodedColorLuminanceMasks" : true,
+  "photoInput" : {
+    "persistence" : true,
+    "curveVectors" : 32,
+    "exposureAlpha" : true,
+    "standardBypass" : true,
+    "bothGamuts" : true,
+    "highlightShoulder" : true,
+    "passed" : true,
+    "presetInputIsolation" : true
+  },
+  "encodedAutomaticMask" : true,
+  "trimHDR" : {
+    "passed" : true,
+    "persistence" : true,
+    "audioTracks" : 2,
+    "zeroBasedTiming" : true,
+    "trimFrames" : 33,
+    "trimSeconds" : 1.1000000000000001,
+    "headroomVectors" : 5,
+    "presetIsolation" : true,
+    "HDRToSDRPreviewClamp" : true
+  },
+  "version" : "0.30.0"
+}

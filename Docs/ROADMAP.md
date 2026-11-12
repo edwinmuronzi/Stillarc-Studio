@@ -102,3 +102,10 @@ Later tools remain subject to fixture validation and device performance checks; 
 Implemented: persistent pools of up to 20 existing projects, filmstrip/swipe/arrow browsing, per-item editing, selected/all-pool selective sync with recovery versions, safe preview retirement and 160px filmstrip thumbnails. Subject & Background creates two independently adjustable layers from one inference/shared matte, with existing refinement, undo, persistence and export. Video remains first-kept-frame selection plus independent position tracking.
 
 Next: background cutout/removal and clean alpha export; richer local controls and deeper RAW/photo finishing. A live inherited master-grade model, timeline companion and video matting remain separate future work. Beta and App Store preparation remain deferred.
+
+
+## 0.30 — Photo cutouts and pool history
+
+Implemented: photo background removal reusing an existing foreground selection or one requested analysis; checkerboard preview; reversible cutout selection, edge refinement/strength/invert; alpha-preserving full-size PNG and mixed-batch export. Sync is one pool-wide Undo/Redo step, ordered with normal edits and retained across navigation during the open pool. Saved sync checkpoints remain available after closing it. Crop repair merges repaired geometry without losing live controls; history operations pause deferred/stale saves.
+
+Next: background replacement/compositing and richer local photo tools. Video background removal needs separate temporal matting work. An inherited master-grade model, persistent cross-launch Undo, timeline editing and public distribution remain separate scope.

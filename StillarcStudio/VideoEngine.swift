@@ -70,6 +70,7 @@ enum VideoEngine {
 
     static func export(source:URL,descriptor:VideoDescriptor,recipe:Recipe,tenBit:Bool = true,privacy:ExportPrivacy = ExportPrivacy(),progress:@escaping @Sendable (Double) async -> Void,cooling:@escaping @Sendable (Bool) async -> Void = { _ in }) async throws -> ExportResult {
         try Task.checkCancellation()
+        guard !recipe.hasCutout else {throw NSError(domain:"Cutout",code:2,userInfo:[NSLocalizedDescriptionKey:"Transparent cutouts are photo-only. Turn off Keep selection as cutout before exporting video."])}
         try LensRendering.prepare();try FilmRendering.prepare()
         try ColorPipeline.prepare(); try LogConversion.prepare();try HDRPipeline.prepare();try MaskEngine.prepare()
         try MaskMotion.validateExport(recipe,duration:descriptor.duration)

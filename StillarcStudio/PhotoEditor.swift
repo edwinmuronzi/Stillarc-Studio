@@ -80,9 +80,10 @@ import UniformTypeIdentifiers
             if let pool {poolBar(pool)}
         }
         }.background(StudioStyle.ink).tint(StudioStyle.blue)
-        .disabled(poolChanging)
+        .disabled(poolChanging || pool?.historyBusy == true)
         .task {
             await session.open(library: library)
+            if let pool {let id=session.project.id;session.historyRecorder={before,after in pool.recordEdit(id:id,before:before,after:after)}}
             #if DEBUG
             let arguments = ProcessInfo.processInfo.arguments
             if arguments.contains("--tracking-demo") {
@@ -170,14 +171,14 @@ import UniformTypeIdentifiers
         .onChange(of:tool) { _,_ in curveEditing = false; pool?.tool=tool; cropAwaitingAdjustment = false;cropDisplayFinal = false;cropFocused = false }
         .onChange(of:scopesActive) { _,value in scopeSampler.setEnabled(value) }
         .onDisappear { scopeSampler.setEnabled(false) }
-        .onChange(of: session.recipe) { _, _ in if !diagnosticsRunning { session.scheduleSave(library) } }
-        .onChange(of: phase) { _, phase in if phase != .active { curveEditing = false;session.end();Task { await session.persist(library) } } }
-        .onDisappear { Task { await session.persist(library) } }
+        .onChange(of: session.recipe) { _, _ in if !diagnosticsRunning && pool?.historyBusy != true { session.scheduleSave(library) } }
+        .onChange(of: phase) { _, phase in if phase != .active { curveEditing = false;session.end();if pool?.historyBusy != true {Task { await session.persist(library) }} } }
+        .onDisappear { if pool?.historyBusy != true {Task { await session.persist(library) }} }
         .sheet(isPresented:$poolSync) {if let pool,let clipboard=poolClipboard {BatchPasteSheet(library:library,projects:pool.projects(library),clipboard:clipboard,pool:pool)}}
         .sheet(isPresented: $export) { ExportSheet(session: session) }
         .sheet(item:$transferSheet) { mode in AdjustmentTransferSheet(mode:mode,session:session,library:library) }
         .sheet(isPresented:$versionsSheet) { VersionsSheet(session:session,library:library) }
-        .sheet(item:$automaticTarget) { target in AutomaticSelectionSheet(session:session,target:target) { id in selectedMaskID = id;showMask = true } }
+        .sheet(item:$automaticTarget) { target in AutomaticSelectionSheet(session:session,target:target) { id in selectedMaskID = id;showMask = !target.removeBackground } }
         .sheet(item:$trackingMask) { mask in MaskTrackingSheet(session:session,maskID:mask.id) }
         .sheet(isPresented: $presets) { PresetsSheet(session: session,library: library) }
         .sheet(isPresented:$trimSheet) { VideoTrimSheet(session:session) }
@@ -306,9 +307,9 @@ import UniformTypeIdentifiers
         if let data = try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted) { try? data.write(to:url,options:.atomic) }
     }
     #endif
-    private var cropSettleKey:String { "\(MaskMotion.signature(session.recipe))|\(session.recipe.video.start)|\(tool.rawValue)|\(cropEditing)|\(cropAwaitingAdjustment)|\(cropResumeID)|\(phase)|\(export)|\(session.source != nil)" }
+    private var cropSettleKey:String { "\(MaskMotion.signature(session.recipe))|\(session.recipe.video.start)|\(tool.rawValue)|\(cropEditing)|\(cropAwaitingAdjustment)|\(cropResumeID)|\(phase)|\(export)|\(session.source != nil)|\(pool?.historyBusy == true)|\(poolChanging)" }
     private func settleCropAndMasks() async {
-        guard !cropEditing,!cropAwaitingAdjustment,phase == .active,!export,let url = session.sourceURL,let prepared = session.source else { return }
+        guard !cropEditing,!cropAwaitingAdjustment,!poolChanging,pool?.historyBusy != true,phase == .active,!export,let url = session.sourceURL,let prepared = session.source else { return }
         do {
             try await Task.sleep(for:.milliseconds(700))
             try Task.checkCancellation()
@@ -318,13 +319,32 @@ import UniformTypeIdentifiers
                 let video = session.project.video
                 let worker = Task.detached(priority:.utility) { try await MaskFramingRepair.repair(recipe:snapshot,url:url,video:video,prepared:prepared) }
                 let repaired = try await withTaskCancellationHandler(operation:{ try await worker.value },onCancel:{ worker.cancel() })
-                guard !Task.isCancelled,MaskMotion.signature(session.recipe) == MaskMotion.signature(snapshot),session.recipe.video.start == snapshot.video.start,session.recipe.masks == snapshot.masks else { return }
-                session.recipe.masks = repaired.masks
+                guard !Task.isCancelled,MaskMotion.signature(session.recipe) == MaskMotion.signature(snapshot),session.recipe.video.start == snapshot.video.start else { return }
+                session.recipe.masks = MaskFramingRepair.merge(repaired,snapshot:snapshot,current:session.recipe)
             }
             if tool == .crop && cropFocused { try await Task.sleep(for:.milliseconds(reduceMotion ? 0 : 440));cropDisplayFinal = true }
         } catch is CancellationError {} catch { /* Export retries repair and provides an actionable error if needed. */ }
     }
     private func resumeCrop() { cropAwaitingAdjustment = true;cropDisplayFinal = false;withAnimation(reduceMotion ? nil : .easeOut(duration:0.3)) { cropFocused = false };cropResumeID += 1 }
+    private func undoEdit(redo:Bool=false) {
+        guard let pool else {if redo {session.redo()} else {session.undo()};return}
+        guard !pool.historyBusy else {return}
+        session.pauseAutosave();pool.historyBusy=true
+        Task { @MainActor in
+            defer {pool.historyBusy=false}
+            guard await session.persist(library) else {session.error=library.error ?? "Could not save before undo.";return}
+            do {
+                try await pool.moveHistory(undo: !redo,library:library)
+                if let updated=library.projects.first(where:{$0.id==session.project.id}) {session.adoptHistory(updated)}
+            } catch {session.error=error.localizedDescription}
+        }
+    }
+    private func removeBackground() {
+        guard !session.project.isVideo else {return}
+        if let layer=session.recipe.masks.first(where:{$0.kind == .subject && !$0.inverted && $0.automatic?.matches(session.recipe)==true}) {
+            session.change {$0.setCutout(layer.id,enabled:true)};selectedMaskID=layer.id;showMask=false
+        } else if session.recipe.masks.count<4 {automaticTarget=AutomaticSelectionTarget(kind:.subject,maskID:nil,removeBackground:true)}
+    }
     private func browsePool(_ step:Int) {
         guard let pool else {return};let next=pool.index+step
         guard pool.state.ids.indices.contains(next) else {return};switchPool(pool.state.ids[next])
@@ -383,11 +403,11 @@ import UniformTypeIdentifiers
             Button { Task { if await (pool == nil ? session.persist(library) : session.retire(library)) { dismiss() } else { session.error = library.error ?? "Your edit could not be saved. Keep this screen open and try again." } } } label: { Image(systemName: "chevron.left").frame(width: 44,height: 44) }.accessibilityLabel("Back to workspace")
             VStack(alignment: .leading,spacing: 3) {
                 Text(session.project.name).font(.subheadline.weight(.semibold)).lineLimit(1)
-                Text(session.saved ? "ALL CHANGES SAVED" : "SAVING ADJUSTMENTS").font(.system(size: 8,weight: .medium,design: .monospaced)).tracking(1).foregroundStyle(StudioStyle.secondary)
+                Text(pool?.historyMessage ?? (session.saved ? "ALL CHANGES SAVED" : "SAVING ADJUSTMENTS")).font(.system(size: 8,weight: .medium,design: .monospaced)).tracking(1).foregroundStyle(StudioStyle.secondary)
             }
             Spacer(minLength: 0)
-            Button { session.undo() } label: { Image(systemName: "arrow.uturn.backward").frame(width: 36,height: 44) }.disabled(session.undoStack.isEmpty).accessibilityLabel("Undo").keyboardShortcut("z",modifiers:.command)
-            Button { session.redo() } label: { Image(systemName: "arrow.uturn.forward").frame(width: 36,height: 44) }.disabled(session.redoStack.isEmpty).accessibilityLabel("Redo").keyboardShortcut("z",modifiers:[.command,.shift])
+            Button {undoEdit()} label: { Image(systemName: "arrow.uturn.backward").frame(width: 36,height: 44) }.disabled(pool.map {$0.undoHistory.isEmpty || $0.historyBusy} ?? session.undoStack.isEmpty).accessibilityLabel("Undo").keyboardShortcut("z",modifiers:.command)
+            Button {undoEdit(redo:true)} label: { Image(systemName: "arrow.uturn.forward").frame(width: 36,height: 44) }.disabled(pool.map {$0.redoHistory.isEmpty || $0.historyBusy} ?? session.redoStack.isEmpty).accessibilityLabel("Redo").keyboardShortcut("z",modifiers:[.command,.shift])
             Button { withAnimation(.easeInOut(duration:0.2)) { controlsHidden.toggle() } } label: { Image(systemName: controlsHidden ? "rectangle.compress.vertical" : "rectangle.expand.vertical").frame(width:36,height:44) }.accessibilityLabel(controlsHidden ? "Show adjustments" : "Expand preview")
             Button { export = true } label: { Image(systemName: "square.and.arrow.up").frame(width: 44,height: 44).background(StudioStyle.blue.opacity(0.16),in: Circle()) }.disabled(session.source == nil).accessibilityLabel(session.project.isVideo ? "Export video" : "Export photo").keyboardShortcut("e",modifiers:.command)
         }.foregroundStyle(.white).padding(.horizontal,10).padding(.vertical,8)
@@ -406,9 +426,9 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && !poolSync && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil)
                         } else {
-                            LivePreview(source:source.image,recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && !poolSync && !export && !presets && !versionsSheet && transferSheet == nil && trackingMask == nil && automaticTarget == nil,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
+                            LivePreview(source:source.image,recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !export && !presets && !versionsSheet && transferSheet == nil && trackingMask == nil && automaticTarget == nil,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview)
                         }
                     }
                         .padding(tool == .crop ? (cropDisplayFinal ? 8 : 22) : 0)
@@ -466,7 +486,7 @@ import UniformTypeIdentifiers
             }.coordinateSpace(name:"comparisonPreview").frame(width: geometry.size.width,height: geometry.size.height).clipped()
         }
     }
-    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && !poolSync && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil && !inputSheet }
+    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && automaticTarget == nil && !inputSheet }
     @ViewBuilder private var scopePanel:some View {
         if scopesVisible && tool != .crop { ScopePanel(sampler:scopeSampler,mode:$scopeMode) }
     }
@@ -629,10 +649,17 @@ import UniformTypeIdentifiers
                     }
                 }
             } label: { Label("Add mask",systemImage:"plus.circle") }.buttonStyle(.bordered).font(.caption).disabled(session.recipe.masks.count>=4)
+            if !session.project.isVideo {
+                Button("Remove background",systemImage:"person.crop.rectangle") {removeBackground()}.buttonStyle(.bordered).disabled(session.source == nil || (session.recipe.masks.count>=4 && !session.recipe.masks.contains(where:{$0.kind == .subject && !$0.inverted && $0.automatic?.matches(session.recipe)==true})))
+            }
             if session.recipe.masks.count>2 {Text("Subject & Background needs two free mask slots. Remove a mask to create both regions.").font(.caption).foregroundStyle(StudioStyle.secondary)}
             if let layer = selectedMask {
                 ScrollView(.horizontal) {
                     HStack { ForEach(Array(session.recipe.masks.enumerated()),id:\.element.id) { index,mask in Button("\(index+1) · \(mask.title)") { selectedMaskID = mask.id }.buttonStyle(.bordered).tint(mask.id == layer.id ? StudioStyle.blue : .gray) } }
+                }
+                if !session.project.isVideo {
+                    Toggle("Keep selection as cutout",isOn:Binding(get:{layer.cutout == true},set:{value in session.change {$0.setCutout(layer.id,enabled:value)};if value {showMask=false}})).font(.caption)
+                    if layer.cutout == true {Text("Outside this selection becomes transparent. Refine its edges below; PNG keeps the transparency. Strength blends removal, and Invert keeps the opposite area.").font(.caption2).foregroundStyle(StudioStyle.secondary)}
                 }
                 if let index = session.recipe.masks.firstIndex(where:{ $0.id == layer.id }),index>0 {
                     Picker("Combine with previous mask",selection:Binding(get:{ layer.combination ?? .independent },set:{ mode in updateMask { $0.combination = mode == .independent ? nil : mode } })) {
@@ -931,7 +958,20 @@ import UniformTypeIdentifiers
         session.recipe.look = .daylight; session.recipe.grain = 0.15; session.recipe.bloom = 0.1
         session.recipe.straighten = 3; session.recipe.crop = .portrait
         if releaseCheck { session.recipe.halation = 0.15;session.recipe.grainModel = 2;session.recipe.grainSize = 0.4;session.recipe.geometry.lensDistortion = 0.08 }
-        let steps = releaseCheck ? 2700 : (ProcessInfo.processInfo.arguments.contains("--sustained-preview") ? 7200 : 180)
+        let cutoutCheck=ProcessInfo.processInfo.arguments.contains("--cutout-performance-check")
+        let inferenceStart=AutomaticSelectionEngine.analysisCount
+        if cutoutCheck,let url=session.sourceURL {
+            let recipe=session.recipe,prepared=session.source
+            do {
+                let stored=try await Task.detached(priority:.utility) {
+                    let input=try await AutomaticSelectionEngine.input(url:url,video:nil,recipe:recipe,prepared:prepared)
+                    return try await AutomaticSelectionEngine.analyze(input,kind:.subject,recipe:recipe,videoStart:nil)
+                }.value
+                var layer=LocalMask(kind:.subject);layer.automatic=stored;layer.cutout=true;session.recipe.masks=[layer]
+                try? await Task.sleep(for:.milliseconds(300));PreviewMetrics.shared.times=[];PreviewMetrics.shared.failures=0
+            } catch {writeProgress(["stage":"cutout setup failed","error":error.localizedDescription]);return}
+        }
+        let steps = cutoutCheck ? 1800 : (releaseCheck ? 2700 : (ProcessInfo.processInfo.arguments.contains("--sustained-preview") ? 7200 : 180))
         var interrupted = false
         for index in 0..<steps {
             if Task.isCancelled || UIApplication.shared.applicationState != .active { interrupted = true; break }
@@ -960,13 +1000,13 @@ import UniformTypeIdentifiers
         try? await Task.sleep(for: .seconds(1))
         let count = PreviewMetrics.shared.times.count
         writeProgress(["stage":"idle check","rendered":count])
-        for _ in 0..<(releaseCheck ? 30 : 3) {
+        for _ in 0..<(cutoutCheck ? 15 : (releaseCheck ? 30 : 3)) {
             if Task.isCancelled || UIApplication.shared.applicationState != .active { interrupted = true;break }
             peakThermal = max(peakThermal,ProcessInfo.processInfo.thermalState.rawValue)
             try? await Task.sleep(for:.seconds(1))
         }
         let times = PreviewMetrics.shared.times.sorted()
-        let report: [String: Any] = ["releaseCheck":releaseCheck,"thermalPeak":peakThermal,"thermalSamples":thermalSamples,"idleCheckSeconds":releaseCheck ? 30 : 3,"interrupted":interrupted,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","elapsedSeconds":CACurrentMediaTime()-began,"cancelled":Task.isCancelled,"requestedUpdates": steps,"rendered": count,"kernelBackend":ColorPipeline.backend,"p95Milliseconds": times.isEmpty ? 0 : times[Int(Double(times.count-1)*0.95)],"extraIdleFrames": times.count-count,"gpuFailures": PreviewMetrics.shared.failures,"thermalStart": start,"thermalEnd": ProcessInfo.processInfo.thermalState.rawValue]
+        let report: [String: Any] = ["cutoutCheck":cutoutCheck,"inferenceCalls":AutomaticSelectionEngine.analysisCount-inferenceStart,"cutoutActive":session.recipe.hasCutout,"releaseCheck":releaseCheck,"thermalPeak":peakThermal,"thermalSamples":thermalSamples,"idleCheckSeconds":cutoutCheck ? 15:(releaseCheck ? 30 : 3),"interrupted":interrupted,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","elapsedSeconds":CACurrentMediaTime()-began,"cancelled":Task.isCancelled,"requestedUpdates": steps,"rendered": count,"kernelBackend":ColorPipeline.backend,"p95Milliseconds": times.isEmpty ? 0 : times[Int(Double(times.count-1)*0.95)],"extraIdleFrames": times.count-count,"gpuFailures": PreviewMetrics.shared.failures,"thermalStart": start,"thermalEnd": ProcessInfo.processInfo.thermalState.rawValue]
         if let data = try? JSONSerialization.data(withJSONObject: report,options: .prettyPrinted) {
             try? data.write(to: documents.appendingPathComponent("preview-verification.json"),options: .atomic)
             writeProgress(["stage":"finished","rendered":count])

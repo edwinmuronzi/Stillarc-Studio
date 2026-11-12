@@ -1,0 +1,24 @@
+{
+  "fullSuite": {
+    "tests": 25,
+    "failures": 0
+  },
+  "finalFocusedSuite": {
+    "tests": 3,
+    "failures": 0,
+    "coverage": [
+      "automatic mask crop export",
+      "whole-sync Undo/Redo",
+      "photo cutout Undo/Redo and PNG export"
+    ]
+  },
+  "deliverySuite": {
+    "tests": 2,
+    "failures": 0,
+    "coverage": [
+      "grouped sync Undo/Redo",
+      "transparent photo export"
+    ],
+    "includesEditorSnapshotCancellationGuards": true
+  }
+}

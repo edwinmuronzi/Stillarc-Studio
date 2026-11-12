@@ -67,6 +67,7 @@ struct BatchPasteSheet:View {
         task = Task { @MainActor in
             defer { busy = false;finished = true;task = nil }
             var count = 0,failures:[String] = []
+            var changes=[PoolHistoryChange]()
             for project in projects {
                 if Task.isCancelled { break }
                 while ProcessInfo.processInfo.thermalState.rawValue>=ProcessInfo.ThermalState.serious.rawValue && !Task.isCancelled { status = "Waiting for the phone to cool…";try? await Task.sleep(for:.seconds(1)) }
@@ -74,9 +75,11 @@ struct BatchPasteSheet:View {
                 status = "Applying \(count+failures.count+1) of \(projects.count)…"
                 do {
                     let updated = try await library.vault.pasteCopiedAdjustments(project.id,clipboard:clipboard,sections:sections)
+                    if updated.recipe != project.recipe {changes.append(PoolHistoryChange(id:updated.id,before:project.recipe,after:updated.recipe,sections:sections.intersection(clipboard.sections)))}
                     if let index = library.projects.firstIndex(where:{ $0.id == updated.id }) { library.projects[index] = updated };count += 1
                 } catch { failures.append(project.name+": "+error.localizedDescription) }
             }
+            pool?.record(PoolHistoryStep(title:"Sync edits",changes:changes))
             status = "Applied to \(count) of \(projects.count)."+(Task.isCancelled ? " Remaining projects cancelled." : "")+(failures.isEmpty ? "" : " \(failures.count) failed: \(failures.first!)")
         }
     }

@@ -184,7 +184,7 @@ enum StudioStyle {
             .task {
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("--privacy-demo") { ExportPrivacy().save() }
-                let qa = ProcessInfo.processInfo.arguments.contains("--verify-pool") || ProcessInfo.processInfo.arguments.contains("--verify-real-video") || ProcessInfo.processInfo.arguments.contains("--verify-real-media") || ProcessInfo.processInfo.arguments.contains("--verify-refinement") || ProcessInfo.processInfo.arguments.contains("--verify-color-batch") || ProcessInfo.processInfo.arguments.contains("--verify-export-privacy") || ProcessInfo.processInfo.arguments.contains("--verify-video-suite") || ProcessInfo.processInfo.arguments.contains("--verify-studio") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") || ProcessInfo.processInfo.arguments.contains("--verify-automatic-only")
+                let qa = ProcessInfo.processInfo.arguments.contains("--verify-cutout-history") || ProcessInfo.processInfo.arguments.contains("--verify-pool") || ProcessInfo.processInfo.arguments.contains("--verify-real-video") || ProcessInfo.processInfo.arguments.contains("--verify-real-media") || ProcessInfo.processInfo.arguments.contains("--verify-refinement") || ProcessInfo.processInfo.arguments.contains("--verify-color-batch") || ProcessInfo.processInfo.arguments.contains("--verify-export-privacy") || ProcessInfo.processInfo.arguments.contains("--verify-video-suite") || ProcessInfo.processInfo.arguments.contains("--verify-studio") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") || ProcessInfo.processInfo.arguments.contains("--verify-automatic-only")
                 let oldIdle = UIApplication.shared.isIdleTimerDisabled
                 if qa { UIApplication.shared.isIdleTimerDisabled = true }
                 defer { if qa { UIApplication.shared.isIdleTimerDisabled = oldIdle } }
@@ -214,6 +214,7 @@ enum StudioStyle {
                     do { let report = try await Task.detached { try await TrackingVerification.video() }.value;try JSONSerialization.data(withJSONObject:report,options:.prettyPrinted).write(to:reportURL,options:.atomic) }
                     catch { try? JSONSerialization.data(withJSONObject:["passed":false,"error":error.localizedDescription],options:.prettyPrinted).write(to:reportURL,options:.atomic) }
                 }
+                if ProcessInfo.processInfo.arguments.contains("--verify-cutout-history") {await CutoutHistoryVerification.writeReport()}
                 if ProcessInfo.processInfo.arguments.contains("--verify-pool") {await PoolVerification.writeReport()}
                 if ProcessInfo.processInfo.arguments.contains("--pool-demo") {editingPool=await PoolVerification.demo(library)}
                 if ProcessInfo.processInfo.arguments.contains("--verify-real-media") { await RealMediaVerification.writeReport() }
@@ -481,7 +482,7 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Editing pools & regional color · 0.29.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Cutouts & pool undo · 0.30.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
                     Text("Select projects on Home and choose Edit together. Swipe between items or use the filmstrip; edits stay individual until you choose Sync edits. Sync selected sections to selected items or the entire pool, with recoverable before versions. Resume the pool later. In Masks → Add mask, Subject & Background creates two independent regions from one on-device analysis.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export JPEG/PNG photographs or trimmed HEVC video with audio in SDR or 10-bit HLG HDR.")
                     Text("Levels sets black, white and midtones. Mark favorites, rate projects and search or filter your workspace. Dehaze reduces a washed-out veil or adds soft haze. Texture brings out fine surfaces or softens them; Clarity changes broader definition. The preview stays large, and Expand preview hides adjustments. Tap video to show playback controls. Use Scopes to inspect brightness and color. Drag crop corners to resize and drag inside to reposition. Fixed ratios stay locked; Free lets each edge change. Flips and perspective help refine your composition; every change stays reversible.").font(.subheadline).foregroundStyle(StudioStyle.secondary)

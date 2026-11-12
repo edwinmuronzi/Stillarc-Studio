@@ -26,7 +26,7 @@ enum BatchExportEngine {
                 try Task.checkCancellation()
                 let output:ExportResult
                 if let video = p.video { output = try await VideoEngine.export(source:source,descriptor:video,recipe:recipe,privacy:privacy,progress:{ value in await progress(i,value,p.name) }) }
-                else { output = try ImageEngine.export(source:source,recipe:recipe,format:format,privacy:privacy) }
+                else { output = try ImageEngine.export(source:source,recipe:recipe,format:recipe.hasCutout ? .png:format,privacy:privacy) }
                 defer { try? FileManager.default.removeItem(at:output.url) }
                 try Task.checkCancellation()
                 let cleaned = String(String.UnicodeScalarView(p.name.unicodeScalars.filter { CharacterSet.alphanumerics.union(.whitespaces).union(CharacterSet(charactersIn:"-_" )).contains($0) }.prefix(60)))

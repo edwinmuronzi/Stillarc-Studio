@@ -24,7 +24,8 @@ import UniformTypeIdentifiers
                     Image(systemName: "square.and.arrow.up.circle").font(.system(size: 46,weight: .light)).foregroundStyle(StudioStyle.blue)
                     Text("Ready for\nthe world.").font(.system(size: 36,weight: .semibold,design: .serif))
                     Text("A finished copy. Your original stays yours.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
-                    if !session.project.isVideo { Picker("File format",selection: $format) { ForEach(ExportFormat.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).disabled(busy || result != nil) }
+                    if !session.project.isVideo && !session.recipe.hasCutout { Picker("File format",selection: $format) { ForEach(ExportFormat.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).disabled(busy || result != nil) }
+                    if !session.project.isVideo && session.recipe.hasCutout {Label("PNG · Transparent background",systemImage:"square.dashed").font(.subheadline).accessibilityIdentifier("transparentPNGFormat")}
                     if session.project.isVideo { Toggle("HDR video · HLG",isOn:Binding(get:{ session.recipe.video.hdr },set:{ value in session.change { $0.video.hdr = value } })).disabled(busy || result != nil);Text("HDR keeps brighter highlights on supported screens. SDR is the safest choice for universal sharing. HDR uses 10-bit HEVC; SDR looks/LUTs can change highlight detail.").font(.caption).foregroundStyle(StudioStyle.secondary) }
                     if session.project.isVideo { Picker("Video depth",selection:$tenBitVideo) { Text("10-bit HEVC").tag(true);Text("8-bit HEVC").tag(false) }.pickerStyle(.segmented).disabled(busy || result != nil || session.recipe.video.hdr) }
                     ExportPrivacyControls(policy:$privacy,video:session.project.isVideo).disabled(busy || result != nil)
@@ -58,6 +59,7 @@ import UniformTypeIdentifiers
                 .toolbar { Button("Done") { dismiss() }.disabled(saving || busy) }
                 .interactiveDismissDisabled(saving || busy)
         }.tint(StudioStyle.blue)
+        .onAppear {if session.recipe.hasCutout {format = .png}}
         .onDisappear { exportTask?.cancel();discardExport() }
         .onChange(of:phase) { _,value in if value != .active { exportTask?.cancel() } }
         .onChange(of:session.recipe.video.hdr) { _,value in if value { tenBitVideo = true } }
@@ -77,7 +79,7 @@ import UniformTypeIdentifiers
             await MainActor.run { if session.recipe == recipe { session.recipe.masks = repaired.masks } }
             let recipe = repaired
             if let video { return try await VideoEngine.export(source:source,descriptor:video,recipe:recipe,tenBit:tenBit,privacy:privacy,progress:{ value in await MainActor.run { videoProgress = value } },cooling:{ value in await MainActor.run { coolingVideo = value } }) }
-            return try ImageEngine.export(source:source,recipe:recipe,format:format,privacy:privacy)
+            return try ImageEngine.export(source:source,recipe:recipe,format:recipe.hasCutout ? .png:format,privacy:privacy)
         }
         exportTask = task
         do { result = try await task.value }

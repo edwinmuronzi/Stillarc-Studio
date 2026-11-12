@@ -5,6 +5,7 @@ struct AutomaticSelectionTarget:Identifiable {
     let kind:LocalMaskKind
     let maskID:UUID?
     var paired=false
+    var removeBackground=false
 }
 struct AutomaticSelectionSheet:View {
     @Bindable var session:EditSession
@@ -13,7 +14,7 @@ struct AutomaticSelectionSheet:View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
     private var background:Bool {session.recipe.masks.first(where:{$0.id==target.maskID})?.region == .background}
-    private var selectionTitle:String {target.paired ? "Subject & Background" : (background ? "Background" : target.kind.rawValue)}
+    private var selectionTitle:String {target.removeBackground ? "Remove background" : (target.paired ? "Subject & Background" : (background ? "Background" : target.kind.rawValue))}
     @State private var image:CGImage?
     @State private var busy = false
     @State private var message:String?
@@ -33,7 +34,7 @@ struct AutomaticSelectionSheet:View {
                     if busy { HStack { ProgressView();Text("Analyzing on device…").font(.subheadline) } }
                     if let message { Text(message).font(.caption).foregroundStyle(StudioStyle.secondary) }
                     if image == nil && message != nil { Button("Reload preview") { Task { await load() } }.disabled(inputJob != nil) }
-                    Button(action:analyze) { Label(target.paired ? "Create Subject & Background" : "Create \(target.kind.rawValue.lowercased()) mask",systemImage:target.kind == .subject ? "person.crop.rectangle" : "cloud.sun").frame(maxWidth:.infinity).padding(12) }.buttonStyle(.borderedProminent).disabled(image == nil || busy).accessibilityIdentifier("createAutomaticMask")
+                    Button(action:analyze) { Label(target.removeBackground ? "Remove background" : (target.paired ? "Create Subject & Background" : "Create \(target.kind.rawValue.lowercased()) mask"),systemImage:target.kind == .subject ? "person.crop.rectangle" : "cloud.sun").frame(maxWidth:.infinity).padding(12) }.buttonStyle(.borderedProminent).disabled(image == nil || busy).accessibilityIdentifier("createAutomaticMask")
                     Text("Runs only when requested. No photos are uploaded. Results stay editable and save with this project. Canceling or leaving Studio keeps the previous masks unchanged. Automatic selections are estimates; fine hair, translucent edges, low contrast or night scenes may need a brush or range-mask refinement.").font(.caption).foregroundStyle(StudioStyle.secondary)
                 }.padding(20)
             }.navigationTitle("\(selectionTitle) selection").navigationBarTitleDisplayMode(.inline)
@@ -72,8 +73,8 @@ struct AutomaticSelectionSheet:View {
                 } else if let previous = target.maskID,let index = session.recipe.masks.firstIndex(where:{ $0.id == previous }) {
                     session.change { $0.masks[index].automatic = stored;$0.masks[index].motion = nil };id = previous
                 } else if session.recipe.masks.count<4 {
-                    var layer = LocalMask(kind:kind);layer.automatic = stored;layer.refinement = AutomaticRefinement()
-                    session.change { $0.masks.append(layer) };id = layer.id
+                    var layer = LocalMask(kind:kind);layer.automatic = stored;layer.refinement = AutomaticRefinement();layer.cutout=target.removeBackground ? true:nil
+                    session.change { if target.removeBackground {for i in $0.masks.indices {$0.masks[i].cutout=nil}};$0.masks.append(layer) };id = layer.id
                 }
                 if let id { didSave(id) };dismiss()
             } catch is CancellationError { message = "Analysis canceled. Your masks are unchanged." }

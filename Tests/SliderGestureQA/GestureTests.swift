@@ -1,5 +1,37 @@
 import XCTest
 final class GestureTests:XCTestCase {
+    func testPoolSyncUndoRedoWholeTransaction() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--pool-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Next pool item"].waitForExistence(timeout:30))
+        let exposure=app.sliders["Exposure"];exposure.doubleTap();let neutral=exposure.value as? String
+        exposure.adjust(toNormalizedSliderPosition:0.65);let grade=exposure.value as? String
+        app.buttons["syncPoolEdits"].tap();XCTAssertTrue(app.buttons["applyBatchPaste"].waitForExistence(timeout:10));app.buttons["applyBatchPaste"].tap()
+        XCTAssertTrue(app.staticTexts["Applied to 3 of 3."].waitForExistence(timeout:15));app.buttons["Done"].tap()
+        app.buttons["Undo"].tap();XCTAssertTrue(app.staticTexts["Undid sync edits · 2 items"].waitForExistence(timeout:10))
+        XCTAssertEqual(exposure.value as? String,grade)
+        app.buttons["Next pool item"].tap();XCTAssertTrue(app.staticTexts["Pool sample 2"].waitForExistence(timeout:15));XCTAssertEqual(exposure.value as? String,neutral)
+        app.buttons["Next pool item"].tap();XCTAssertTrue(app.staticTexts["Pool sample 3"].waitForExistence(timeout:15));XCTAssertEqual(exposure.value as? String,neutral)
+        app.buttons["Redo"].tap();XCTAssertTrue(app.staticTexts["Redid sync edits · 2 items"].waitForExistence(timeout:10));XCTAssertEqual(exposure.value as? String,grade)
+        app.buttons["Undo"].tap();XCTAssertTrue(app.staticTexts["Undid sync edits · 2 items"].waitForExistence(timeout:10))
+        app.buttons["Undo"].tap();XCTAssertTrue(app.staticTexts["Undid edit · 1 item"].waitForExistence(timeout:10))
+        app.buttons["Previous pool item"].tap();XCTAssertTrue(app.staticTexts["Pool sample 2"].waitForExistence(timeout:15));app.buttons["Previous pool item"].tap();XCTAssertTrue(app.staticTexts["Pool sample 1"].waitForExistence(timeout:15));XCTAssertEqual(exposure.value as? String,neutral)
+        app.buttons["Redo"].tap();XCTAssertTrue(app.staticTexts["Redid edit · 1 item"].waitForExistence(timeout:10));XCTAssertEqual(exposure.value as? String,grade)
+        app.buttons["Redo"].tap();XCTAssertTrue(app.staticTexts["Redid sync edits · 2 items"].waitForExistence(timeout:10))
+        app.buttons["Next pool item"].tap();XCTAssertTrue(app.staticTexts["Pool sample 2"].waitForExistence(timeout:15));XCTAssertEqual(exposure.value as? String,grade)
+    }
+    func testPhotoCutoutTransparentExportUndo() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--pool-demo","--paired-fixture","--tool","Masks"];app.launch()
+        XCTAssertTrue(app.buttons["Remove background"].waitForExistence(timeout:30));app.buttons["Remove background"].tap()
+        let toggle=app.switches["Keep selection as cutout"];XCTAssertTrue(toggle.waitForExistence(timeout:10));XCTAssertEqual(toggle.value as? String,"1")
+        app.buttons["Undo"].tap();XCTAssertTrue(app.staticTexts["Undid edit · 1 item"].waitForExistence(timeout:10));XCTAssertEqual(toggle.value as? String,"0")
+        app.buttons["Redo"].tap();XCTAssertTrue(app.staticTexts["Redid edit · 1 item"].waitForExistence(timeout:10));XCTAssertEqual(toggle.value as? String,"1")
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Cutout controls and transparency fixture";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Export photo"].tap();XCTAssertTrue(app.descendants(matching:.any)["transparentPNGFormat"].waitForExistence(timeout:10))
+        app.buttons["Create export"].tap();XCTAssertTrue(app.buttons["Share or save to Files"].waitForExistence(timeout:30))
+        let result=XCTAttachment(screenshot:app.screenshot());result.name="Transparent PNG export";result.lifetime = .keepAlways;add(result)
+    }
     func testEditingPoolSyncBrowseAndResume() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments=["--pool-demo"];app.launch()
