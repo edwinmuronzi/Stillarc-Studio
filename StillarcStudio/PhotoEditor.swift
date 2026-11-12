@@ -326,10 +326,10 @@ import UniformTypeIdentifiers
                 Text(session.saved ? "ALL CHANGES SAVED" : "SAVING ADJUSTMENTS").font(.system(size: 8,weight: .medium,design: .monospaced)).tracking(1).foregroundStyle(StudioStyle.secondary)
             }
             Spacer(minLength: 0)
-            Button { session.undo() } label: { Image(systemName: "arrow.uturn.backward").frame(width: 36,height: 44) }.disabled(session.undoStack.isEmpty).accessibilityLabel("Undo")
-            Button { session.redo() } label: { Image(systemName: "arrow.uturn.forward").frame(width: 36,height: 44) }.disabled(session.redoStack.isEmpty).accessibilityLabel("Redo")
+            Button { session.undo() } label: { Image(systemName: "arrow.uturn.backward").frame(width: 36,height: 44) }.disabled(session.undoStack.isEmpty).accessibilityLabel("Undo").keyboardShortcut("z",modifiers:.command)
+            Button { session.redo() } label: { Image(systemName: "arrow.uturn.forward").frame(width: 36,height: 44) }.disabled(session.redoStack.isEmpty).accessibilityLabel("Redo").keyboardShortcut("z",modifiers:[.command,.shift])
             Button { withAnimation(.easeInOut(duration:0.2)) { controlsHidden.toggle() } } label: { Image(systemName: controlsHidden ? "rectangle.compress.vertical" : "rectangle.expand.vertical").frame(width:36,height:44) }.accessibilityLabel(controlsHidden ? "Show adjustments" : "Expand preview")
-            Button { export = true } label: { Image(systemName: "square.and.arrow.up").frame(width: 44,height: 44).background(StudioStyle.blue.opacity(0.16),in: Circle()) }.disabled(session.source == nil).accessibilityLabel(session.project.isVideo ? "Export video" : "Export photo")
+            Button { export = true } label: { Image(systemName: "square.and.arrow.up").frame(width: 44,height: 44).background(StudioStyle.blue.opacity(0.16),in: Circle()) }.disabled(session.source == nil).accessibilityLabel(session.project.isVideo ? "Export video" : "Export photo").keyboardShortcut("e",modifiers:.command)
         }.foregroundStyle(.white).padding(.horizontal,10).padding(.vertical,8)
     }
     private var previewRecipe:Recipe { tool == .crop && !cropDisplayFinal ? CropEditingGeometry.workspace(session.recipe) : session.recipe }
@@ -475,6 +475,12 @@ import UniformTypeIdentifiers
                     }
                     Button { presets = true } label: { Label("Import LUT or save a look",systemImage:"cube.transparent").font(.caption).padding(.vertical,8) }
                     adjustment("Grain",key: \.grain,range: 0...1)
+                    if session.recipe.grain>0 {
+                        Picker("Grain style",selection:Binding(get:{ session.recipe.grainModel },set:{ value in session.change { $0.grainModel = value } })) { Text("Natural").tag(2);Text("Legacy").tag(1) }.pickerStyle(.segmented)
+                        if session.recipe.grainModel == 2 { adjustment("Grain size",key:\.grainSize,range:0...1,defaultValue:0.5) }
+                    }
+                    adjustment("Halation",key:\.halation,range:0...1)
+                    Text("Natural grain follows image brightness. Halation adds a warm glow around strong highlights, while Bloom spreads soft light more broadly. Older grain edits keep Legacy until you switch them.").font(.caption).foregroundStyle(StudioStyle.secondary)
                     adjustment("Bloom",key: \.bloom,range: 0...1)
                     adjustment("Fade",key: \.fade,range: 0...1)
                     adjustment("Vignette",key: \.vignette,range: 0...1)
@@ -520,6 +526,10 @@ import UniformTypeIdentifiers
                     } else {
                         adjustment("Frame size (%)",key:\.geometry.cropScale,range:0.1...1,defaultValue:1)
                     }
+                    DisclosureGroup("Lens correction") {
+                        adjustment("Lens distortion",key:\.geometry.lensDistortion,range:-0.25...0.25)
+                        Text("Straighten barrel or pincushion bending by eye. Edges are kept filled with a small inset when needed. This is manual correction, not an automatic camera/lens profile. Apply it before creating or tracking masks.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                    }.font(.subheadline)
                     adjustment("Horizontal perspective",key:\.geometry.horizontal,range:-0.3...0.3)
                     adjustment("Vertical perspective",key:\.geometry.vertical,range:-0.3...0.3)
                     adjustment("Straighten",key: \.straighten,range: -15...15,unit: "°")
@@ -848,16 +858,24 @@ import UniformTypeIdentifiers
         try? await Task.sleep(for: .seconds(1))
         PreviewMetrics.shared.times = []; PreviewMetrics.shared.failures = 0
         let start = ProcessInfo.processInfo.thermalState.rawValue
+        var peakThermal = start
+        var thermalSamples:[[String:Any]] = []
+        let releaseCheck = ProcessInfo.processInfo.arguments.contains("--release-performance-check")
         let began = CACurrentMediaTime()
         session.recipe.lut = try? await Task.detached(priority:.userInitiated) { try LUTVerification.example(dimension:65) }.value
         session.recipe.levelGamma = 1.1;session.recipe.levelBlack = 0.015;session.recipe.levelWhite = 0.98
         session.recipe.dehaze = 0.25;session.recipe.texture = 0.4;session.recipe.clarity = 0.3
         session.recipe.look = .daylight; session.recipe.grain = 0.15; session.recipe.bloom = 0.1
         session.recipe.straighten = 3; session.recipe.crop = .portrait
-        let steps = ProcessInfo.processInfo.arguments.contains("--sustained-preview") ? 7200 : 180
+        if releaseCheck { session.recipe.halation = 0.15;session.recipe.grainModel = 2;session.recipe.grainSize = 0.4;session.recipe.geometry.lensDistortion = 0.08 }
+        let steps = releaseCheck ? 2700 : (ProcessInfo.processInfo.arguments.contains("--sustained-preview") ? 7200 : 180)
         var interrupted = false
         for index in 0..<steps {
             if Task.isCancelled || UIApplication.shared.applicationState != .active { interrupted = true; break }
+            if index % 30 == 0 {
+                let thermal = ProcessInfo.processInfo.thermalState.rawValue;peakThermal = max(peakThermal,thermal)
+                thermalSamples.append(["seconds":CACurrentMediaTime()-began,"state":thermal,"rendered":PreviewMetrics.shared.times.count])
+            }
             if index % 120 == 0 { writeProgress(["stage":"running","step":index,"rendered":PreviewMetrics.shared.times.count,"active":UIApplication.shared.applicationState == .active]) }
             session.recipe.lutAmount = 0.5 + sin(Double(index)*0.1)*0.5
             session.recipe.levelGamma = 1+sin(Double(index)*0.03)*0.15
@@ -874,13 +892,18 @@ import UniformTypeIdentifiers
             session.recipe.colorWheels.highlights.hue = 40; session.recipe.colorWheels.highlights.strength = 0.08
             session.recipe.colorWheels.global.exposure = sin(Double(index)*0.05)*0.08
             session.recipe.channelMixer.redGreen = sin(Double(index)*0.06)*0.05
-            try? await Task.sleep(for: .milliseconds(16))
+            try? await Task.sleep(for: .milliseconds(releaseCheck ? 33 : 16))
         }
         try? await Task.sleep(for: .seconds(1))
         let count = PreviewMetrics.shared.times.count
-        try? await Task.sleep(for: .seconds(3))
+        writeProgress(["stage":"idle check","rendered":count])
+        for _ in 0..<(releaseCheck ? 30 : 3) {
+            if Task.isCancelled || UIApplication.shared.applicationState != .active { interrupted = true;break }
+            peakThermal = max(peakThermal,ProcessInfo.processInfo.thermalState.rawValue)
+            try? await Task.sleep(for:.seconds(1))
+        }
         let times = PreviewMetrics.shared.times.sorted()
-        let report: [String: Any] = ["interrupted":interrupted,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","elapsedSeconds":CACurrentMediaTime()-began,"cancelled":Task.isCancelled,"requestedUpdates": steps,"rendered": count,"kernelBackend":ColorPipeline.backend,"p95Milliseconds": times.isEmpty ? 0 : times[Int(Double(times.count-1)*0.95)],"extraIdleFrames": times.count-count,"gpuFailures": PreviewMetrics.shared.failures,"thermalStart": start,"thermalEnd": ProcessInfo.processInfo.thermalState.rawValue]
+        let report: [String: Any] = ["releaseCheck":releaseCheck,"thermalPeak":peakThermal,"thermalSamples":thermalSamples,"idleCheckSeconds":releaseCheck ? 30 : 3,"interrupted":interrupted,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","elapsedSeconds":CACurrentMediaTime()-began,"cancelled":Task.isCancelled,"requestedUpdates": steps,"rendered": count,"kernelBackend":ColorPipeline.backend,"p95Milliseconds": times.isEmpty ? 0 : times[Int(Double(times.count-1)*0.95)],"extraIdleFrames": times.count-count,"gpuFailures": PreviewMetrics.shared.failures,"thermalStart": start,"thermalEnd": ProcessInfo.processInfo.thermalState.rawValue]
         if let data = try? JSONSerialization.data(withJSONObject: report,options: .prettyPrinted) {
             try? data.write(to: documents.appendingPathComponent("preview-verification.json"),options: .atomic)
             writeProgress(["stage":"finished","rendered":count])

@@ -91,7 +91,7 @@ Next: HDR still-photo export, improved HDR creative-tool modeling, scopes and H.
 1. Finish Home workflow: copy/paste/revert, selection actions and recovery regression checks.
 2. Export controls (0.26 implemented): metadata/privacy policy, format clarity and interruption/failure handling; continue broader real-world source testing.
 3. Color tools (0.27 implemented): two additional Log transforms, LUT/preset management and compatible color-LUT export; broader camera-file validation continues.
-4. Photo refinement: assess lens corrections; refine film grain and halation with preview/export matching.
-5. Release preparation: layout/accessibility review, larger libraries, sustained device performance, documentation and listing material.
+4. Photo refinement (0.28 implemented): manual radial lens correction, natural grain with legacy compatibility, and highlight-edge halation; preview/export verification. Automatic calibrated lens profiles remain future work.
+5. Release preparation (0.28 candidate): compact/iPad/large-text layout review, regression tests, sustained device performance, privacy manifest, documentation and listing drafts. Broader real-world camera files, older physical devices and public beta remain release gates.
 
 Later tools remain subject to fixture validation and device performance checks; unavailable features should not be advertised as working.

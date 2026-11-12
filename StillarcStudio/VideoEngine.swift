@@ -53,6 +53,7 @@ enum VideoEngine {
         return (orient(managed),orient(raw))
     }
     static func poster(_ url:URL,descriptor:VideoDescriptor,maxDimension:Double = 1600) async throws -> PreparedPhoto {
+        try LensRendering.prepare();try FilmRendering.prepare()
         try LevelsRendering.prepare();try DehazeRendering.prepare();try DetailRendering.prepare();try ColorPipeline.prepare();try LogConversion.prepare();try HDRPipeline.prepare();try MaskEngine.prepare()
         let asset = AVURLAsset(url:url)
         guard let track = try await asset.loadTracks(withMediaType:.video).first else { throw StudioError.unreadable }
@@ -69,6 +70,7 @@ enum VideoEngine {
 
     static func export(source:URL,descriptor:VideoDescriptor,recipe:Recipe,tenBit:Bool = true,privacy:ExportPrivacy = ExportPrivacy(),progress:@escaping @Sendable (Double) async -> Void,cooling:@escaping @Sendable (Bool) async -> Void = { _ in }) async throws -> ExportResult {
         try Task.checkCancellation()
+        try LensRendering.prepare();try FilmRendering.prepare()
         try ColorPipeline.prepare(); try LogConversion.prepare();try HDRPipeline.prepare();try MaskEngine.prepare()
         try MaskMotion.validateExport(recipe,duration:descriptor.duration)
         let automatic = try AutomaticMaskBitmap.prepare(recipe)

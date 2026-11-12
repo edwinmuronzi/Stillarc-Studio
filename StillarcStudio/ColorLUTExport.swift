@@ -6,7 +6,7 @@ extension Recipe {
         var copy = colorPreset
         copy.highlights = 0;copy.shadows = 0;copy.dehaze = 0
         copy.texture = 0;copy.clarity = 0;copy.noise = 0;copy.sharpen = 0
-        copy.grain = 0;copy.bloom = 0;copy.vignette = 0
+        copy.grain = 0;copy.grainSize = 0.5;copy.grainModel = 2;copy.halation = 0;copy.bloom = 0;copy.vignette = 0
         return copy
     }
     var lutExcludedEdits:[String] {
@@ -14,7 +14,7 @@ extension Recipe {
         if input.profile != .standard { names.append("Input conversion") }
         if highlights != 0 || shadows != 0 { names.append("Highlights/Shadows") }
         if dehaze != 0 || texture != 0 || clarity != 0 || noise != 0 || sharpen != 0 { names.append("Detail tools") }
-        if grain != 0 || bloom != 0 || vignette != 0 { names.append("Grain, bloom or vignette") }
+        if grain != 0 || halation != 0 || bloom != 0 || vignette != 0 { names.append("Grain, halation, bloom or vignette") }
         if !masks.isEmpty { names.append("Masks") }
         if hasAdjustments(in:.crop) { names.append("Framing") }
         if video.hdr { names.append("HDR output") }

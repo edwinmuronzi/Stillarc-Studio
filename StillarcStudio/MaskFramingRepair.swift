@@ -4,17 +4,20 @@ import Foundation
 /// Crop changes transform the saved selection, never rerun inference while dragging.
 enum MaskFramingRepair {
     static func snapshot(_ signature:String) -> Recipe? {
-        let parts = signature.components(separatedBy:":cropScale=")
+        let lens = signature.components(separatedBy:":lens=")
+        guard lens.count<=2 else { return nil }
+        let parts = lens[0].components(separatedBy:":cropScale=")
         guard parts.count<=2,let colon = parts[0].lastIndex(of:":"),let crop = Crop(rawValue:String(parts[0][..<colon])) else { return nil }
         let numbers = parts[0][parts[0].index(after:colon)...].split(separator:",").compactMap { Double($0) }
         guard numbers.count == 10,numbers.allSatisfy({ $0.isFinite }),numbers[0]>=0,numbers[0]<=3 else { return nil }
         var r = Recipe();r.crop = crop;r.rotation = Int(numbers[0]);r.straighten = numbers[1];r.cropX = numbers[2];r.cropY = numbers[3]
         r.geometry.width = numbers[4];r.geometry.height = numbers[5];r.geometry.flipHorizontal = numbers[6] == 1;r.geometry.flipVertical = numbers[7] == 1;r.geometry.horizontal = numbers[8];r.geometry.vertical = numbers[9]
         if parts.count == 2 { guard let scale = Double(parts[1]),scale.isFinite else { return nil };r.geometry.cropScale = scale }
+        if lens.count == 2 { guard let value = Double(lens[1]),value.isFinite,abs(value)<=0.25 else { return nil };r.geometry.lensDistortion = value }
         return MaskMotion.signature(r) == signature ? r : nil
     }
     static func sameField(_ a:Recipe,_ b:Recipe) -> Bool {
-        a.rotation == b.rotation && a.straighten == b.straighten && a.geometry.flipHorizontal == b.geometry.flipHorizontal && a.geometry.flipVertical == b.geometry.flipVertical && a.geometry.horizontal == b.geometry.horizontal && a.geometry.vertical == b.geometry.vertical
+        a.geometry.lensDistortion == b.geometry.lensDistortion && a.rotation == b.rotation && a.straighten == b.straighten && a.geometry.flipHorizontal == b.geometry.flipHorizontal && a.geometry.flipVertical == b.geometry.flipVertical && a.geometry.horizontal == b.geometry.horizontal && a.geometry.vertical == b.geometry.vertical
     }
     static func reframe(_ stored:AutomaticMask,to recipe:Recipe,sourceSize:CGSize) throws -> AutomaticMask? {
         guard stored.videoStart == nil || abs((stored.videoStart ?? 0)-recipe.video.start)<0.002 else { return nil }

@@ -1,0 +1,25 @@
+{
+  "video" : {
+    "frames" : 12,
+    "sourcePreserved" : true,
+    "passed" : true,
+    "previewExportMeanError" : 0.001498580300831236,
+    "audioTimingSize" : true
+  },
+  "refinement" : {
+    "timestampGrain" : true,
+    "grainVariance" : 3.0937461558296783e-05,
+    "legacyMigration" : true,
+    "neutralBypass" : true,
+    "grainDeterministicMean" : 0.17997185640479074,
+    "lensMappingFilledEdges" : true,
+    "halationEdges" : true,
+    "persistenceSchemaTransferReset" : true,
+    "sourcePreserved" : true,
+    "exportMaxError" : 0.0045186281204223633,
+    "passed" : true,
+    "maskAnchorSafety" : true
+  },
+  "passed" : true,
+  "version" : "0.28.0"
+}

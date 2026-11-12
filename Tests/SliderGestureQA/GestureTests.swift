@@ -108,6 +108,24 @@ final class GestureTests:XCTestCase {
         if !card.isHittable { app.scrollViews.firstMatch.swipeUp() };card.tap()
         XCTAssertTrue(app.buttons["Remove favorite"].exists)
     }
+    func testFilmHalationGrainAndLensReset() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = ["--demo-editor","--neutral-demo","--tool","Film"];app.launch()
+        let grain = app.sliders["Grain"];XCTAssertTrue(grain.waitForExistence(timeout:30));grain.doubleTap();grain.adjust(toNormalizedSliderPosition:0.5)
+        let size = app.sliders["Grain size"];XCTAssertTrue(size.waitForExistence(timeout:5));size.doubleTap();size.adjust(toNormalizedSliderPosition:0.7)
+        let halo = app.sliders["Halation"];halo.doubleTap();halo.adjust(toNormalizedSliderPosition:0.6)
+        XCTAssertEqual(app.buttons["Film"].value as? String,"Adjustments applied")
+        let shot = XCTAttachment(screenshot:app.screenshot());shot.name = "Natural grain and halation";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Crop"].tap();app.buttons["Lens correction"].tap()
+        let lens = app.sliders["Lens distortion"];XCTAssertTrue(lens.waitForExistence(timeout:5));lens.doubleTap();lens.adjust(toNormalizedSliderPosition:0.7)
+        XCTAssertEqual(app.buttons["Crop"].value as? String,"Adjustments applied")
+        lens.doubleTap();XCTAssertEqual(app.buttons["Crop"].value as? String,"No adjustments")
+        app.buttons["Back to workspace"].tap()
+        app.terminate();app.launchArguments = [];app.launch()
+        let search = app.textFields["workspaceSearch"];XCTAssertTrue(search.waitForExistence(timeout:10));search.tap();search.typeText("Studio sample");app.keyboards.buttons["Search"].tap()
+        app.scrollViews.firstMatch.swipeUp();app.buttons["Open Studio sample"].tap()
+        XCTAssertTrue(app.buttons["Film"].waitForExistence(timeout:15));XCTAssertEqual(app.buttons["Film"].value as? String,"Adjustments applied")
+    }
     func testNewLogProfilesAndColorLUTExport() throws {
         let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments = ["--demo-editor","--neutral-demo","--color-tools-demo"];app.launch()

@@ -23,7 +23,7 @@ enum PhotoFraming {
         return CGRect(x: floor((size.width-width) * min(1,max(0,recipe.cropX))),y: floor((size.height-height) * (1-min(1,max(0,recipe.cropY)))),width: width,height: height)
     }
     static func apply(_ source: CIImage, recipe: Recipe) -> CIImage {
-        var image = source
+        var image = LensRendering.apply(source,strength:recipe.geometry.lensDistortion)
         let rotation = ((recipe.rotation % 4) + 4) % 4
         if rotation != 0 { image = image.oriented(forExifOrientation: [1,6,3,8][rotation]) }
         image = image.transformed(by: .init(translationX: -image.extent.minX,y: -image.extent.minY))

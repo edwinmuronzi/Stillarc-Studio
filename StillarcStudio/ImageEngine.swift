@@ -37,6 +37,7 @@ enum ImageEngine {
         return CIContext(options: [.workingColorSpace: working, .cacheIntermediates: false, .priorityRequestLow: true])
     }
     static func open(_ url: URL, maxDimension: Double? = nil) throws -> PreparedPhoto {
+        try LensRendering.prepare();try FilmRendering.prepare()
         try LevelsRendering.prepare()
         try DehazeRendering.prepare()
         try DetailRendering.prepare()
@@ -130,12 +131,13 @@ enum ImageEngine {
         // Radius is proportional to image size so preview and full export share a visual scale.
         let unit = max(image.extent.width, image.extent.height) / 1600
         if r.bloom > 0 { image = image.clampedToExtent().applyingFilter("CIBloom", parameters: [kCIInputRadiusKey: 9 * unit, kCIInputIntensityKey: r.bloom * 0.6]).cropped(to: image.extent) }
-        if r.grain > 0, let random = CIFilter(name: "CIRandomGenerator")?.outputImage {
+        if r.grain > 0 && r.grainModel == 1, let random = CIFilter(name: "CIRandomGenerator")?.outputImage {
             let texture = random.transformed(by: .init(scaleX: max(0.5,unit), y: max(0.5,unit))).cropped(to: image.extent)
                 .applyingFilter("CIColorControls", parameters: [kCIInputSaturationKey: 0])
                 .applyingFilter("CIColorMatrix", parameters: ["inputAVector": CIVector(x: 0,y: 0,z: 0,w: r.grain * 0.2)])
             image = texture.applyingFilter("CISoftLightBlendMode", parameters: [kCIInputBackgroundImageKey: image])
         }
+        image = FilmRendering.apply(image,recipe:r)
         if r.vignette > 0 { filter("CIVignette", [kCIInputIntensityKey: r.vignette * 1.6, kCIInputRadiusKey: max(image.extent.width,image.extent.height) * 0.6]) }
         return MaskEngine.apply(PhotoFraming.apply(image,recipe:r),layers:r.masks,preview:preview,framing:MaskMotion.signature(r))
     }

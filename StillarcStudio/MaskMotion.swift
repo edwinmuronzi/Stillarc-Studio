@@ -14,7 +14,7 @@ struct MaskMotion:Codable,Equatable,Sendable {
     @TaskLocal static var frame:Frame?
     static func signature(_ r:Recipe) -> String {
         let g = r.geometry
-        let suffix = g.cropScale == 1 ? "" : ":cropScale=\(g.cropScale)"
+        let suffix = (g.cropScale == 1 ? "" : ":cropScale=\(g.cropScale)")+(g.lensDistortion == 0 ? "" : ":lens=\(g.lensDistortion)")
         return r.crop.rawValue + ":" + [Double(r.rotation),r.straighten,r.cropX,r.cropY,g.width,g.height,g.flipHorizontal ? 1 : 0,g.flipVertical ? 1 : 0,g.horizontal,g.vertical].map { String($0) }.joined(separator:",") + suffix
     }
     var isValid:Bool {

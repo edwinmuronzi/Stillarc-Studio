@@ -2,7 +2,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.27 Log conversion and color LUT milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.28 film refinement and release-candidate milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -243,3 +243,14 @@ JPEG remains 96% quality, PNG remains lossless 8-bit sRGB, and video keeps the e
 - Search **Your looks** by name. Each preset/LUT preset now has **Rename preset**, **Duplicate preset**, full JSON export, color LUT export and deletion. Renaming preserves the preset’s identity and grade; duplicates are independent entries. Large LUT data is still shared immutably while editing.
 
 [Color transform references, supported scope and validation](Docs/COLOR-BATCH.md)
+
+
+### Film refinement and release preparation (0.28)
+
+- **Natural grain** adds fine, brightness-sensitive texture. Grain size changes how fine or coarse it appears. Photos remain stable while adjusting other tools; video grain evolves with the source frame time. Existing grain edits retain their **Legacy** rendering until you choose Natural.
+- **Halation** adds a restrained warm glow around bright edges, separate from the softer overall Bloom effect. Both are off by default. This is a creative treatment, not a calibrated film-stock simulation.
+- **Crop → Lens correction → Lens distortion** manually straightens barrel/pincushion distortion. Zero leaves geometry untouched. It is not an automatic camera/lens profile. Apply before tracking masks; changing it can require recreating a selection or track.
+- New film settings save with projects, versions, copied Film texture and schema-3 Studio presets. Source-specific lens correction stays with framing. Color-only LUT export excludes grain, halation and geometry.
+- Keyboard shortcuts: Undo ⌘Z, Redo ⇧⌘Z and Export ⌘E. Slider double-tap reset, edit dots and reversible changes remain available.
+
+[Product overview](Docs/OVERVIEW.md) · [Release checklist and measured results](Docs/RELEASE-CHECKLIST.md) · [Listing draft](Docs/APP-STORE-LISTING.md) · [Privacy policy draft](Docs/PRIVACY-POLICY.md)

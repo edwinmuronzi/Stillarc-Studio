@@ -24,6 +24,9 @@ struct Recipe: Codable, Equatable, Sendable {
     var vibrance = 0.0
     var fade = 0.0
     var grain = 0.0
+    var grainSize = 0.5
+    var grainModel = 2
+    var halation = 0.0
     var bloom = 0.0
     var vignette = 0.0
     var levelBlack = 0.0
@@ -47,7 +50,7 @@ struct Recipe: Codable, Equatable, Sendable {
     var look = FilmLook.original
     var lookAmount = 1.0
     init() {}
-    private enum CodingKeys: String, CodingKey { case levelBlack, levelWhite, levelGamma, levelOutputBlack, levelOutputWhite, masks, geometry, video, input, lut, lutAmount, colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, dehaze, texture, clarity, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
+    private enum CodingKeys: String, CodingKey { case grainSize, grainModel, halation, levelBlack, levelWhite, levelGamma, levelOutputBlack, levelOutputWhite, masks, geometry, video, input, lut, lutAmount, colorWheels, channelMixer, rgbCurves, selectiveColors, exposure, contrast, highlights, shadows, whites, blacks, warmth, tint, saturation, vibrance, fade, grain, bloom, vignette, dehaze, texture, clarity, sharpen, noise, curveShadows, curveMidtones, curveHighlights, straighten, cropX, cropY, rotation, crop, look, lookAmount }
     init(from decoder: Decoder) throws {
         self.init()
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -78,6 +81,9 @@ struct Recipe: Codable, Equatable, Sendable {
         vibrance = try values.decodeIfPresent(Double.self, forKey: .vibrance) ?? vibrance
         fade = try values.decodeIfPresent(Double.self, forKey: .fade) ?? fade
         grain = try values.decodeIfPresent(Double.self, forKey: .grain) ?? grain
+        grainSize = try values.decodeIfPresent(Double.self,forKey:.grainSize) ?? 0.5
+        grainModel = try values.decodeIfPresent(Int.self,forKey:.grainModel) ?? (grain>0 ? 1 : 2)
+        halation = try values.decodeIfPresent(Double.self,forKey:.halation) ?? 0
         bloom = try values.decodeIfPresent(Double.self, forKey: .bloom) ?? bloom
         vignette = try values.decodeIfPresent(Double.self, forKey: .vignette) ?? vignette
         dehaze = try values.decodeIfPresent(Double.self,forKey:.dehaze) ?? 0
@@ -160,16 +166,18 @@ struct PresetDocument: Codable {
     var schema = 1
     var name: String
     var recipe: Recipe
-    init(name: String, recipe: Recipe) { self.name = name; self.recipe = recipe; schema = recipe.lut == nil ? 1 : 2 }
+    init(name: String, recipe: Recipe) { self.name = name; self.recipe = recipe; schema = recipe.halation>0 || (recipe.grain>0 && recipe.grainModel == 2) ? 3 : (recipe.lut == nil ? 1 : 2) }
 }
 
 extension Recipe {
     func validated() -> Recipe {
         var copy = self
         let signed: [WritableKeyPath<Recipe, Double>] = [\.dehaze, \.texture, \.clarity, \.contrast, \.highlights, \.shadows, \.whites, \.blacks, \.warmth, \.tint, \.saturation, \.vibrance, \.curveShadows, \.curveMidtones, \.curveHighlights]
-        let positive: [WritableKeyPath<Recipe, Double>] = [\.fade, \.grain, \.bloom, \.vignette, \.sharpen, \.noise, \.lookAmount, \.lutAmount]
+        let positive: [WritableKeyPath<Recipe, Double>] = [\.grainSize, \.halation, \.fade, \.grain, \.bloom, \.vignette, \.sharpen, \.noise, \.lookAmount, \.lutAmount]
         for key in signed { copy[keyPath: key] = copy[keyPath: key].isFinite ? min(1, max(-1, copy[keyPath: key])) : 0 }
         for key in positive { copy[keyPath: key] = copy[keyPath: key].isFinite ? min(1, max(0, copy[keyPath: key])) : 0 }
+        copy.grainSize = grainSize.isFinite ? min(1,max(0,grainSize)) : 0.5
+        copy.grainModel = grainModel == 1 ? 1 : 2
         copy.exposure = copy.exposure.isFinite ? min(3,max(-3,copy.exposure)) : 0
         func bounded(_ v:Double,_ low:Double,_ high:Double,_ fallback:Double) -> Double { v.isFinite ? min(high,max(low,v)) : fallback }
         copy.levelBlack = bounded(levelBlack,0,0.95,0);copy.levelWhite = bounded(levelWhite,max(0.05,copy.levelBlack+0.01),1,1)
@@ -194,7 +202,7 @@ extension Tool {
         switch self {
         case .light: [\.exposure, \.contrast, \.highlights, \.shadows, \.whites, \.blacks]
         case .color: [\.warmth, \.tint, \.saturation, \.vibrance]
-        case .film: [\.grain, \.bloom, \.fade, \.vignette]
+        case .film: [\.grain, \.grainSize, \.halation, \.bloom, \.fade, \.vignette]
         case .curves: [\.levelBlack, \.levelWhite, \.levelGamma, \.levelOutputBlack, \.levelOutputWhite, \.curveShadows, \.curveMidtones, \.curveHighlights]
         case .detail: [\.dehaze, \.texture, \.clarity, \.sharpen, \.noise]
         case .masks: []
@@ -206,7 +214,7 @@ extension Recipe {
     func hasAdjustments(in tool: Tool) -> Bool {
         if tool == .masks { return !masks.isEmpty }
         let neutral = Recipe()
-        if tool.valueKeys.contains(where: { abs(self[keyPath: $0]-neutral[keyPath:$0]) > 0.000001 }) { return true }
+        if tool.valueKeys.contains(where: { key in if tool == .film && key == \.grainSize && grain == 0 { return false };return abs(self[keyPath:key]-neutral[keyPath:key])>0.000001 }) { return true }
         if tool == .curves && !rgbCurves.isNeutral { return true }
         if tool == .color && (!selectiveColors.isNeutral || !colorWheels.isNeutral || !channelMixer.isNeutral) { return true }
         if tool == .film { return (look != .original && lookAmount > 0.000001) || (lut != nil && lutAmount > 0.000001) }
@@ -219,7 +227,7 @@ extension Recipe {
         for key in tool.valueKeys { self[keyPath: key] = neutral[keyPath: key] }
         if tool == .curves { rgbCurves = RGBCurves() }
         if tool == .color { selectiveColors = SelectiveColors(); colorWheels = ColorWheels(); channelMixer = ChannelMixer() }
-        if tool == .film { look = .original; lookAmount = 1; lut = nil; lutAmount = 1 }
+        if tool == .film { grainModel = 2;look = .original; lookAmount = 1; lut = nil; lutAmount = 1 }
         if tool == .crop { geometry = GeometrySettings();crop = .original; rotation = 0; straighten = 0; cropX = 0.5; cropY = 0.5 }
     }
     mutating func copyFraming(from source: Recipe) {

@@ -212,7 +212,7 @@ private struct ColorLUTRequest:Identifiable { let id = UUID();let recipe:Recipe 
                 defer { if secured { url.stopAccessingSecurityScopedResource() } }
                 let values = try url.resourceValues(forKeys: [.fileSizeKey]); guard (values.fileSize ?? 0) <= 8_000_000 else { throw StudioError.unsupportedPreset }
                 let preset = try JSONDecoder().decode(PresetDocument.self,from: Data(contentsOf: url))
-                guard (1...2).contains(preset.schema) else { throw StudioError.unsupportedPreset }
+                guard (1...3).contains(preset.schema) else { throw StudioError.unsupportedPreset }
                 return preset
             }.value
             if !(await library.saveLook(name:preset.name,recipe:preset.recipe.validated())) { error = library.error }

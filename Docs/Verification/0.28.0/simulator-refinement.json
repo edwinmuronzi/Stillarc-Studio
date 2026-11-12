@@ -1,0 +1,18 @@
+{
+  "version" : "0.28.0",
+  "refinement" : {
+    "neutralBypass" : true,
+    "grainVariance" : 3.0978060509954971e-05,
+    "timestampGrain" : true,
+    "persistenceSchemaTransferReset" : true,
+    "sourcePreserved" : true,
+    "lensMappingFilledEdges" : true,
+    "exportMaxError" : 0.0045377016067504883,
+    "legacyMigration" : true,
+    "passed" : true,
+    "halationEdges" : true,
+    "maskAnchorSafety" : true,
+    "grainDeterministicMean" : 0.1799664640325318
+  },
+  "passed" : true
+}
