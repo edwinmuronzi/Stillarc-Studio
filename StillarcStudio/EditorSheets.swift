@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 @MainActor struct ExportSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var session: EditSession
+    @State private var privacy = ExportPrivacy.load()
     @State private var format: ExportFormat = .jpeg
     @State private var result: ExportResult?
     @State private var busy = false
@@ -26,29 +27,33 @@ import UniformTypeIdentifiers
                     if !session.project.isVideo { Picker("File format",selection: $format) { ForEach(ExportFormat.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).disabled(busy || result != nil) }
                     if session.project.isVideo { Toggle("HDR video · HLG",isOn:Binding(get:{ session.recipe.video.hdr },set:{ value in session.change { $0.video.hdr = value } })).disabled(busy || result != nil);Text("HDR keeps brighter highlights on supported screens. SDR is the safest choice for universal sharing. HDR uses 10-bit HEVC; SDR looks/LUTs can change highlight detail.").font(.caption).foregroundStyle(StudioStyle.secondary) }
                     if session.project.isVideo { Picker("Video depth",selection:$tenBitVideo) { Text("10-bit HEVC").tag(true);Text("8-bit HEVC").tag(false) }.pickerStyle(.segmented).disabled(busy || result != nil || session.recipe.video.hdr) }
+                    ExportPrivacyControls(policy:$privacy,video:session.project.isVideo).disabled(busy || result != nil)
                     VStack(alignment: .leading,spacing: 14) {
                         exportDetail("Resolution",value: "Full original · crop applied")
                         exportDetail("Color",value:session.project.isVideo ? (session.recipe.video.hdr ? "Rec.2020 · HLG HDR" : "sRGB · SDR") : "sRGB · SDR")
                         exportDetail("Quality",value:session.project.isVideo ? "HEVC · \((tenBitVideo || session.recipe.video.hdr) ? 10 : 8)-bit · source frame timing" : (format == .jpeg ? "96% JPEG" : "Lossless PNG · 8-bit"))
                         if let video = session.project.video { let r = session.recipe.video.range(duration:video.duration);exportDetail("Duration",value:String(format:"%.2f seconds",r.upperBound-r.lowerBound)) }
-                        if session.project.isVideo { exportDetail("Audio",value:"Original tracks preserved") }
-                        exportDetail("Privacy",value: "Location metadata omitted")
+                        if session.project.isVideo { exportDetail("Audio",value:privacy.audio ? "Original tracks preserved" : "Sound removed") }
+                        exportDetail("Location",value:privacy.location ? "Included when present" : "Omitted")
                     }.padding(20).background(StudioStyle.panel,in: RoundedRectangle(cornerRadius: 20))
                     if let result {
                         Label("\(result.width) × \(result.height) · Ready",systemImage: "checkmark.circle.fill").foregroundStyle(StudioStyle.blue).font(.subheadline)
                         ShareLink(item: result.url) { Label("Share or save to Files",systemImage: "square.and.arrow.up").frame(maxWidth: .infinity).padding(17).background(StudioStyle.blue,in: Capsule()).foregroundStyle(.white) }
                         Button { Task { await saveToPhotos(result.url) } } label: { HStack { if saving { ProgressView() }; Label("Save to Photos",systemImage: "photo.badge.arrow.down") }.frame(maxWidth: .infinity).padding(17).background(.white.opacity(0.07),in: Capsule()) }.disabled(saving)
-                        Button("Change export format") { discardExport(); message = nil }.font(.subheadline).frame(maxWidth: .infinity)
-                    } else {
-                        Button { Task { await render() } } label: {
-                            HStack { if busy { ProgressView().tint(.white) }; Text(busy ? (session.project.isVideo ? "Exporting video…" : "Developing full-resolution photo…") : "Create export").fontWeight(.semibold) }.font(.subheadline).frame(maxWidth: .infinity).padding(17).background(StudioStyle.blue,in: Capsule()).foregroundStyle(.white)
-                        }.disabled(busy)
+                        Button("Change export options") { discardExport(); message = nil }.font(.subheadline).frame(maxWidth: .infinity)
                     }
                     if busy && session.project.isVideo { ProgressView(value:videoProgress);if coolingVideo { Text("Paused to cool your iPhone. Export resumes when thermal state improves.").font(.caption).foregroundStyle(StudioStyle.secondary) };Button("Cancel export",role:.cancel) { exportTask?.cancel() } }
                     if let message { Label(message,systemImage: "checkmark.circle").font(.subheadline).foregroundStyle(StudioStyle.blue) }
                     if let error { Text(error).font(.subheadline).foregroundStyle(.orange) }
                     Text("The same adjustments are applied to the full-resolution source. Large RAW files can take longer to develop; you can continue editing after closing this sheet.").font(.caption).foregroundStyle(StudioStyle.secondary).lineSpacing(3)
                 }.padding(26)
+            }.safeAreaInset(edge:.bottom) {
+                if result == nil {
+                        Button { Task { await render() } } label: {
+                            HStack { if busy { ProgressView().tint(.white) }; Text(busy ? (session.project.isVideo ? "Exporting video…" : "Developing full-resolution photo…") : "Create export").fontWeight(.semibold) }.font(.subheadline).frame(maxWidth: .infinity).padding(17).background(StudioStyle.blue,in: Capsule()).foregroundStyle(.white)
+                        }.disabled(busy)
+                        .padding(.horizontal,20).padding(.vertical,12).background(.regularMaterial)
+                }
             }.background(StudioStyle.ink).navigationTitle(session.project.isVideo ? "Export video" : "Export photo").navigationBarTitleDisplayMode(.inline)
                 .toolbar { Button("Done") { dismiss() }.disabled(saving || busy) }
                 .interactiveDismissDisabled(saving || busy)
@@ -65,14 +70,14 @@ import UniformTypeIdentifiers
     private func render() async {
         guard let source = session.sourceURL else { return }
         busy = true;error = nil;videoProgress = 0
-        let recipe = session.recipe,format = format,video = session.project.video,tenBit = tenBitVideo,prepared = session.source
+        let recipe = session.recipe,format = format,video = session.project.video,tenBit = tenBitVideo,prepared = session.source,privacy = privacy
         defer { busy = false;exportTask = nil }
         let task = Task.detached(priority:.utility) {
             let repaired = try await MaskFramingRepair.repair(recipe:recipe,url:source,video:video,prepared:prepared)
             await MainActor.run { if session.recipe == recipe { session.recipe.masks = repaired.masks } }
             let recipe = repaired
-            if let video { return try await VideoEngine.export(source:source,descriptor:video,recipe:recipe,tenBit:tenBit,progress:{ value in await MainActor.run { videoProgress = value } },cooling:{ value in await MainActor.run { coolingVideo = value } }) }
-            return try ImageEngine.export(source:source,recipe:recipe,format:format)
+            if let video { return try await VideoEngine.export(source:source,descriptor:video,recipe:recipe,tenBit:tenBit,privacy:privacy,progress:{ value in await MainActor.run { videoProgress = value } },cooling:{ value in await MainActor.run { coolingVideo = value } }) }
+            return try ImageEngine.export(source:source,recipe:recipe,format:format,privacy:privacy)
         }
         exportTask = task
         do { result = try await task.value }

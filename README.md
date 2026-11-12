@@ -2,7 +2,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.25 Home revert and edit recovery milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.26 export metadata and privacy milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -67,7 +67,7 @@ This is the **0.25 Home revert and edit recovery milestone**. Development is ong
 - Tap an adjustment number to enter an exact value; double-tap the slider row to reset that value. Reset one section or the entire photo, with undo. Whites shapes the brightest tones; Blacks shapes the darkest.
 - Hold Compare to see the original with the current framing. Undo/redo adjustment gestures without altering the source.
 - Autosave adjustments, reopen projects, create/delete presets, and import/export versioned Studio JSON presets. Presets exclude crop, rotation and straightening. Existing 0.1/0.2/0.3/0.4 projects and presets load with neutral defaults for new controls; RGB curves, selective colors, wheels, mixer and LUT settings are included in project/preset saves. Use a current Studio version when sharing presets that use newer tools.
-- Export a full-resolution JPEG (96% quality) or lossless 8-bit PNG in sRGB/SDR; share to Files or save a new copy to Photos. Location and other original metadata are omitted in this initial export path.
+- Export a full-resolution JPEG (96% quality) or lossless 8-bit PNG in sRGB/SDR; share to Files or save a new copy to Photos. Identifying metadata is omitted by default; use Metadata & privacy to include selected source details.
 - Delete a Studio project without deleting the source in Photos/Files.
 
 No sign-in, server processing, analytics SDK or upload is required. Imported project copies use local application storage. System device backups and iCloud-sourced imports remain subject to the user's Apple settings. Uninstalling Studio removes its local workspace; export important work first.
@@ -147,7 +147,7 @@ Debug verification instructions are in [Docs/VALIDATION.md](Docs/VALIDATION.md).
 
 ## Important boundaries
 
-Per-frame/deforming video segmentation, deformation/scale/rotation tracking, healing, HDR photo export, batch adjustment paste, metadata controls, multi-clip video timelines and Camera/Studio preset exchange are **planned**, not available in this build. Studio presets are not yet compatible with Camera presets. A LUT can encode compatible color transformations, but cannot encode grain, bloom, sharpening, masks or geometry.
+Per-frame/deforming video segmentation, deformation/scale/rotation tracking, healing, HDR photo export, multi-clip video timelines and Camera/Studio preset exchange are **planned**, not available in this build. Studio presets are not yet compatible with Camera presets. A LUT can encode compatible color transformations, but cannot encode grain, bloom, sharpening, masks or geometry.
 
 ### Direct crop handles (0.17)
 
@@ -218,3 +218,19 @@ Selection mode handles a single tap immediately instead of waiting for a potenti
 ### Home revert to original (0.25)
 
 Hold a project or open its ellipsis menu, then choose **Revert to original** after Paste adjustments. Confirm to reset color, effects, masks, crop, geometry and trim to the imported source defaults. Video retains its detected Log/HDR input interpretation. The current edit is saved as **Before revert to original** under Looks → Versions; ratings, favourites and existing versions remain. If the project has 20 versions already, remove one first so the current edit can be safely preserved. Originals in Photos/Files are unchanged.
+
+### Export metadata and privacy (0.26)
+
+Open **Metadata & privacy** in a single or batch export:
+
+- **Include capture date:** copies a supported source capture timestamp when present. Off omits the source capture timestamp; the newly created file still has technical/container dates.
+- **Include camera details:** copies supported camera/lens make/model and basic photo exposure details. Owner names, serial numbers, comments, maker notes and unselected metadata are never copied.
+- **Include location:** explicitly opt in to copy supported photo coordinates/altitude or QuickTime ISO 6709 location. This can reveal where you recorded. Source GPS timestamps are excluded.
+- **Keep video sound:** on by default; turn it off to export silent video. Preview playback and project edits are unchanged.
+- **Use project names in filenames:** batch only, off by default. Otherwise files use anonymous indexed Stillarc names. Project names may themselves contain identifying information.
+
+Choices are remembered on this device and shared between single and batch export. **Remove identifying metadata** clears the date, camera, location and project-name choices; sound has its own switch. Only supported metadata already present in the imported file can be copied—Studio does not request additional Photos/location access or infer missing information. Color profiles and technical encoding/playback information remain.
+
+JPEG remains 96% quality, PNG remains lossless 8-bit sRGB, and video keeps the existing HEVC SDR/HLG path and source timing. Metadata is attached during the existing encode, without a second compression/grading pass. Save to Photos or Share uses the same completed file. **Change export options** discards the temporary export and lets you create another; share/save completed files before changing options or closing the sheet. Errors retain project edits and originals.
+
+[Implementation and validation references](Docs/EXPORT-PRIVACY.md)

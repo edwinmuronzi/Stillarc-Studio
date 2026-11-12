@@ -6,6 +6,7 @@ struct BatchExportSheet:View {
     let vault:ProjectVault
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
+    @State private var privacy = ExportPrivacy.load()
     @State private var format = ExportFormat.jpeg
     @State private var result:BatchExportResult?
     @State private var task:Task<BatchExportResult,Error>?
@@ -20,22 +21,33 @@ struct BatchExportSheet:View {
             ScrollView {
                 VStack(alignment:.leading,spacing:20) {
                     Text("Your edits, together.").font(.title.weight(.semibold))
-                    Text("Exports each project with its own current edit, crop and masks. Video keeps its trim, audio and HDR choice. Work runs one item at a time; originals stay untouched.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
+                    Text("Exports each project with its own current edit, crop and masks. Video keeps its trim and HDR choice; sound follows your export privacy settings. Work runs one item at a time; originals stay untouched.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     if projects.contains(where:{ !$0.isVideo }) { Picker("Photo format",selection:$format) { ForEach(ExportFormat.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).disabled(busy || result != nil) }
+                    ExportPrivacyControls(policy:$privacy,video:projects.contains(where:{ $0.isVideo }),batch:true).disabled(busy || result != nil)
                     Text("\(projects.count) selected · full remaining source resolution").font(.caption).foregroundStyle(StudioStyle.secondary)
                     if busy { ProgressView(value:progress);Text(status).font(.caption).lineLimit(2);Button("Cancel batch",role:.cancel) { task?.cancel() } }
                     else if let result {
-                        Label("\(result.urls.count) of \(projects.count) exported",systemImage:"checkmark.circle").foregroundStyle(StudioStyle.blue)
+                        Label("\(result.urls.count) of \(projects.count) exported",systemImage:result.urls.isEmpty ? "exclamationmark.circle" : "checkmark.circle").foregroundStyle(result.urls.isEmpty ? .orange : StudioStyle.blue)
                         if !result.urls.isEmpty {
                             ShareLink(items:result.urls) { Label("Share or save files",systemImage:"square.and.arrow.up").frame(maxWidth:.infinity).padding(14) }.buttonStyle(.borderedProminent)
                             Button(saving ? "Saving…" : "Save all to Photos") { Task { await save(result.urls) } }.disabled(saving).buttonStyle(.bordered)
                         }
+                        Button("Change export options") {
+                            let folder = result.folder
+                            self.result = nil;message = nil;error = nil
+                            Task.detached(priority:.utility) { try? FileManager.default.removeItem(at:folder) }
+                        }.disabled(saving)
                         ForEach(Array(result.failures.enumerated()),id:\.offset) { _,failure in Text(failure).font(.caption).foregroundStyle(.orange) }
-                    } else { Button("Create batch export") { start() }.buttonStyle(.borderedProminent).accessibilityIdentifier("createBatchExport") }
+                    }
                     if let error { Text(error).font(.caption).foregroundStyle(.orange) }
                     if let message { Text(message).font(.caption).foregroundStyle(StudioStyle.blue) }
-                    Text("Leaving the app cancels an unfinished batch. Export may pause to cool the phone. Completed files remain available here until you close this sheet.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                    Text("Leaving the app cancels an unfinished batch. Export may pause to cool the phone. Completed files remain available here until you change options or close this sheet.").font(.caption).foregroundStyle(StudioStyle.secondary)
                 }.padding(22)
+            }.safeAreaInset(edge:.bottom) {
+                if result == nil && !busy {
+                    Button("Create batch export") { start() }.buttonStyle(.borderedProminent).accessibilityIdentifier("createBatchExport")
+                        .frame(maxWidth:.infinity).padding(14).background(.regularMaterial)
+                }
             }.navigationTitle("Batch export").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { dismiss() }.disabled(busy || saving) }
         }.tint(StudioStyle.blue).interactiveDismissDisabled(busy || saving)
         .onChange(of:phase) { _,value in if value != .active && busy { task?.cancel() } }
@@ -43,8 +55,8 @@ struct BatchExportSheet:View {
     }
     private func start() {
         busy = true;error = nil;progress = 0
-        let format = format
-        let job = Task.detached(priority:.utility) { try await BatchExportEngine.run(projects,vault:vault,format:format) { index,fraction,name in
+        let format = format,privacy = privacy
+        let job = Task.detached(priority:.utility) { try await BatchExportEngine.run(projects,vault:vault,format:format,privacy:privacy) { index,fraction,name in
             await MainActor.run { progress = (Double(index)+fraction)/Double(projects.count);status = "\(index+1) of \(projects.count) · \(name)" }
         } };task = job
         Task { @MainActor in
@@ -55,7 +67,7 @@ struct BatchExportSheet:View {
         }
     }
     private func save(_ urls:[URL]) async {
-        saving = true;defer { saving = false }
+        saving = true;error = nil;message = nil;defer { saving = false }
         let authorization = await PHPhotoLibrary.requestAuthorization(for:.addOnly)
         guard authorization == .authorized || authorization == .limited else { error = "Allow access to add media in Settings, or save the files with Share.";return }
         do {

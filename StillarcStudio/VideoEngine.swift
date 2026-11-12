@@ -67,7 +67,7 @@ enum VideoEngine {
         return PreparedPhoto(image:CIImage(cgImage:managed),width:descriptor.width,height:descriptor.height,isRAW:false,signalImage:CIImage(cgImage:signal,options:[.colorSpace:NSNull()]))
     }
 
-    static func export(source:URL,descriptor:VideoDescriptor,recipe:Recipe,tenBit:Bool = true,progress:@escaping @Sendable (Double) async -> Void,cooling:@escaping @Sendable (Bool) async -> Void = { _ in }) async throws -> ExportResult {
+    static func export(source:URL,descriptor:VideoDescriptor,recipe:Recipe,tenBit:Bool = true,privacy:ExportPrivacy = ExportPrivacy(),progress:@escaping @Sendable (Double) async -> Void,cooling:@escaping @Sendable (Bool) async -> Void = { _ in }) async throws -> ExportResult {
         try Task.checkCancellation()
         try ColorPipeline.prepare(); try LogConversion.prepare();try HDRPipeline.prepare();try MaskEngine.prepare()
         try MaskMotion.validateExport(recipe,duration:descriptor.duration)
@@ -90,6 +90,7 @@ enum VideoEngine {
         let writer = try AVAssetWriter(outputURL:url,fileType:.mov)
         var completed = false
         defer { if !completed { reader.cancelReading(); writer.cancelWriting(); try? FileManager.default.removeItem(at:url) } }
+        writer.metadata = try await privacy.videoMetadata(asset)
         let bitrate = max(8_000_000,min(80_000_000,Int(Double(width*height)*max(24,descriptor.frameRate)*0.14)))
         let primaries = hdr ? AVVideoColorPrimaries_ITU_R_2020 : AVVideoColorPrimaries_ITU_R_709_2
         let transfer = hdr ? AVVideoTransferFunction_ITU_R_2100_HLG : kCVImageBufferTransferFunction_sRGB as String
@@ -99,7 +100,7 @@ enum VideoEngine {
         guard writer.canAdd(input) else { throw StudioError.render }; writer.add(input)
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput:input,sourcePixelBufferAttributes:[kCVPixelBufferPixelFormatTypeKey as String:tenBit ? kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange : kCVPixelFormatType_32BGRA,kCVPixelBufferWidthKey as String:width,kCVPixelBufferHeightKey as String:height,kCVPixelBufferIOSurfacePropertiesKey as String:[:]])
         var audio:[(AVAssetReaderTrackOutput,AVAssetWriterInput)] = []
-        for audioTrack in try await asset.loadTracks(withMediaType:.audio) {
+        for audioTrack in (privacy.audio ? try await asset.loadTracks(withMediaType:.audio) : []) {
             let output = AVAssetReaderTrackOutput(track:audioTrack,outputSettings:nil); output.alwaysCopiesSampleData = false
             let hint = try await audioTrack.load(.formatDescriptions).first
             let input = AVAssetWriterInput(mediaType:.audio,outputSettings:nil,sourceFormatHint:hint)

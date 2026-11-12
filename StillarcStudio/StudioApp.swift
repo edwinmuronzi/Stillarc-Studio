@@ -177,7 +177,8 @@ enum StudioStyle {
             .safeAreaInset(edge: .bottom) { importBar }
             .task {
                 #if DEBUG
-                let qa = ProcessInfo.processInfo.arguments.contains("--verify-video-suite") || ProcessInfo.processInfo.arguments.contains("--verify-studio") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") || ProcessInfo.processInfo.arguments.contains("--verify-automatic-only")
+                if ProcessInfo.processInfo.arguments.contains("--privacy-demo") { ExportPrivacy().save() }
+                let qa = ProcessInfo.processInfo.arguments.contains("--verify-export-privacy") || ProcessInfo.processInfo.arguments.contains("--verify-video-suite") || ProcessInfo.processInfo.arguments.contains("--verify-studio") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") || ProcessInfo.processInfo.arguments.contains("--verify-automatic-only")
                 let oldIdle = UIApplication.shared.isIdleTimerDisabled
                 if qa { UIApplication.shared.isIdleTimerDisabled = true }
                 defer { if qa { UIApplication.shared.isIdleTimerDisabled = oldIdle } }
@@ -199,6 +200,7 @@ enum StudioStyle {
                     do { let report = try await Task.detached { try await TrackingVerification.video() }.value;try JSONSerialization.data(withJSONObject:report,options:.prettyPrinted).write(to:reportURL,options:.atomic) }
                     catch { try? JSONSerialization.data(withJSONObject:["passed":false,"error":error.localizedDescription],options:.prettyPrinted).write(to:reportURL,options:.atomic) }
                 }
+                if ProcessInfo.processInfo.arguments.contains("--verify-export-privacy") { await ExportPrivacyVerification.writeReport() }
                 if ProcessInfo.processInfo.arguments.contains("--verify-video-suite") { await VideoVerification.writeReport() }
                 if ProcessInfo.processInfo.arguments.contains("--verify-studio") { await StudioVerification.run(library: library) }
                 if ProcessInfo.processInfo.arguments.contains("--tracking-demo"),let url = try? await TrackingVerification.fixture() {
@@ -450,7 +452,7 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Home revert & edit recovery · 0.25.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Export metadata & privacy · 0.26.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
                     Text("Develop light, color and texture with reversible adjustments. Import from Photos or Files, save looks and export JPEG/PNG photographs or trimmed HEVC video with audio in SDR or 10-bit HLG HDR.")
                     Text("Levels sets black, white and midtones. Mark favorites, rate projects and search or filter your workspace. Dehaze reduces a washed-out veil or adds soft haze. Texture brings out fine surfaces or softens them; Clarity changes broader definition. The preview stays large, and Expand preview hides adjustments. Tap video to show playback controls. Use Scopes to inspect brightness and color. Drag crop corners to resize and drag inside to reposition. Fixed ratios stay locked; Free lets each edge change. Flips and perspective help refine your composition; every change stays reversible.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Open up to 20 photos or clips together. Select projects in the workspace to export their saved edits in one batch. Recently Deleted keeps Studio copies restorable for 30 days. Local settings recovery can repair a damaged project index, but does not replace a backup of your media. In Curves, tap Edit curve points to adjust the graph; otherwise swipe it to scroll.").font(.subheadline).foregroundStyle(StudioStyle.secondary)

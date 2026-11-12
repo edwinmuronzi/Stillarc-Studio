@@ -108,6 +108,31 @@ final class GestureTests:XCTestCase {
         if !card.isHittable { app.scrollViews.firstMatch.swipeUp() };card.tap()
         XCTAssertTrue(app.buttons["Remove favorite"].exists)
     }
+    func testBatchExportPrivacyChoicesAndRetry() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = ["--batch-demo","--privacy-demo"];app.launch()
+        XCTAssertTrue(app.staticTexts["Added 2 of 2."].waitForExistence(timeout:30))
+        let search = app.textFields["workspaceSearch"];search.tap();search.typeText("Studio batch QA");app.keyboards.buttons["Search"].tap()
+        app.buttons["Select"].tap();app.buttons["Select shown"].tap();app.buttons["Export 2"].tap()
+        app.buttons["Metadata & privacy"].tap()
+        let location = app.switches["Include location"],names = app.switches["Use project names in filenames"]
+        XCTAssertEqual(location.value as? String,"0");location.tap();names.tap()
+        app.buttons["Metadata & privacy"].tap();app.buttons["createBatchExport"].tap()
+        XCTAssertTrue(app.buttons["Share or save files"].waitForExistence(timeout:20));app.buttons["Change export options"].tap()
+        app.buttons["Metadata & privacy"].tap();XCTAssertEqual(location.value as? String,"1");XCTAssertEqual(names.value as? String,"1")
+        app.buttons["Remove identifying metadata"].tap();XCTAssertEqual(location.value as? String,"0");XCTAssertEqual(names.value as? String,"0")
+        let shot = XCTAttachment(screenshot:app.screenshot());shot.name = "Batch export metadata and privacy";shot.lifetime = .keepAlways;add(shot)
+    }
+    func testSinglePhotoExportPrivacyControls() throws {
+        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments = ["--demo-editor","--neutral-demo","--privacy-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Export photo"].waitForExistence(timeout:30));app.buttons["Export photo"].tap()
+        app.buttons["Metadata & privacy"].tap();app.switches["Include capture date"].tap();app.switches["Include camera details"].tap()
+        app.buttons["Metadata & privacy"].tap();app.buttons["Create export"].tap()
+        XCTAssertTrue(app.buttons["Share or save to Files"].waitForExistence(timeout:30));app.buttons["Change export options"].tap()
+        app.buttons["Metadata & privacy"].tap();XCTAssertEqual(app.switches["Include capture date"].value as? String,"1")
+        app.buttons["Remove identifying metadata"].tap();XCTAssertEqual(app.switches["Include capture date"].value as? String,"0")
+    }
     func testHomeRevertToOriginal() throws {
         let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments = ["--batch-demo","--batch-paste-demo"];app.launch()

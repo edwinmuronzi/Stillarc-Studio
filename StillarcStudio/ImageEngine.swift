@@ -140,7 +140,7 @@ enum ImageEngine {
         return MaskEngine.apply(PhotoFraming.apply(image,recipe:r),layers:r.masks,preview:preview,framing:MaskMotion.signature(r))
     }
 
-    static func export(source: URL, recipe: Recipe, format: ExportFormat) throws -> ExportResult {
+    static func export(source: URL, recipe: Recipe, format: ExportFormat, privacy:ExportPrivacy = ExportPrivacy()) throws -> ExportResult {
         try autoreleasepool {
             let automatic = try AutomaticMaskBitmap.prepare(recipe)
             let original = try open(source)
@@ -149,11 +149,16 @@ enum ImageEngine {
             let image = AutomaticMaskBitmap.$prepared.withValue(automatic) { BrushMaskRasterizer.$preparedExport.withValue(brushes) { apply(original.source(for:recipe),recipe:recipe) } }
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("Stillarc-\(UUID().uuidString.prefix(8)).\(format.ext)")
             let context = context()
-            if format == .jpeg {
-                try context.writeJPEGRepresentation(of: image, to: url, colorSpace: output, options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.96])
-            } else {
-                try context.writePNGRepresentation(of: image, to: url, format: .RGBA8, colorSpace: output)
-            }
+            var completed = false
+            defer { if !completed { try? FileManager.default.removeItem(at:url) } }
+            try Task.checkCancellation()
+            guard let rendered = context.createCGImage(image,from:image.extent,format:.RGBA8,colorSpace:output),let destination = CGImageDestinationCreateWithURL(url as CFURL,(format == .jpeg ? UTType.jpeg.identifier : UTType.png.identifier) as CFString,1,nil) else { throw StudioError.render }
+            try Task.checkCancellation()
+            var properties = privacy.photoProperties(source:source)
+            if format == .jpeg { properties[kCGImageDestinationLossyCompressionQuality as String] = 0.96 }
+            CGImageDestinationAddImage(destination,rendered,properties as CFDictionary)
+            guard CGImageDestinationFinalize(destination) else { throw StudioError.render }
+            try Task.checkCancellation();completed = true
             return ExportResult(url: url, width: Int(image.extent.width), height: Int(image.extent.height))
         }
     }

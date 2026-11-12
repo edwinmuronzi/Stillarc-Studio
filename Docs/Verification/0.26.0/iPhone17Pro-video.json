@@ -1,0 +1,90 @@
+{
+  "encodedAutomaticMask" : true,
+  "encodedCombinedBrushRangeMask" : true,
+  "boundedTrackingDecode" : true,
+  "levelsVideoExport" : true,
+  "passed" : true,
+  "encodedColorLuminanceMasks" : true,
+  "dehazeVideoExport" : true,
+  "photoInput" : {
+    "standardBypass" : true,
+    "curveVectors" : 16,
+    "exposureAlpha" : true,
+    "bothGamuts" : true,
+    "highlightShoulder" : true,
+    "persistence" : true,
+    "presetInputIsolation" : true,
+    "passed" : true
+  },
+  "maskTracking" : {
+    "passed" : true,
+    "cancellation" : true,
+    "encodedTracking" : true,
+    "portraitLandscape" : true,
+    "pointCounts" : [
+      30,
+      30
+    ],
+    "movingTargetErrors" : [
+      0.0051411703706012168,
+      0.0033422505339212594
+    ],
+    "exportFramesPerClip" : 60
+  },
+  "version" : "0.26.0",
+  "clips" : [
+    {
+      "height" : 360,
+      "profile" : "standard",
+      "cancellation" : true,
+      "metadata" : true,
+      "projectRoundTrip" : true,
+      "audioTracks" : 2,
+      "width" : 640,
+      "frames" : 18,
+      "originalPreserved" : true,
+      "color" : true
+    },
+    {
+      "height" : 640,
+      "color" : true,
+      "originalPreserved" : true,
+      "cancellation" : true,
+      "width" : 360,
+      "frames" : 18,
+      "audioTracks" : 1,
+      "metadata" : true,
+      "projectRoundTrip" : true,
+      "profile" : "appleLog"
+    },
+    {
+      "height" : 360,
+      "originalPreserved" : true,
+      "metadata" : true,
+      "projectRoundTrip" : true,
+      "cancellation" : true,
+      "color" : true,
+      "width" : 640,
+      "frames" : 18,
+      "profile" : "appleLog2",
+      "audioTracks" : 1
+    },
+    {
+      "frames" : 3,
+      "width" : 1860,
+      "height" : 1860,
+      "cornerResized4KLog" : true
+    }
+  ],
+  "encodedAutomaticCropRepair" : true,
+  "trimHDR" : {
+    "persistence" : true,
+    "presetIsolation" : true,
+    "trimFrames" : 33,
+    "passed" : true,
+    "zeroBasedTiming" : true,
+    "audioTracks" : 2,
+    "trimSeconds" : 1.1000000000000001,
+    "headroomVectors" : 5
+  }
+}

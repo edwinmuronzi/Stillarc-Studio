@@ -62,13 +62,15 @@ Implemented in 0.24: immediate selection taps, Home copy/paste with section choi
 
 Implemented in 0.25: confirmed Home revert to imported source defaults, with a before-revert version and retained detected video input/HDR settings.
 
-Next: more robust tracking, changing-pose segmentation, healing and carefully bounded advanced noise reduction. Explicit file-management/export-metadata settings. Preserve offline ownership and avoid mandatory cloud setup.
+Next: more robust tracking, changing-pose segmentation, healing and carefully bounded advanced noise reduction. Additional file-management options. Preserve offline ownership and avoid mandatory cloud setup.
 
 ## 5 — Video grading
 
 Implemented in 0.6: single-clip Photos/Files import, playback/scrubbing, shared reversible grading, Apple Log/Log 2 conversion, full-size 10/8-bit HEVC SDR export with original audio/frame timing, progress/cancellation and thermal pacing.
 
 Implemented in 0.7: reversible video trimming with live endpoint inspection, HLG/PQ input, 10-bit HLG HDR export and extended-range video previews. Header safe-area placement now uses the current window insets.
+
+Implemented in 0.26: private-by-default source metadata allowlists, optional date/camera/location, optional silent video, anonymous batch filenames, remembered shared preferences and export-option retry.
 
 Next: HDR still-photo export, improved HDR creative-tool modeling, scopes and H.264/ProRes exports subject to hardware. Stress thermal/memory behavior before release. A mobile grading workflow, not a full video timeline editor.
 
@@ -85,7 +87,7 @@ Next: HDR still-photo export, improved HDR creative-tool modeling, scopes and H.
 ## Remaining delivery batches
 
 1. Finish Home workflow: copy/paste/revert, selection actions and recovery regression checks.
-2. Export controls: metadata/privacy policy, format clarity and interruption/failure handling.
+2. Export controls (0.26 implemented): metadata/privacy policy, format clarity and interruption/failure handling; continue broader real-world source testing.
 3. Color tools: additional Log transforms, LUT management and compatible color-LUT export.
 4. Photo refinement: assess lens corrections; refine film grain and halation with preview/export matching.
 5. Release preparation: layout/accessibility review, larger libraries, sustained device performance, documentation and listing material.

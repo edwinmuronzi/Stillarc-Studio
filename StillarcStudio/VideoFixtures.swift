@@ -7,7 +7,7 @@ import CoreImage
 /// Private constant-color fixtures. These are not camera footage or marketing samples.
 enum VideoFixtures {
     static let scene = [0.23,0.18,0.12]
-    static func make(profile:CameraLogProfile,frames:Int = 18,portrait:Bool = false,audioTracks:Int = 1,width:Int = 640,height:Int = 360,linear:[Double]? = nil,hdr:String? = nil) async throws -> URL {
+    static func make(profile:CameraLogProfile,frames:Int = 18,portrait:Bool = false,audioTracks:Int = 1,width:Int = 640,height:Int = 360,linear:[Double]? = nil,hdr:String? = nil,metadata:[AVMetadataItem] = []) async throws -> URL {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("StudioVideoQA-\(UUID())")
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         let url = root.appendingPathComponent("fixture.mov"), wav = root.appendingPathComponent("tone.wav")
@@ -23,6 +23,7 @@ enum VideoFixtures {
         let reader = try AVAssetReader(asset:audioAsset)
         let audioOutput = AVAssetReaderTrackOutput(track:audioTrack,outputSettings:nil);reader.add(audioOutput)
         let writer = try AVAssetWriter(outputURL:url,fileType:.mov)
+        writer.metadata = metadata
         #if targetEnvironment(simulator)
         let format = kCVPixelFormatType_32BGRA
         #else
