@@ -1,6 +1,6 @@
 # Stillarc Studio
 
-## Mask motion · 0.45
+## Precise mask motion · 0.46
 
 Use **Masks → Correct tracking → Size & rotation** to manually resize or turn a tracked mask at chosen moments. Changes blend with the measured path, with Undo/Redo and matching playback/export. Cached original mattes keep compatible crop repairs from clipping moving selections. [How to use it](Docs/MASK-POSE-045.md).
 
@@ -25,7 +25,7 @@ Convert Canon Log 3 (Rec.2020), Nikon N-Log, Fujifilm F-Log2 and DJI X9 D-Log us
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.45 mask motion milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.46 precise mask motion milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -421,3 +421,10 @@ For a missing or changed file with a saved fingerprint, choose **Restore matchin
 A fingerprint is a check, **not a backup**, and does not prove that the file was healthy when first fingerprinted. Older projects remain supported but are not scanned automatically. If their original is already missing and no fingerprint exists, restore a complete `.stillarc` project backup; matching a name or dimensions alone cannot establish the exact source. Project backups made after fingerprinting carry that record into restored project copies.
 
 Hashing/copying uses bounded 512 KiB chunks on the vault worker, with request-only progress/cancellation, fair-state pacing and a serious-thermal stop. There are no startup scans, background checks, media conversions or new grading stages. Repair stages are cleaned on failure/cancellation. Once original bytes have committed, a failed timestamp-only index refresh does not incorrectly report that the byte repair failed.
+
+
+### Precise mask motion (0.46)
+
+In **Masks → Correct tracking**, choose **Linear**, **Smooth** or **Hold** under **Correction transition**. Linear moves steadily between your manual points. Smooth gently eases into and out of them. Hold keeps a correction until the next point, then changes immediately. This affects your manual position, size and rotation corrections together; the camera/object movement measured by tracking continues in every mode.
+
+The four arrow buttons jump to the previous/next correction or step one nominal video frame backward/forward. Stepping pauses playback and requests an exact seek; variable-frame-rate clips follow their recorded presentation timestamps. Ordinary scrubbing stays unchanged. Transition choices support Undo/Redo and remain with projects, versions, backups and direct/queued exports. Clear corrections restores the measured path and retains your transition preference for future points. No new inference or rendering pass is added. New source packages require reader build 51; queues use schema 8 and still load older supported records.

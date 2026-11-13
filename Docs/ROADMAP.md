@@ -169,3 +169,7 @@ Standalone 1D creative .cube imports (2–4096 points/channel) now join existing
 
 ### 0.45 checkpoint
 Tracking correction points now optionally carry uniform size and clockwise rotation as well as translation. New tracks retain the measured target centre and source dimensions. Cached GPU affine transforms reuse the base matte/brush map; compatible automatic-mask crop repairs preserve original off-crop pixels, pivots and pose values without new inference. Undo/redo, deletion/reset, versions, HDR/direct/queued exports and reader-build-50 source backups retain the changes. Queue schema 7 protects the added motion fields. This is manual pose correction, not automatic scale/rotation tracking, mesh deformation or temporal matting.
+
+
+### 0.46 checkpoint
+Manual mask corrections gain a per-mask Linear/Smooth/Hold transition across position, size and rotation. Measured tracking remains linear and separate. Exact nominal-frame stepping and previous/next correction navigation pause playback, retain coalesced seek requests and leave ordinary scrubbing unchanged. Source-time interpolation remains shared by preview, HDR/direct/queued export, versions and reader-build-51 backups; queue schema 8 protects the new transition while reading older records. Automatic silhouette deformation, temporal matting and shared Camera/Studio look interchange remain separate candidate work.

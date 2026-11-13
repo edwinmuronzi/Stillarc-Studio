@@ -10,6 +10,16 @@ enum MaskPoseVerification {
         var motion=MaskMotion(framing:signature,start:0,end:2,points:[.init(time:0,x:0,y:0),.init(time:2,x:0.2,y:0)],pivotX:0.5,pivotY:0.5,sourceWidth:160,sourceHeight:100)
         motion.setCorrection(time:2,x:0.1,y:0,tolerance:0.001,scale:2,rotation:90)
         try check(motion.corrections?.count==2 && motion.validCorrections && motion.isValid,"Bounded pose points")
+        var smooth=motion;smooth.correctionBlend = .smooth
+        let quarter=smooth.pose(at:0.5)
+        try check(abs(quarter.scale-1.15625)<1e-10 && abs(quarter.rotation-14.0625)<1e-10,"Smooth pose easing")
+        try check(abs(smooth.correction(at:0.5).x-0.015625)<1e-10 && abs(smooth.baseOffset(at:0.5).x-0.05)<1e-10,"Easing changed measured path")
+        var hold=motion;hold.correctionBlend = .hold
+        try check(hold.pose(at:1.99).scale==1 && hold.correction(at:1.99).x==0 && hold.pose(at:2).scale==2 && hold.correction(at:2).x==0.1,"Hold boundary")
+        hold.setCorrection(time:1,x:0.3,y:0,tolerance:0.001,scale:1.5,rotation:45)
+        try check(hold.pose(at:1).scale==1.5 && hold.pose(at:1.99).rotation==45 && hold.correction(at:1).x==0.3,"Hold internal point")
+        let smoothReload=try JSONDecoder().decode(MaskMotion.self,from:JSONEncoder().encode(smooth));try check(smoothReload==smooth,"Smooth persistence")
+        let holdReload=try JSONDecoder().decode(MaskMotion.self,from:JSONEncoder().encode(hold));try check(holdReload==hold,"Hold persistence")
         let middle=motion.pose(at:1)
         try check(abs(middle.scale-1.5)<1e-10 && abs(middle.rotation-45)<1e-10,"Pose interpolation")
         try check(motion.pose(at:-1).scale==1 && motion.pose(at:3).rotation==90,"Held pose ends")
@@ -29,7 +39,7 @@ enum MaskPoseVerification {
         let mask=MaskMotion.$frame.withValue(.init(time:2,framing:signature)){MaskEngine.weight(radial,extent:extent)}
         try check(sample(mask,80,70)>0.9 && sample(mask,100,50)<0.01,"Rendered radial rotation")
         let neutral=try JSONDecoder().decode(MaskMotion.self,from:Data("{\"framing\":\"x\",\"start\":0,\"end\":2,\"points\":[{\"time\":0,\"x\":0,\"y\":0},{\"time\":2,\"x\":0,\"y\":0}],\"corrections\":[{\"time\":1,\"x\":0.1,\"y\":0}]}".utf8))
-        try check(neutral.pose(at:1).scale==1 && neutral.pose(at:1).rotation==0 && neutral.pivotX==nil,"Legacy neutral pose")
+        try check(neutral.pose(at:1).scale==1 && neutral.pose(at:1).rotation==0 && neutral.pivotX==nil && neutral.correctionBlend==nil,"Legacy neutral pose")
         let data=try JSONEncoder().encode(motion),roundtrip=try JSONDecoder().decode(MaskMotion.self,from:data)
         try check(roundtrip==motion,"Pose persistence")
         var bad=motion;bad.corrections=[.init(time:1,x:0,y:0,scale:0)];let clean=try JSONDecoder().decode(MaskMotion.self,from:JSONEncoder().encode(bad));try check(clean.corrections==nil,"Invalid scale")
@@ -56,7 +66,7 @@ enum MaskPoseVerification {
         var error:Float=0
         for x in stride(from:5.0,to:55.0,by:10) {for y in stride(from:5.0,to:55.0,by:10) {error=max(error,abs(sample(current,x,y)-sample(original,x+frame.minX,y+frame.minY)))}}
         try check(error<0.03 && AutomaticSelectionEngine.analysisCount==inference,"Crop/pose pixels or inference: \(error)")
-        return ["passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","interpolationPivotClockwise":true,"legacyNeutral":true,"invalidData":true,"persistence":true,"cropPoseMaxError":error,"cropNoInference":true,"renderedRotation":true,"bounded32":true]
+        return ["passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","interpolationPivotClockwise":true,"legacyNeutral":true,"invalidData":true,"persistence":true,"cropPoseMaxError":error,"cropNoInference":true,"renderedRotation":true,"bounded32":true,"smoothAndHold":true,"unchangedMeasuredPath":true]
     }
     @MainActor static func writeReport() async {
         let url=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("mask-pose-verification.json")

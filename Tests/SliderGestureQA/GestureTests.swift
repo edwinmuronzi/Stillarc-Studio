@@ -111,6 +111,27 @@ final class GestureTests:XCTestCase {
         let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Intelligent subject selection methods";shot.lifetime = .keepAlways;add(shot)
         app.buttons["Done"].tap()
     }
+    func testMaskTransitionAndFrameNavigation() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--video-demo","--correction-demo"];app.launch()
+        let transition=app.segmentedControls["correctionTransition"]
+        XCTAssertTrue(transition.waitForExistence(timeout:30))
+        transition.buttons["Smooth"].tap();XCTAssertTrue(transition.buttons["Smooth"].isSelected)
+        app.buttons["correctionUndo"].tap();XCTAssertTrue(transition.buttons["Linear"].isSelected)
+        app.buttons["correctionRedo"].tap();XCTAssertTrue(transition.buttons["Smooth"].isSelected)
+        transition.buttons["Hold"].tap();XCTAssertTrue(transition.buttons["Hold"].isSelected)
+        app.buttons["Start"].tap();XCTAssertFalse(app.buttons["Previous frame"].isEnabled)
+        app.buttons["Next frame"].tap();XCTAssertTrue(app.buttons["Previous frame"].isEnabled)
+        app.buttons["Previous frame"].tap();XCTAssertFalse(app.buttons["Previous frame"].isEnabled)
+        app.buttons["setTrackingCorrection"].tap()
+        app.buttons["End"].tap();app.buttons["setTrackingCorrection"].tap()
+        XCTAssertTrue(app.staticTexts["2/32 points"].exists)
+        app.buttons["Previous correction"].tap();XCTAssertFalse(app.buttons["Previous frame"].isEnabled)
+        app.buttons["Next correction"].tap();XCTAssertTrue(app.buttons["Previous frame"].isEnabled)
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Mask motion transitions and precise navigation";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["closeTrackingCorrection"].tap();app.buttons["Export video"].tap();app.buttons["Create export"].tap()
+        XCTAssertTrue(app.staticTexts["actualExportSize"].waitForExistence(timeout:40))
+    }
     func testMaskSizeRotationPointsUndoAndExport() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments=["--video-demo","--correction-demo"];app.launch()

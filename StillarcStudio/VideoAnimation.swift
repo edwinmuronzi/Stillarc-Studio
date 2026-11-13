@@ -55,6 +55,7 @@ struct VideoAnimation:Codable,Equatable,Sendable {
     var playing=false
     var seekToken=UUID()
     var pauseToken=UUID()
-    func seek(_ time:Double){self.time=time;seekToken=UUID()}
+    var exactSeek=false
+    func seek(_ time:Double,exact:Bool=false){self.time=time;exactSeek=exact;seekToken=UUID()}
     func pause(){pauseToken=UUID()}
 }

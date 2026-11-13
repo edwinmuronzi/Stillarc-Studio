@@ -54,6 +54,7 @@ struct VideoPreviewVerification:View {
                 }
                 foreground.motion=MaskMotion(framing:MaskMotion.signature(recipe),start:0,end:10,points:[.init(time:0,x:0,y:0),.init(time:10,x:0.02,y:0)],pivotX:0.5,pivotY:0.5,sourceWidth:1920,sourceHeight:1080)
                 foreground.motion?.setCorrection(time:0,x:0,y:0,tolerance:0.001,scale:1,rotation:0)
+                foreground.motion?.correctionBlend = .smooth
                 foreground.motion?.setCorrection(time:5,x:0,y:0,tolerance:0.001,scale:1.4,rotation:35)
                 foreground.motion?.setCorrection(time:10,x:0,y:0,tolerance:0.001,scale:1,rotation:0)
                 recipe.masks = [local,sky,accent,foreground]

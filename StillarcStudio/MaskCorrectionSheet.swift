@@ -36,6 +36,20 @@ struct MaskCorrectionSheet:View {
                             Text("Fix a drifting mask").font(.headline)
                             Text("Pause or scrub to the drift. Turn on Move mask and drag the blue handle, or use the sliders. Open Size & rotation to make the mask bigger, smaller or turn it. Corrections blend between saved points without running tracking again.").font(.caption).foregroundStyle(StudioStyle.secondary)
                             HStack {Text(String(format:"%.2f s",time-range.lowerBound)).monospacedDigit();Spacer();Button("Start"){position.seek(range.lowerBound)};Button("End"){position.seek(max(range.lowerBound,range.upperBound-step))}}.font(.caption).buttonStyle(.bordered)
+                            HStack(spacing:10) {
+                                navigationButton("Previous correction",icon:"backward.end",target:previousPoint)
+                                navigationButton("Previous frame",icon:"backward.frame",target:time>range.lowerBound+0.00001 ? max(range.lowerBound,time-step):nil)
+                                Spacer(minLength:0)
+                                navigationButton("Next frame",icon:"forward.frame",target:time<lastFrame-0.00001 ? min(lastFrame,time+step):nil)
+                                navigationButton("Next correction",icon:"forward.end",target:nextPoint)
+                            }.buttonStyle(.bordered)
+                            VStack(alignment:.leading,spacing:6) {
+                                Text("Correction transition").font(.caption)
+                                Picker("Correction transition",selection:Binding(get:{motion?.correctionBlend ?? .linear},set:{value in session.change {r in if let i=r.masks.firstIndex(where:{$0.id==maskID}) {r.masks[i].motion?.correctionBlend=value == .linear ? nil:value}}})) {
+                                    ForEach(MaskCorrectionBlend.allCases,id:\.self) {Text($0.title).tag($0)}
+                                }.pickerStyle(.segmented).disabled(position.playing).accessibilityIdentifier("correctionTransition")
+                                Text("Linear moves steadily. Smooth eases into each correction. Hold keeps a correction until the next point. The measured tracking path stays active in every mode.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                            }
                             Toggle("Show mask overlay",isOn:$showGuide)
                             Toggle("Move mask in preview",isOn:$moving).onChange(of:moving){_,value in if value {position.pause()}}
                             valueSlider("Horizontal correction",horizontal:true)
@@ -58,7 +72,7 @@ struct MaskCorrectionSheet:View {
                                 }}}
                                 HStack {Button("Delete correction",role:.destructive){if let point {remove(at:point.time)}}.disabled(point==nil || position.playing);Spacer();Button("Clear corrections",role:.destructive){session.change {r in if let i=r.masks.firstIndex(where:{$0.id==maskID}) {r.masks[i].motion?.corrections=nil}}}}.font(.caption)
                             }
-                            Text("A first correction after the start adds a zero point at the original tracking start. Changes blend linearly; the last correction holds. Up to 32 points, including that anchor. Corrections follow source time through trims and stay in versions, backups and exports. Clearing them restores the measured path. Position, size and rotation blend between the same points. Rotation follows the chosen numeric angles; add intermediate points to control the turn. The mask does not deform to follow a changing pose.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                            Text("A first correction after the start adds a zero point at the original tracking start. The selected transition applies to all manual corrections on this mask; the last correction holds. Up to 32 points, including that anchor. Corrections follow source time through trims and stay in versions, backups and exports. Clearing them restores the measured path. Position, size and rotation blend between the same points. Rotation follows the chosen numeric angles; add intermediate points to control the turn. The mask does not deform to follow a changing pose.").font(.caption).foregroundStyle(StudioStyle.secondary)
                             if !valid {Text("This track no longer matches the crop or kept clip. Close this screen and track again.").font(.caption).foregroundStyle(.orange)}
                         }.padding(18).disabled(!valid || pool?.historyBusy == true)
                     }.frame(maxHeight:wide ? .infinity:300).frame(width:wide ? min(340,geometry.size.width*0.42):nil).background(StudioStyle.panel)
@@ -76,6 +90,13 @@ struct MaskCorrectionSheet:View {
             .onDisappear {session.end();onFinish(position.time)}
             .onChange(of:position.playing){_,value in if value {moving=false;session.end();dragStart=nil}}
             .onChange(of:phase){_,value in if value != .active {session.end();dragStart=nil}}
+    }
+    private var lastFrame:Double {max(range.lowerBound,range.upperBound-step)}
+    private var previousPoint:Double? {motion?.corrections?.last {$0.time<time-step*0.6 && $0.time>=range.lowerBound}?.time}
+    private var nextPoint:Double? {motion?.corrections?.first {$0.time>time+step*0.6 && $0.time<=range.upperBound}?.time}
+    private func navigationButton(_ title:String,icon:String,target:Double?)->some View {
+        Button {if let target {session.end();position.pause();position.seek(target,exact:true)}} label:{Image(systemName:icon).frame(minWidth:24,minHeight:24)}
+            .disabled(target == nil).accessibilityLabel(title)
     }
     private var canInsert:Bool {(motion?.corrections?.count ?? 0)<32 || point != nil}
     private var preview:some View {

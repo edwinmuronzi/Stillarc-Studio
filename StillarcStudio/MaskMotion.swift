@@ -8,12 +8,21 @@ struct MaskMotionPoint:Codable,Equatable,Sendable {
     var scale:Double? = nil
     var rotation:Double? = nil
 }
+enum MaskCorrectionBlend:String,Codable,CaseIterable,Sendable {
+    case linear, smooth, hold
+    var title:String {switch self {case .linear:"Linear";case .smooth:"Smooth";case .hold:"Hold"}}
+    func fraction(_ value:Double)->Double {
+        let t=min(1,max(0,value))
+        switch self {case .linear:return t;case .smooth:return t*t*(3-2*t);case .hold:return 0}
+    }
+}
 struct MaskMotion:Codable,Equatable,Sendable {
     var framing:String
     var start:Double
     var end:Double
     var points:[MaskMotionPoint]
     var corrections:[MaskMotionPoint]? = nil
+    var correctionBlend:MaskCorrectionBlend? = nil
     var pivotX:Double? = nil
     var pivotY:Double? = nil
     var sourceWidth:Double? = nil
@@ -42,7 +51,7 @@ struct MaskMotion:Codable,Equatable,Sendable {
         if time<=first.time {return result(first)};if time>=last.time {return result(last)}
         var low=0,high=values.count-1
         while high-low>1 {let mid=(low+high)/2;if values[mid].time<=time {low=mid} else {high=mid}}
-        let a=values[low],b=values[high],f=(time-a.time)/(b.time-a.time)
+        let a=values[low],b=values[high],f=(correctionBlend ?? .linear).fraction((time-a.time)/(b.time-a.time))
         return ((a.scale ?? 1)+((b.scale ?? 1)-(a.scale ?? 1))*f,(a.rotation ?? 0)+((b.rotation ?? 0)-(a.rotation ?? 0))*f)
     }
     func affine(at time:Double,extent:CGRect,center:CGPoint)->CGAffineTransform {
@@ -58,16 +67,16 @@ struct MaskMotion:Codable,Equatable,Sendable {
         return (base.x+correction.x,base.y+correction.y)
     }
     func correction(at time:Double) -> (x:Double,y:Double) {
-        Self.interpolate(corrections ?? [],at:time)
+        Self.interpolate(corrections ?? [],at:time,blend:correctionBlend ?? .linear)
     }
     func baseOffset(at time:Double) -> (x:Double,y:Double) { Self.interpolate(points,at:time) }
-    private static func interpolate(_ points:[MaskMotionPoint],at time:Double) -> (x:Double,y:Double) {
+    private static func interpolate(_ points:[MaskMotionPoint],at time:Double,blend:MaskCorrectionBlend = .linear) -> (x:Double,y:Double) {
         guard time.isFinite,let first = points.first,let last = points.last else { return (0,0) }
         if time<=first.time { return (first.x,first.y) }
         if time>=last.time { return (last.x,last.y) }
         var low = 0,high = points.count-1
         while high-low>1 { let mid = (low+high)/2;if points[mid].time<=time { low = mid } else { high = mid } }
-        let a = points[low],b = points[high],f = (time-a.time)/(b.time-a.time)
+        let a = points[low],b = points[high],f = blend.fraction((time-a.time)/(b.time-a.time))
         return (a.x+(b.x-a.x)*f,a.y+(b.y-a.y)*f)
     }
     // Corrections are independent of the measured path, so clearing them restores the analysis exactly.
@@ -106,6 +115,7 @@ extension MaskMotion {
         framing = try c.decode(String.self,forKey:.framing);start = try c.decode(Double.self,forKey:.start);end = try c.decode(Double.self,forKey:.end);points = try c.decode([MaskMotionPoint].self,forKey:.points)
         pivotX=try c.decodeIfPresent(Double.self,forKey:.pivotX);pivotY=try c.decodeIfPresent(Double.self,forKey:.pivotY)
         sourceWidth=try c.decodeIfPresent(Double.self,forKey:.sourceWidth);sourceHeight=try c.decodeIfPresent(Double.self,forKey:.sourceHeight)
+        correctionBlend = try c.decodeIfPresent(MaskCorrectionBlend.self,forKey:.correctionBlend)
         corrections = try c.decodeIfPresent([MaskMotionPoint].self,forKey:.corrections)
         if !isValid { points = [] }
         if !validCorrections { corrections = nil }

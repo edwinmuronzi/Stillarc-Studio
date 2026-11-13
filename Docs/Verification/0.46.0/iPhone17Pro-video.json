@@ -1,0 +1,19 @@
+{
+  "passed" : true,
+  "interpolationBoundsAndHolding" : true,
+  "projectVersionQueuePersistence" : true,
+  "resetPresetTransferIsolation" : true,
+  "HDRHeadroom" : true,
+  "sourceTimeTrim" : true,
+  "version" : "0.46.0",
+  "pixelExposureAndSingleApplication" : true,
+  "maskLookLUTFades" : true,
+  "videoOrientationAudio" : true,
+  "thermal" : 0,
+  "animatedBackupAndQueueExport" : true,
+  "previewExportErrors" : [
+    0.0014316141605377197,
+    0.00055783987045288086,
+    0.0024510622024536133
+  ]
+}

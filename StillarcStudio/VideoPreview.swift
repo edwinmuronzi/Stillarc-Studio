@@ -27,7 +27,7 @@ import CoreImage
     private var endObserver:NSObjectProtocol?
     private var statusObserver:NSKeyValueObservation?
     private var seeking = false
-    private var pendingSeek:Double?
+    private var pendingSeek:(time:Double,exact:Bool)?
     private var resumeAfterScrub = false
     private var observedItem:AVPlayerItem?
     init(url:URL,descriptor:VideoDescriptor) {
@@ -110,14 +110,14 @@ import CoreImage
     }
     func beginScrub() { resumeAfterScrub = playing;pause() }
     func endScrub() { if resumeAfterScrub && active { resumeAfterScrub = false;playing = true;player.play();startLink() } }
-    func seek(_ seconds:Double) {
-        time = min(selection.upperBound,max(selection.lowerBound,seconds));pendingSeek = time
+    func seek(_ seconds:Double,exact:Bool=false) {
+        time = min(selection.upperBound,max(selection.lowerBound,seconds));pendingSeek = (time,exact)
         advanceSeek()
     }
     private func advanceSeek() {
-        guard !seeking,let seconds = pendingSeek else { return }
+        guard !seeking,let request = pendingSeek else { return }
         pendingSeek = nil;seeking = true
-        player.seek(to:CMTime(seconds:seconds,preferredTimescale:600),toleranceBefore:CMTime(value:1,timescale:30),toleranceAfter:CMTime(value:1,timescale:30)) { [weak self] _ in
+        player.seek(to:CMTime(seconds:request.time,preferredTimescale:60000),toleranceBefore:request.exact ? .zero:CMTime(value:1,timescale:30),toleranceAfter:request.exact ? .zero:CMTime(value:1,timescale:30)) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return };self.seeking = false;self.requestFrame();self.advanceSeek()
             }
@@ -189,7 +189,7 @@ private struct VideoPreviewContent:View {
         .onChange(of:playback.time){_,value in position?.time=value}
         .onChange(of:playback.frameTime){_,value in if !playback.playing {position?.time=value}}
         .onChange(of:playback.playing){_,value in position?.playing=value;if !value {position?.time=playback.frameTime}}
-        .onChange(of:position?.seekToken){_,_ in if let position {playback.beginScrub();playback.seek(position.time);playback.endScrub()}}
+        .onChange(of:position?.seekToken){_,_ in if let position {playback.beginScrub();playback.seek(position.time,exact:position.exactSeek);playback.endScrub()}}
         .onChange(of:position?.pauseToken){_,_ in playback.pause()}
         .onChange(of:automaticReferenceIDs) { old,new in
             if new.contains(where:{ !old.contains($0) }) { playback.showAutomaticReferenceFrame() }

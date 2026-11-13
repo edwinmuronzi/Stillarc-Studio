@@ -75,3 +75,7 @@ Source-time video animation now covers exposure offsets and look/LUT/local-mask 
 
 
 **Original media recovery:** save a fingerprint of an available original, verify it later, or repair a missing/changed source with an exact matching file. Wrong files are rejected before replacement; project edits and versions stay intact. It runs only on request and uses bounded, thermal-aware streaming. Keep a full project backup as well; a fingerprint cannot recover bytes by itself.
+
+
+## Precise mask motion · 0.46
+Correction transition offers steady Linear movement, eased Smooth movement, or Hold until the next correction. Position, size and rotation share the selection, while measured tracking continues. Frame arrows pause and step nominal frames with exact seeks; correction arrows jump between points. Undo/Redo, saved versions and exports keep the transition. Existing projects remain Linear. No additional image-analysis work is introduced.

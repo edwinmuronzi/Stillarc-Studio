@@ -4,7 +4,7 @@ import CryptoKit
 struct ArchiveEntry:Codable,Sendable {var path:String;var bytes:UInt64;var sha256:String}
 struct ArchiveManifest:Codable,Sendable {
     var format=1
-    var minimumReader=50
+    var minimumReader=51
     var projects:[UUID]
     var entries:[ArchiveEntry]
     var totalBytes:UInt64 {entries.reduce(0){$0+$1.bytes}}
@@ -38,7 +38,7 @@ enum ProjectArchive {
         let length=lengthData.reduce(UInt64(0)){($0<<8)|UInt64($1)}
         guard length>0,length<=4_194_304,fileBytes>=UInt64(magic.count+8)+length else {throw fail("The backup header is invalid.")}
         let manifest=try JSONDecoder().decode(ArchiveManifest.self,from:readExactly(handle,Int(length)))
-        guard manifest.format==1,manifest.minimumReader<=50,manifest.minimumReader>=38 else {throw fail("Update Stillarc Studio to open this backup version.")}
+        guard manifest.format==1,manifest.minimumReader<=51,manifest.minimumReader>=38 else {throw fail("Update Stillarc Studio to open this backup version.")}
         guard !manifest.projects.isEmpty,manifest.projects.count<=20,Set(manifest.projects).count==manifest.projects.count,!manifest.entries.isEmpty,manifest.entries.count<=4096 else {throw fail("This backup exceeds supported project limits.")}
         var paths=Set<String>(),total:UInt64=0
         for entry in manifest.entries {
