@@ -94,10 +94,11 @@ enum ImageEngine {
         image = image.transformed(by: .init(translationX: -image.extent.minX, y: -image.extent.minY))
         return PreparedPhoto(image:image,width:nativeWidth,height:nativeHeight,isRAW:rawFile,signalImage:signal.map {$0.transformed(by:.init(translationX:-$0.extent.minX,y:-$0.extent.minY))},rawCapabilities:capabilities,rawApplied:raw,hdrApplied:hdr)
     }
-    static func apply(_ source: CIImage, recipe r: Recipe, rangePreview: ColorRange? = nil,preview:Bool = false) -> CIImage {
+    static func apply(_ source: CIImage, recipe r: Recipe, rangePreview: ColorRange? = nil,preview:Bool = false,stopBefore:SamplingStage? = nil) -> CIImage {
         var image = LogConversion.apply(PhotoRendering.optics(source,r.optics),input:r.input)
         func filter(_ name: String, _ values: [String: Any]) { image = image.applyingFilter(name, parameters: values) }
         if r.exposure != 0 { filter("CIExposureAdjust", [kCIInputEVKey: r.exposure]) }
+        if stopBefore == .whiteBalance {return PhotoFraming.apply(image,recipe:r)}
         if r.warmth != 0 || r.tint != 0 {
             filter("CITemperatureAndTint", ["inputNeutral": CIVector(x: 6500, y: 0), "inputTargetNeutral": CIVector(x: 6500 + r.warmth * 2400, y: r.tint * 100)])
         }
@@ -111,6 +112,7 @@ enum ImageEngine {
         if r.curveShadows != 0 || r.curveMidtones != 0 || r.curveHighlights != 0 || r.fade != 0 || r.whites != 0 || r.blacks != 0 {
             filter("CIToneCurve", ["inputPoint0": CIVector(x: 0, y: r.fade * 0.15 + r.blacks * 0.08), "inputPoint1": CIVector(x: 0.25, y: 0.25 + r.curveShadows * 0.15 + r.blacks * 0.04), "inputPoint2": CIVector(x: 0.5, y: 0.5 + r.curveMidtones * 0.2), "inputPoint3": CIVector(x: 0.75, y: 0.75 + r.curveHighlights * 0.15 + r.whites * 0.04), "inputPoint4": CIVector(x: 1, y: 1 + r.whites * 0.16)])
         }
+        if stopBefore == .levels {return PhotoFraming.apply(image,recipe:r)}
         image = LevelsRendering.apply(image,recipe:r)
         image = ColorPipeline.applyCurves(image,curves:r.rgbCurves)
         image = ColorPipeline.applySelective(image,adjustments:r.selectiveColors,wheels:r.colorWheels,mixer:r.channelMixer,warp:r.colorWarp,previewRange:rangePreview)

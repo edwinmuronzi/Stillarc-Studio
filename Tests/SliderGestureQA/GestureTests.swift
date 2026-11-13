@@ -569,6 +569,37 @@ final class GestureTests:XCTestCase {
         app.scrollViews.firstMatch.swipeUp();app.buttons["Open Studio sample"].tap()
         XCTAssertTrue(app.buttons["Film"].waitForExistence(timeout:15));XCTAssertEqual(app.buttons["Film"].value as? String,"Adjustments applied")
     }
+    func testWhiteBalanceAndLevelsPickers() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--point-picker-demo","--tool","Color"];app.launch()
+        XCTAssertTrue(app.buttons["White balance picker"].waitForExistence(timeout:30))
+        app.buttons["White balance picker"].tap()
+        let preview=app.descendants(matching:.any).matching(identifier:"pointSamplePreview").firstMatch
+        XCTAssertTrue(preview.waitForExistence(timeout:10))
+        preview.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).tap()
+        XCTAssertTrue(app.staticTexts["pointSampleResult"].waitForExistence(timeout:15))
+        app.buttons["Undo sampled adjustment"].tap();app.buttons["Redo sampled adjustment"].tap()
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Tap to set white balance";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Done"].tap();app.buttons["Curves"].tap();app.buttons["Levels"].tap()
+        app.buttons["Pick black point"].tap();XCTAssertTrue(preview.waitForExistence(timeout:10))
+        preview.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).tap();XCTAssertTrue(app.staticTexts["pointSampleResult"].waitForExistence(timeout:15))
+        app.buttons["Done"].tap()
+        app.buttons["Pick white point"].tap();XCTAssertTrue(preview.waitForExistence(timeout:10))
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer {XCUIDevice.shared.orientation = .portrait}
+        let layoutReady=expectation(for:NSPredicate {_,_ in
+            app.frame.width>app.frame.height && preview.frame.maxY<=app.frame.maxY && app.buttons["Done"].frame.maxX<=app.frame.maxX
+        },evaluatedWith:nil)
+        wait(for:[layoutReady],timeout:10)
+        XCTAssertTrue(app.buttons["Reset Levels"].waitForExistence(timeout:10));app.buttons["Reset Levels"].tap()
+        preview.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).tap()
+        XCTAssertTrue(app.staticTexts["pointSampleResult"].waitForExistence(timeout:15))
+        let wide=XCTAttachment(screenshot:XCUIScreen.main.screenshot());wide.name="Landscape Levels picker";wide.lifetime = .keepAlways;add(wide)
+        app.buttons["Done"].tap()
+        XCUIDevice.shared.orientation = .portrait
+        app.buttons["Export photo"].tap();app.buttons["Create export"].tap()
+        XCTAssertTrue(app.staticTexts["actualExportSize"].waitForExistence(timeout:30))
+    }
     func testCombinedLUTDetailsStrengthUndoAndExport() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments=["--demo-editor","--combined-lut-demo","--tool","Film"];app.launch()

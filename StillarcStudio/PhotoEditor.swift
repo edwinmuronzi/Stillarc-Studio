@@ -48,6 +48,7 @@ import UniformTypeIdentifiers
     @State private var export = false
     @State private var presets = false
     @State private var inputSheet = false
+    @State private var sampleTool:PointSampleTool?
     @State private var trimSheet = false
     @State private var reset = false
     @State private var numericEdit: NumericEdit?
@@ -220,6 +221,7 @@ import UniformTypeIdentifiers
         .sheet(item:$trackingMask) { mask in MaskTrackingSheet(session:session,maskID:mask.id) }
         .sheet(isPresented: $presets) { PresetsSheet(session: session,library: library) }
         .sheet(isPresented:$trimSheet) { VideoTrimSheet(session:session) }
+        .sheet(item:$sampleTool) {tool in PointSampleSheet(session:session,tool:tool,initialTime:videoPosition.time,undoAction:{undoEdit()},redoAction:{undoEdit(redo:true)})}
         .sheet(isPresented:$inputSheet) { InputConversionSheet(session:session) }
         .confirmationDialog("Reset all adjustments?",isPresented: $reset,titleVisibility: .visible) { Button("Reset adjustments",role: .destructive) { session.change { $0 = Recipe() } } } message: { Text("You can undo this. The original is always preserved.") }
         .alert(numericEdit.map { "Set \($0.name.lowercased())" } ?? "Set value",isPresented: Binding(get: { numericEdit != nil },set: { if !$0 { numericEdit = nil } })) {
@@ -468,9 +470,9 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,viewport:tool == .masks ? maskViewport:MaskViewport(),position:videoPosition)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,viewport:tool == .masks ? maskViewport:MaskViewport(),position:videoPosition)
                         } else {
-                            LivePreview(source:PhotoRendering.rawPreview(source,recipe:session.recipe),recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && !retouchSheet && !detailSheet && !backgroundSheet && !photoDevelopment && transferSheet == nil && trackingMask == nil && correctionMask == nil && automaticTarget == nil,hdr:session.recipe.photoHDR == true && !sdrProof,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview).modifier(MaskViewportModifier(viewport:tool == .masks ? maskViewport:MaskViewport()))
+                            LivePreview(source:PhotoRendering.rawPreview(source,recipe:session.recipe),recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !export && !presets && !versionsSheet && !retouchSheet && !detailSheet && !backgroundSheet && !photoDevelopment && transferSheet == nil && trackingMask == nil && correctionMask == nil && automaticTarget == nil,hdr:session.recipe.photoHDR == true && !sdrProof,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview).modifier(MaskViewportModifier(viewport:tool == .masks ? maskViewport:MaskViewport()))
                         }
                     }
                         .padding(tool == .crop ? (cropDisplayFinal ? 8 : 22) : 0)
@@ -544,7 +546,7 @@ import UniformTypeIdentifiers
             }.coordinateSpace(name:"comparisonPreview").frame(width: geometry.size.width,height: geometry.size.height).clipped().contentShape(Rectangle())
         }
     }
-    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil && !inputSheet }
+    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil && !inputSheet }
     @ViewBuilder private var scopePanel:some View {
         if scopesVisible && tool != .crop { ScopePanel(sampler:scopeSampler,mode:$scopeMode) }
     }
@@ -629,6 +631,7 @@ import UniformTypeIdentifiers
                     DisclosureGroup("Levels") {
                         VStack(spacing:18) {
                             Text("Set which tones become black or white. Midtones brightens or darkens the tones between them. Output limits soften the darkest or brightest result.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                            HStack {Button("Pick black point",systemImage:"eyedropper"){sampleTool = .blackPoint};Spacer();Button("Pick white point",systemImage:"eyedropper"){sampleTool = .whitePoint}}.font(.caption)
                             adjustment("Input black",key:\.levelBlack,range:0...min(0.95,max(0.01,session.recipe.levelWhite-0.01)))
                             adjustment("Input white",key:\.levelWhite,range:max(0.05,min(0.99,session.recipe.levelBlack+0.01))...1,defaultValue:1)
                             adjustment("Midtones",key:\.levelGamma,range:0.2...3,defaultValue:1)
@@ -871,6 +874,7 @@ import UniformTypeIdentifiers
             Button("Color Warp",systemImage:"point.3.connected.trianglepath.dotted"){warpSheet=true}.font(.caption).accessibilityIdentifier("openColorWarp")
             if colorPanel == .global {
                 if session.recipe.matchGrade?.isNeutral == false {Button("Reference match active · adjust"){referenceSheet=true}.font(.caption)}
+                Button("White balance picker",systemImage:"eyedropper"){sampleTool = .whiteBalance}.font(.caption)
                 adjustment("Warmth",key: \.warmth)
                 adjustment("Tint",key: \.tint)
                 adjustment("Saturation",key: \.saturation)

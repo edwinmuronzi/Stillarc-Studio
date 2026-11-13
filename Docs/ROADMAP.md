@@ -177,3 +177,7 @@ Manual mask corrections gain a per-mask Linear/Smooth/Hold transition across pos
 
 ### 0.47 checkpoint
 Combined Resolve-style creative .cube files retain original 1D shaper and red-fastest 3D samples as one Film asset. Separate stage ranges, one strength/bypass blend and display-sRGB transfer around the complete pair are shared by photo/video/queued exports, versions, presets and colour-LUT baking. Standalone identities remain compatible. Schema-8 presets, reader-build-52 packages and queue schema 9 protect older readers. Arbitrary technical working/output spaces, Camera/Studio shared presets and temporal matting remain separate candidates. No timeline/beta/store work.
+
+
+### 0.48 checkpoint — two workflow batches
+White-balance patch sampling solves the existing bounded Warmth/Tint controls; Levels black/white-point sampling writes the existing input endpoints. Large adaptive preview sheets freeze the selected video frame, average a small source patch before the appropriate stage, validate unreliable/crossed samples, and support normal source/pool history. Request-only worker sampling cancels on disappearance/inactivity and rejects stale recipes. The main preview and scopes pause behind the picker. Existing persisted field formats and source/colour export paths are unchanged. Arbitrary working/output spaces, Camera/Studio shared looks and temporal matting remain separate candidates.

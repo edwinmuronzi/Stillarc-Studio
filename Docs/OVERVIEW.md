@@ -1,4 +1,9 @@
-# Stillarc Studio · 0.47
+# Stillarc Studio · 0.48
+
+## White balance & Levels pickers · 0.48
+
+Tap a neutral surface to set Warmth and Tint together, or pick the black/white points directly from a large preview. Both workflows use averaged patches, Undo/Redo and existing adjustment controls, with work only when you tap. [How to use both pickers](POINT-PICKERS-048.md).
+
 
 ## Combined LUTs · 0.47
 

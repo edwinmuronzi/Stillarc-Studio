@@ -35,6 +35,7 @@ enum VideoAnimationVerification {
         let descriptor=try await VideoEngine.describe(movie)
         var video=Recipe();video.video.start=0.2;video.video.end=1.4;video.rotation=1;video.look = .daylight;video.lookAmount=0.8
         video.lut=try CombinedLUTVerification.example();video.lutAmount=0.25;video.lutLayers=[LUTLayer(asset:try OneDLUTVerification.example(),amount:0.2)];video.rgbCurves.red.nodes=[CurveNode(x:0,y:0),CurveNode(x:0.2,y:0.25),CurveNode(x:1,y:1)]
+        video.warmth=0.12;video.tint = -0.1;video.levelBlack=0.02;video.levelWhite=0.95
         var mask=LocalMask(kind:.radial);mask.exposure=0.4
         mask.motion=MaskMotion(framing:MaskMotion.signature(video),start:0,end:2,points:[.init(time:0,x:0,y:0),.init(time:2,x:0.1,y:0)])
         mask.motion?.correctionBlend = .smooth

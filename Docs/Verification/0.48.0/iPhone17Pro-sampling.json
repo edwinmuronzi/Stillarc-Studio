@@ -1,0 +1,11 @@
+{
+  "invalidSamplesRejected" : true,
+  "patchAndOrientation" : true,
+  "legacyRecipePersistence" : true,
+  "passed" : true,
+  "stagesCropHDR" : true,
+  "maxNeutralError" : 0.0078025930561125278,
+  "levelsEndpointsAndPreservation" : true,
+  "version" : "0.48.0",
+  "elapsedMilliseconds" : 124.66001510620117
+}
