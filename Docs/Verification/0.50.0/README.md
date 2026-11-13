@@ -1,5 +1,7 @@
 # Studio 0.50.0 (55) verification
 
+**Resumed native checks are now complete and passed.** The final resumed results below supersede the earlier incomplete attempts for this bounded workload. Older-device and difficult real-footage coverage remain open.
+
 ## Completed checks
 
 Simulator colour delivery passed after correcting remembered sRGB default normalization (explicit persisted sRGB is canonicalized to the same nil/default representation used by UI settings). Tagged Display P3 PNG/JPEG reopened into the same linear working space matched the neutral preview within the 0.02 test tolerance. RAW/Log, HDR/SDR video, audio/trim/orientation, queue, project archive, pool sync undo/redo, cutout history and broad core regressions passed. Some historical suites retain their original hard-coded report version; these were rerun from the current build.
@@ -23,3 +25,13 @@ Only the iPhone 17 Pro is available. More physical devices, difficult real movin
 Native 17 Pro colour-delivery and mask-pose reports subsequently passed on 0.50.0. The attempted People-model run returned “No clear person was found, or reading was interrupted”; it is not a pass and is retained as a validation gap. The longer preview produced no current-version report before the isolated retry.
 
 A later isolated native tracking-recovery diagnostic was attempted with People inference skipped, but no completed report was available before final installation. The corresponding simulator Vision check passed; physical loss-recovery remains unverified in this session.
+
+## Resumed native verification
+
+With Studio visible/unlocked, the current 0.50.0 native finishing check passed: 210/210 People frames over seven seconds (9,704,388 saved matte bytes), Faces/Facial skin coverage, cancellation, rectangle/object size and rotation, actual disappearing-target recovery and held reliable pose. All colour-space, source-time crop/trim, encoded background replacement and archive checks passed in the same run. iOS reported nominal thermal status (0) at report completion. The earlier failed/incomplete attempts above are retained as session history and are superseded for these specific checks. The source remains an animated public portrait and synthetic target, not difficult real hair/occlusion footage.
+
+### Completed sustained preview
+
+The resumed physical 17 Pro run passed on 0.50.0: **195.71 seconds**, 5,400 requested updates, 5,634 rendered / 5,633 decoded frames, 300 changing saved matte frames, HDR, three LUT layers (including 4,096-point shapers), four flexible curve channels and four masks. Render p95 was **24.06 ms**. GPU failures, additional playback inference, idle renders and hidden scope jobs were all zero. iOS thermal start/peak/end were **0/0/0 (nominal)**. Process footprint start/peak/end was **134.8/224.7/124.2 MB**. Scopes and live brush painting were disabled in this particular animation workload. These measurements are not a guarantee of zero physical warmth, sustained frame rate or battery life on every device or edit.
+
+The signed 0.50.0 (55) Release artifact was restored after diagnostics, leaving the ordinary Studio interface available. No production code changed during the resumed checks.
