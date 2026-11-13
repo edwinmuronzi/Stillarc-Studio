@@ -141,3 +141,7 @@ Tracked video masks gain up to 32 manual source-time position corrections, a liv
 
 ### 0.38 checkpoint
 Masks gains preview-only 1–6× zoom/pan, fitted source-coordinate painting/shape positioning, fixed-size video transport and a visible Done brushing return to View/playback. Subject analysis adds one tapped instance and accurate People matting; stored masks remain the existing format. Detailed Vision tracking is the default, with Efficient available and a subject-matte suggested target box. Inference remains request-only; no new per-frame model runs or image grading pass. Position tracking does not deform a changing subject. Shape/scale tracking, temporally stable video matting, source relinking and shared Camera/Studio look interchange remain later work.
+
+
+### 0.39 checkpoint
+Reusable look management gains favourites, named collections, search/filter/sort and manual library order, available from Home and the editor. A separate small metadata index avoids rewriting LUTs for organisation changes. Bounded, cancelable .studiolooks library backup/import includes self-contained presets and organisation, splits by count/bytes into numbered parts, preserves existing records and skips exact duplicates. It is separate from source/project backups and does not establish Camera/Studio look interchange. Source relinking, additional camera transforms and temporally stable video matting remain later work; no timeline/beta/store work is included.

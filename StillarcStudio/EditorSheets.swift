@@ -123,6 +123,9 @@ private struct ColorLUTRequest:Identifiable { let id = UUID();let recipe:Recipe 
     @Environment(\.dismiss) private var dismiss
     @Bindable var session: EditSession
     @Bindable var library: StudioLibrary
+    @State private var librarySheet=false
+    @State private var favoritesOnly=false
+    @State private var collectionFilter:String?
     @State private var naming = false
     @State private var name = ""
     @State private var importing = false
@@ -135,13 +138,13 @@ private struct ColorLUTRequest:Identifiable { let id = UUID();let recipe:Recipe 
     @State private var renameText = ""
     @State private var colorLUTRequest:ColorLUTRequest?
     private var visibleLooks:[SavedLook] {
-        let q = query.trimmingCharacters(in:.whitespacesAndNewlines)
-        return q.isEmpty ? library.looks : library.looks.filter { $0.name.localizedCaseInsensitiveContains(q) }
+        LookQuery.filtered(library.looks,text:query,favorites:favoritesOnly,collection:collectionFilter,sort:.manual)
     }
     var body: some View {
         NavigationStack {
             List {
                 Section {
+                    Button("Manage look library",systemImage:"folder"){librarySheet=true}.accessibilityIdentifier("manageLookLibrary")
                     Button { naming = true } label: { Label("Save current adjustments",systemImage: "plus.circle") }
                     Button { importingLUT = true } label: { Label("Import .cube LUT",systemImage:"cube.transparent") }.disabled(loadingLUT)
                     if loadingLUT { ProgressView("Preparing LUT…") }
@@ -149,13 +152,15 @@ private struct ColorLUTRequest:Identifiable { let id = UUID();let recipe:Recipe 
                     Button { importing = true } label: { Label("Import Studio preset",systemImage: "square.and.arrow.down") }
                 } footer: { Text("Presets save light, color, film and the LUT itself. Input conversion, crop and rotation stay with the source. Import a display-sRGB LUT, then adjust its strength under Film.") }
                 Section("Your presets") {
+                    HStack {Menu {Button("All collections"){collectionFilter=nil};ForEach(LookQuery.collections(library.looks),id:\.self){name in Button(name){collectionFilter=name}}} label:{Label(collectionFilter ?? "All collections",systemImage:"folder")};Spacer();Button {favoritesOnly.toggle()} label:{Image(systemName:favoritesOnly ? "star.fill":"star")}.accessibilityLabel("Show favourite presets").accessibilityValue(favoritesOnly ? "On":"Off")}
+
                     if library.looks.isEmpty { Text("Your signature looks will live here.").foregroundStyle(StudioStyle.secondary) }
                     ForEach(visibleLooks) { look in
                         HStack {
                             Button {
                                 session.change { recipe in let framing = recipe; recipe = look.recipe; recipe.copyFraming(from: framing); recipe.input = framing.input;recipe.video = framing.video;recipe.masks = framing.masks;recipe.videoAnimation=framing.videoAnimation }
                                 dismiss()
-                            } label: { Label(look.name,systemImage: "camera.filters").foregroundStyle(.white) }
+                            } label: { Label(look.name,systemImage:look.organization?.favorite == true ? "star.fill":"camera.filters").foregroundStyle(.white) }
                             Spacer()
                             Menu {
                                 Button("Rename preset",systemImage:"pencil") { renameText = look.name;renameLook = look }
@@ -173,6 +178,7 @@ private struct ColorLUTRequest:Identifiable { let id = UUID();let recipe:Recipe 
                 if let error { Section { Text(error).foregroundStyle(.orange) } }
             }.disabled(library.looksBusy).searchable(text:$query,prompt:"Search presets and LUTs").scrollContentBackground(.hidden).background(StudioStyle.ink).navigationTitle("Your looks").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { dismiss() }.disabled(loadingLUT) }
                 .interactiveDismissDisabled(loadingLUT)
+                .sheet(isPresented:$librarySheet){LookLibrarySheet(library:library)}
                 .sheet(item:$colorLUTRequest) { request in ColorLUTExportSheet(recipe:request.recipe) }
                 .alert("Rename preset",isPresented:Binding(get:{ renameLook != nil },set:{ if !$0 { renameLook = nil } })) {
                     TextField("Preset name",text:$renameText)

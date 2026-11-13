@@ -1,0 +1,22 @@
+{
+  "conflictsAddCopies" : true,
+  "metadataOrderReopen" : true,
+  "numberedParts" : 2,
+  "elapsedSeconds" : 3.0079569816589355,
+  "version" : "0.39.0",
+  "canceledExport" : true,
+  "duplicatesSkipped" : true,
+  "legacyMigration" : true,
+  "malformedAndFutureRejected" : true,
+  "thermalEnd" : 0,
+  "metadataEdits" : 31,
+  "byteLimitedParts" : 2,
+  "LUTAndOrganizationRoundTrip" : true,
+  "sourceSpecificEditsExcluded" : true,
+  "renderGradeUnchanged" : true,
+  "metadataDoesNotRewriteLUTs" : true,
+  "filtersAndSearch" : true,
+  "cancellation" : true,
+  "thermalStart" : 0,
+  "passed" : true
+}

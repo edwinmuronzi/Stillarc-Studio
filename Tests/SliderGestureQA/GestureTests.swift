@@ -1,5 +1,48 @@
 import XCTest
 final class GestureTests:XCTestCase {
+    func testLookLibraryFavoritesCollectionsAndReopen() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--look-library-ui-test"];app.launch()
+        let home=app.buttons["homeLookLibrary"];XCTAssertTrue(home.waitForExistence(timeout:30));home.tap()
+        let star=app.buttons["Favourite QA Library Amber"];XCTAssertTrue(star.waitForExistence(timeout:10));star.tap()
+        let marked=expectation(for:NSPredicate {_,_ in star.value as? String == "On"},evaluatedWith:nil);wait(for:[marked],timeout:5)
+        let collectionControl=app.descendants(matching:.any).matching(identifier:"lookCollectionFilter").firstMatch
+        for _ in 0..<12 {if collectionControl.exists && collectionControl.isHittable {break};app.swipeDown()}
+        app.buttons["favoriteLooksFilter"].tap();XCTAssertFalse(app.buttons["Select look QA Library Blue"].exists);app.buttons["favoriteLooksFilter"].tap()
+        app.buttons["Library options QA Library Amber"].tap();app.buttons["Collection"].tap();app.buttons["New collection…"].tap()
+        app.alerts.textFields.firstMatch.tap();app.alerts.textFields.firstMatch.typeText("Portraits");app.alerts.buttons["Save"].tap()
+        for _ in 0..<12 {if collectionControl.exists && collectionControl.isHittable {break};app.swipeDown()}
+        app.descendants(matching:.any).matching(identifier:"lookCollectionFilter").firstMatch.tap();app.buttons["Portraits"].tap()
+        XCTAssertTrue(app.buttons["Select look QA Library Amber"].exists);XCTAssertFalse(app.buttons["Select look QA Library Blue"].exists)
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Look library favourites and collections";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["closeLookLibrary"].tap();app.terminate();app.launchArguments=[];app.launch();XCTAssertTrue(home.waitForExistence(timeout:20));home.tap()
+        XCTAssertEqual(app.buttons["Favourite QA Library Amber"].value as? String,"On")
+        app.descendants(matching:.any).matching(identifier:"lookCollectionFilter").firstMatch.tap();XCTAssertTrue(app.buttons["Portraits"].exists);app.buttons.matching(identifier:"All collections").allElementsBoundByIndex.last!.tap();app.buttons["closeLookLibrary"].tap()
+    }
+    func testLookLibraryBackupAndDuplicateImport() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--look-library-ui-test"];app.launch();XCTAssertTrue(app.buttons["homeLookLibrary"].waitForExistence(timeout:30));app.buttons["homeLookLibrary"].tap()
+        let backup=app.buttons["backupAllLooks"]
+        for _ in 0..<12 {if backup.exists && backup.isHittable {break};app.swipeUp()}
+        XCTAssertTrue(backup.waitForExistence(timeout:10));backup.tap()
+        let share=app.buttons["shareLookLibrary"],testImport=app.buttons["importTestLookLibrary"]
+        var n=0;while (!testImport.exists || !testImport.isHittable) && n<8 {app.swipeUp();n+=1}
+        XCTAssertTrue(share.waitForExistence(timeout:30));XCTAssertTrue(testImport.waitForExistence(timeout:10));testImport.tap()
+        let status=app.staticTexts.matching(NSPredicate(format:"label BEGINSWITH %@","Imported 0 looks; skipped")).firstMatch
+        for _ in 0..<8 {if status.exists {break};app.swipeUp()}
+        XCTAssertTrue(status.waitForExistence(timeout:20))
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Portable library duplicate-safe import";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["closeLookLibrary"].tap()
+    }
+    func testLookLibraryOrderAndEditorAccess() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--look-library-ui-test"];app.launch();XCTAssertTrue(app.buttons["homeLookLibrary"].waitForExistence(timeout:30));app.buttons["homeLookLibrary"].tap()
+        let amber=app.buttons["Select look QA Library Amber"],blue=app.buttons["Select look QA Library Blue"]
+        XCTAssertTrue(amber.waitForExistence(timeout:10));app.buttons["Library options QA Library Amber"].tap();app.buttons["Move down"].tap()
+        let reordered=expectation(for:NSPredicate {_,_ in amber.frame.midY>blue.frame.midY},evaluatedWith:nil);wait(for:[reordered],timeout:5)
+        app.buttons["closeLookLibrary"].tap();app.buttons["Explore the editor"].tap();XCTAssertTrue(app.buttons["Looks"].waitForExistence(timeout:30));app.buttons["Looks"].tap();app.buttons["Looks & presets"].tap()
+        XCTAssertTrue(app.buttons["manageLookLibrary"].waitForExistence(timeout:10));app.buttons["manageLookLibrary"].tap();XCTAssertTrue(app.buttons["closeLookLibrary"].waitForExistence(timeout:10));app.buttons["closeLookLibrary"].tap()
+    }
     func testPhotoMaskZoomStrokeUndo() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         XCUIDevice.shared.orientation = .portrait

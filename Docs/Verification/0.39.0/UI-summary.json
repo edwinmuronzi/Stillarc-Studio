@@ -1,0 +1,26 @@
+{
+  "passed": true,
+  "workflows": [
+    {
+      "name": "LookLibraryFavoritesCollectionsAndReopen",
+      "device": "iPhone 13 mini simulator",
+      "passed": true
+    },
+    {
+      "name": "LookLibraryOrderAndEditorAccess",
+      "device": "iPhone 13 mini simulator",
+      "passed": true
+    },
+    {
+      "name": "LookLibraryBackupAndDuplicateImport",
+      "device": "iPhone 13 mini simulator",
+      "passed": true
+    },
+    {
+      "name": "LookLibraryBackupAndDuplicateImport",
+      "device": "iPhone 18 Pro simulator",
+      "passed": true
+    }
+  ],
+  "retestNotes": "Home banner hit-test bounds fixed and retested. XCTest queries were updated to disambiguate duplicate menu/list labels and scroll lazy List controls/status into view. Final individual workflows passed."
+}

@@ -1,0 +1,20 @@
+{
+  "thermalEnd" : 0,
+  "renderGradeUnchanged" : true,
+  "duplicatesSkipped" : true,
+  "byteLimitedParts" : 2,
+  "elapsedSeconds" : 0.45240402221679688,
+  "metadataEdits" : 31,
+  "malformedAndFutureRejected" : true,
+  "LUTAndOrganizationRoundTrip" : true,
+  "cancellation" : true,
+  "legacyMigration" : true,
+  "numberedParts" : 2,
+  "version" : "0.39.0",
+  "passed" : true,
+  "thermalStart" : 0,
+  "filtersAndSearch" : true,
+  "metadataDoesNotRewriteLUTs" : true,
+  "conflictsAddCopies" : true,
+  "metadataOrderReopen" : true
+}

@@ -35,7 +35,7 @@ actor ProjectVault {
         do { _ = try deletedProjects() } catch { recoveryMessages.append("Recently Deleted could not be checked: "+error.localizedDescription) }
         let projects = (try? FileManager.default.contentsOfDirectory(at:root,includingPropertiesForKeys:nil))?.filter { $0.pathExtension == "json" && $0.lastPathComponent != "looks.json" && $0.lastPathComponent != "adjustments-clipboard.json" }.compactMap { recoverableProject($0) } ?? []
         organizations = Dictionary(projects.map { ($0.id,OrganizationSnapshot(value:$0.organization)) },uniquingKeysWith:{ a,_ in a })
-        let looks = recoveredLooks()
+        let looks = organizedLooks(recoveredLooks())
         return (projects.sorted { $0.modified > $1.modified }, looks)
     }
     func source(_ project: Project) -> URL { root.appendingPathComponent(project.id.uuidString, isDirectory: true).appendingPathComponent(project.sourceName) }
@@ -186,7 +186,7 @@ actor ProjectVault {
     }
     @discardableResult func saveLook(name: String, recipe: Recipe) async -> Bool {
         guard !looksBusy else { return false };looksBusy = true;defer { looksBusy = false }
-        let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleaned = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(100))
         guard !cleaned.isEmpty else { return false }
         let updated = looks + [SavedLook(name: cleaned, recipe: recipe.colorPreset)]
         do { try await vault.saveLooks(updated); looks = updated; return true } catch { self.error = error.localizedDescription; return false }

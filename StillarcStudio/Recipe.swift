@@ -179,8 +179,9 @@ struct SavedLook: Identifiable, Codable, Sendable {
     var id = UUID()
     var name: String
     var recipe: Recipe
+    var organization:LookOrganization? = nil
 }
-struct PresetDocument: Codable {
+struct PresetDocument: Codable, Sendable {
     var schema = 1
     var name: String
     var recipe: Recipe

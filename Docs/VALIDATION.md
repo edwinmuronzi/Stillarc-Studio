@@ -1,3 +1,7 @@
+## 0.39.0, build 43 — Look library
+
+Native library/preset compatibility, embedded LUT round-trip, metadata-only writes, split packages, duplicate handling, cancellation and rendering equivalence passed. Compact core and interaction checks cover organisation, reopening and both entry points. Native preview/export regression passed; sustained preview rendered 1,896 frames with 25.25 ms p95 GPU completion, zero failures/idle frames and nominal sampled thermal state throughout. [Reports and limits](Verification/0.39.0/README.md).
+
 ## 0.38.0, build 42 — Precision masks
 
 Native zoom-coordinate/export alignment, tapped-subject and People inference, detailed portrait/landscape tracking and animated delivery regressions passed. Three UI workflows passed with a compact repeat, including a fixed high-zoom photo touch interaction. The sustained zoom run rendered 1,891 frames with 24.65 ms p95 GPU completion, zero failures/idle frames and nominal sampled thermal state throughout. [Reports and limits](Verification/0.38.0/README.md).

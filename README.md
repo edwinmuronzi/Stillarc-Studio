@@ -4,7 +4,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.38 precision-masking milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.39 look-library milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -378,3 +378,14 @@ Corrections survive saved projects/versions, backups and direct/queued video exp
 - **Detailed tracking:** higher-accuracy position analysis is now the default, with an Efficient option. A Subject mask suggests a target box from its saved selection. Review the box before analyzing; poor texture, occlusion or shape changes still need review and Correct tracking.
 
 All selection/tracking analysis remains request-only, local and cancelable. Playback reuses saved masks and motion; it does not continuously run segmentation. Video still uses a selection made from the first kept frame plus position tracking/corrections, not changing-pose frame-by-frame matting. Source data remains compatible with build 41.
+
+
+### Organize and back up your looks (0.39)
+
+Open **Look library** using the filter-shaped button beside Info on Home, or **Looks & presets → Manage look library** inside an editor. Star favourites, assign a collection from a look’s menu, and search by name or collection. Use Name, Reverse order or Library order. Move up/down changes Library order when filters are clear. Favourites and collection filters are also available when applying presets in the editor.
+
+Tap rows to choose looks, or Select visible to include the current filtered results. **Library → Back up selected / Back up all looks** creates portable `.studiolooks` files. Use **Save / share library → Save to Files** to keep them; creating a temporary package alone is not a saved backup. Large libraries split at 64 presets or 32 MiB per file, with `part-of-total` filenames. Save every part and import them one at a time.
+
+Backups contain reusable grades, embedded LUTs, favourite/collection information and their saved order. They do not include source photos/videos, masks, source input conversion, project framing, tracking, animation, versions or app preferences. Use project backups for editable media. Imported looks are added in file order; existing looks/order are kept and exact duplicates are skipped. A conflicting grade or organisation is imported as a separate look. New look-library files require Studio build 43 or later; single-preset JSON export remains available.
+
+Favourite/collection/order changes write a small atomic metadata index, rather than encoding LUT data again. Library packaging and decoding run off the UI actor, with cancellation before import commits. Playback stays paused behind the editor’s preset sheet; this batch adds no grading stage or continuous analysis.

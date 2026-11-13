@@ -67,6 +67,7 @@ enum StudioStyle {
     @State private var recovery = false
     @State private var emptyBinRequested=false
     @State private var files = false
+    @State private var lookLibrary=false
     @State private var info = false
     @State private var deletion: Project?
     @State private var deleteIDs = Set<UUID>()
@@ -93,6 +94,7 @@ enum StudioStyle {
                             Text("Studio").font(.system(size: 27,weight: .semibold))
                         }
                         Spacer()
+                        Button {lookLibrary=true} label:{Image(systemName:"camera.filters").font(.title3).frame(width:44,height:44).background(.white.opacity(0.06),in:Circle())}.accessibilityLabel("Look library").accessibilityIdentifier("homeLookLibrary")
                         Button { info = true } label: { Image(systemName: "info.circle").font(.title3).frame(width: 44,height: 44).background(.white.opacity(0.06),in: Circle()) }.accessibilityLabel("About Stillarc Studio")
                     }
                     hero
@@ -188,7 +190,7 @@ enum StudioStyle {
             .task {
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("--privacy-demo") { ExportPrivacy().save() }
-                let qa = ProcessInfo.processInfo.arguments.contains("--verify-mask-precision") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-corrections") || ProcessInfo.processInfo.arguments.contains("--verify-video-animation") || ProcessInfo.processInfo.arguments.contains("--verify-live-archive-paths") || ProcessInfo.processInfo.arguments.contains("--verify-export-queue") || ProcessInfo.processInfo.arguments.contains("--verify-archive-performance") || ProcessInfo.processInfo.arguments.contains("--verify-project-archive") || ProcessInfo.processInfo.arguments.contains("--verify-color-delivery") || ProcessInfo.processInfo.arguments.contains("--verify-reference-match") || ProcessInfo.processInfo.arguments.contains("--verify-photo-development") || ProcessInfo.processInfo.arguments.contains("--verify-cutout-history") || ProcessInfo.processInfo.arguments.contains("--verify-pool") || ProcessInfo.processInfo.arguments.contains("--verify-real-video") || ProcessInfo.processInfo.arguments.contains("--verify-real-media") || ProcessInfo.processInfo.arguments.contains("--verify-refinement") || ProcessInfo.processInfo.arguments.contains("--verify-color-batch") || ProcessInfo.processInfo.arguments.contains("--verify-export-privacy") || ProcessInfo.processInfo.arguments.contains("--verify-video-suite") || ProcessInfo.processInfo.arguments.contains("--verify-studio") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") || ProcessInfo.processInfo.arguments.contains("--verify-automatic-only")
+                let qa = ProcessInfo.processInfo.arguments.contains("--verify-look-library") || ProcessInfo.processInfo.arguments.contains("--verify-mask-precision") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-corrections") || ProcessInfo.processInfo.arguments.contains("--verify-video-animation") || ProcessInfo.processInfo.arguments.contains("--verify-live-archive-paths") || ProcessInfo.processInfo.arguments.contains("--verify-export-queue") || ProcessInfo.processInfo.arguments.contains("--verify-archive-performance") || ProcessInfo.processInfo.arguments.contains("--verify-project-archive") || ProcessInfo.processInfo.arguments.contains("--verify-color-delivery") || ProcessInfo.processInfo.arguments.contains("--verify-reference-match") || ProcessInfo.processInfo.arguments.contains("--verify-photo-development") || ProcessInfo.processInfo.arguments.contains("--verify-cutout-history") || ProcessInfo.processInfo.arguments.contains("--verify-pool") || ProcessInfo.processInfo.arguments.contains("--verify-real-video") || ProcessInfo.processInfo.arguments.contains("--verify-real-media") || ProcessInfo.processInfo.arguments.contains("--verify-refinement") || ProcessInfo.processInfo.arguments.contains("--verify-color-batch") || ProcessInfo.processInfo.arguments.contains("--verify-export-privacy") || ProcessInfo.processInfo.arguments.contains("--verify-video-suite") || ProcessInfo.processInfo.arguments.contains("--verify-studio") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") || ProcessInfo.processInfo.arguments.contains("--verify-automatic-only")
                 let oldIdle = UIApplication.shared.isIdleTimerDisabled
                 if qa { UIApplication.shared.isIdleTimerDisabled = true }
                 defer { if qa { UIApplication.shared.isIdleTimerDisabled = oldIdle } }
@@ -218,6 +220,7 @@ enum StudioStyle {
                     do { let report = try await Task.detached { try await TrackingVerification.video() }.value;try JSONSerialization.data(withJSONObject:report,options:.prettyPrinted).write(to:reportURL,options:.atomic) }
                     catch { try? JSONSerialization.data(withJSONObject:["passed":false,"error":error.localizedDescription],options:.prettyPrinted).write(to:reportURL,options:.atomic) }
                 }
+                if ProcessInfo.processInfo.arguments.contains("--verify-look-library"){await LookLibraryVerification.writeReport()}
                 if ProcessInfo.processInfo.arguments.contains("--verify-mask-precision"){await MaskPrecisionVerification.writeReport()}
                 if ProcessInfo.processInfo.arguments.contains("--verify-tracking-corrections"){await TrackingVerification.writeCorrectionReport()}
                 if ProcessInfo.processInfo.arguments.contains("--verify-video-animation"){await VideoAnimationVerification.writeReport()}
@@ -274,6 +277,10 @@ enum StudioStyle {
                     }
                 }
                 if ProcessInfo.processInfo.arguments.contains("--video-demo"),let url = try? await VideoFixtures.make(profile:.standard,frames:90) { selected = await library.add(url);try? FileManager.default.removeItem(at:url.deletingLastPathComponent()) }
+                if ProcessInfo.processInfo.arguments.contains("--look-library-ui-test") {
+                    let old=library.looks.filter {$0.name.hasPrefix("QA Library ")};for look in old {await library.removeLook(look)}
+                    _ = await library.saveLook(name:"QA Library Amber",recipe:Recipe());_ = await library.saveLook(name:"QA Library Blue",recipe:Recipe())
+                }
                 if ProcessInfo.processInfo.arguments.contains("--archive-ui-test") {_ = await addDemo()}
                 if ProcessInfo.processInfo.arguments.contains("--demo-editor"), let project = await addDemo() { selected = project }
                 #endif
@@ -292,6 +299,7 @@ enum StudioStyle {
             .fullScreenCover(item: $selected) { project in PhotoEditor(project: project, library: library) }
             .sheet(isPresented:$queueSheet){ExportQueueSheet(queue:library.exportQueue)}
             .fullScreenCover(isPresented:$archives){ProjectArchiveSheet(library:library,initialSelection:archiveIDs)}
+            .sheet(isPresented:$lookLibrary){LookLibrarySheet(library:library)}
             .sheet(isPresented:$info) { StudioAbout() }
             .sheet(isPresented:$recovery,onDismiss:{emptyBinRequested=false}) { RecentlyDeletedSheet(library:library,requestEmpty:emptyBinRequested) }
             .sheet(item:$copyProject) { project in HomeCopyAdjustmentsSheet(project:project,library:library) }
@@ -404,9 +412,9 @@ enum StudioStyle {
     private var hero: some View {
         ZStack(alignment: .bottomLeading) {
             GeometryReader { geometry in
-                Image("Hero").resizable().scaledToFill().frame(width: geometry.size.width,height: geometry.size.height).clipped()
+                Image("Hero").resizable().scaledToFill().frame(width: geometry.size.width,height: geometry.size.height).clipped().allowsHitTesting(false)
             }
-            LinearGradient(colors: [.clear,.black.opacity(0.5),.black.opacity(0.95)],startPoint: .top,endPoint: .bottom)
+            LinearGradient(colors: [.clear,.black.opacity(0.5),.black.opacity(0.95)],startPoint: .top,endPoint: .bottom).allowsHitTesting(false)
             VStack(alignment: .leading,spacing: 12) {
                 Text("YOUR LIGHT. YOUR COLOR.").font(.system(size: 10,weight: .bold,design: .monospaced)).tracking(2).foregroundStyle(Color.white.opacity(0.8))
                 Text("Make it\nyour own.").font(.system(size: 42,weight: .semibold,design: .serif)).tracking(-1)
@@ -418,7 +426,7 @@ enum StudioStyle {
                 }.disabled(demoBusy || library.importing || importingBatch || deletingProjects || reverting).buttonStyle(.plain)
                 Text("Illustrative sample · not a camera capture").font(.system(size: 9)).foregroundStyle(.white.opacity(0.55))
             }.padding(24)
-        }.frame(height: 360).clipShape(RoundedRectangle(cornerRadius: 28)).overlay(RoundedRectangle(cornerRadius: 28).stroke(.white.opacity(0.09)))
+        }.frame(height: 360).clipShape(RoundedRectangle(cornerRadius: 28)).contentShape(RoundedRectangle(cornerRadius:28)).overlay(RoundedRectangle(cornerRadius: 28).stroke(.white.opacity(0.09)))
     }
     private var importBar: some View {
         let isImporting = library.importing || importingBatch || deletingProjects || reverting
@@ -514,7 +522,8 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Precision masks · 0.38.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Look library · 0.39.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Look library is on Home beside the info button, and in Looks & presets → Manage look library. Star your favourites, put looks into named collections, search, sort or change their library order. Back up all or selected looks, then Save / share every numbered .studiolooks part to Files. Import adds reusable grades and embedded LUTs without replacing existing looks; exact duplicates are skipped. It excludes your photos, videos, masks and project edits. Favourite, collection and order changes use a small metadata index without rewriting LUTs.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Masks now has preview-only Zoom and Fit, plus pinch/pan in Move/View mode up to 6×. Brush at the chosen magnification; Done brushing returns to navigation and reveals video playback without moving its slider off screen. Subject selection offers All subjects, Tap a subject and People · fine edges. People uses refined person matting; Tap isolates the detected object you choose. Detailed tracking favors accuracy; Efficient favors analysis speed. Analysis runs only when requested. Fine hair, occlusion and changing shapes still need review and brush/correction work.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("If a tracked mask drifts, open Masks → Correct tracking. Pause or scrub, turn on Move mask in preview and drag the handle, or use horizontal/vertical sliders. Correction points blend along the original clip time. Undo/Redo, delete a point or Clear corrections restore control without repeating analysis. Playback, versions, backups and queued exports keep those corrections. This adjusts position, not shape, size or rotation.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("For video, Looks → Video animation changes exposure or fades a look, LUT or mask over time. Pause or scrub, drag the value to set a point, then choose another moment. Smooth blends gently; Linear changes at a steady rate. Undo/Redo and point deletion keep it reversible. Main exposure/effect strength remain the base. Points stay with the original clip time after trimming and travel with saved versions, backups and queued exports. They stay out of reusable presets and color-only LUTs.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
