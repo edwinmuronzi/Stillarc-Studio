@@ -191,3 +191,7 @@ Native 17 Pro, supplied RAW, generated HDR/audio/export, source/queue/backup/his
 ## 0.50 checkpoint
 
 Longer bounded People mattes, reversible edge shortcuts, reviewed partial tracking recovery and persisted loss markers. See [the 0.50 workflow guide](FINISHING-050.md). Physical older-device and difficult real occlusion/hair gates remain open; no universal thermal or segmentation claims.
+
+## 0.51 checkpoint
+
+Fifteen-second People mattes and tap-selected per-frame Object mattes with identity continuity checks, editable local adjustments and composited video background replacement. See [current workflows and bounds](VIDEO-MATTES-051.md). Arbitrary object identity through occlusion and difficult real-footage/older-device validation remain open.

@@ -15,19 +15,19 @@ enum TrackingGeometry:String,CaseIterable,Identifiable,Sendable {
     var id:String {rawValue}
 }
 enum MaskTracker {
-    static func settings(_ descriptor:VideoDescriptor) -> [String:Any] {
+    static func settings(_ descriptor:VideoDescriptor,maxDimension:Double=640) -> [String:Any] {
         let swapped = abs(descriptor.affine.a)<0.5 && abs(descriptor.affine.d)<0.5
-        let w = Double(swapped ? descriptor.height : descriptor.width),h = Double(swapped ? descriptor.width : descriptor.height),scale = min(1,640/max(w,h))
+        let w = Double(swapped ? descriptor.height : descriptor.width),h = Double(swapped ? descriptor.width : descriptor.height),scale = min(1,maxDimension/max(w,h))
         return [kCVPixelBufferPixelFormatTypeKey as String:kCVPixelFormatType_32BGRA,kCVPixelBufferWidthKey as String:max(2,Int(w*scale)/2*2),kCVPixelBufferHeightKey as String:max(2,Int(h*scale)/2*2),kCVPixelBufferIOSurfacePropertiesKey as String:[:]]
     }
     static func failure(_ message:String) -> NSError { NSError(domain:"MaskTracking",code:2,userInfo:[NSLocalizedDescriptionKey:message]) }
-    static func frame(_ buffer:CVPixelBuffer,descriptor:VideoDescriptor,recipe:Recipe,context:CIContext) throws -> CGImage {
-        let pair = VideoEngine.images(buffer,descriptor:descriptor,maxDimension:800)
+    static func frame(_ buffer:CVPixelBuffer,descriptor:VideoDescriptor,recipe:Recipe,context:CIContext,maxDimension:Double=640) throws -> CGImage {
+        let pair = VideoEngine.images(buffer,descriptor:descriptor,maxDimension:maxDimension*1.25)
         var input = recipe.input;input.softHighlights = true
         var decoded = LogConversion.apply(input.profile == .standard ? pair.managed : pair.signal,input:input)
         if descriptor.hdrTransfer != nil { decoded = decoded.applyingFilter("CIExposureAdjust",parameters:[kCIInputEVKey:-2]) }
         var image = PhotoFraming.apply(decoded,recipe:recipe)
-        let scale = min(1,640/max(image.extent.width,image.extent.height));image = image.transformed(by:.init(scaleX:scale,y:scale))
+        let scale = min(1,maxDimension/max(image.extent.width,image.extent.height));image = image.transformed(by:.init(scaleX:scale,y:scale))
         image = image.transformed(by:.init(translationX:-image.extent.minX,y:-image.extent.minY))
         guard let cg = context.createCGImage(image,from:image.extent,format:.RGBA8,colorSpace:ImageEngine.output) else { throw StudioError.render };return cg
     }

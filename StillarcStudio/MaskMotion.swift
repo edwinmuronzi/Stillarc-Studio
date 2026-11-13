@@ -132,4 +132,4 @@ extension MaskMotion {
     }
 }
 
-enum PeopleVideoMatteError:LocalizedError {case invalid;var errorDescription:String? {"Rebuild the People video matte for this input/kept clip and remove any additional rigid track before exporting."}}
+enum PeopleVideoMatteError:LocalizedError {case invalid;var errorDescription:String? {"Rebuild the video matte for this input/kept clip and remove any additional rigid track before exporting."}}

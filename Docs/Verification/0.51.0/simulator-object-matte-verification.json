@@ -1,0 +1,10 @@
+{
+  "passed" : true,
+  "version" : "0.51.0",
+  "math" : {
+    "passed" : true,
+    "ambiguousAndMissingRejected" : true,
+    "tapAndVisionCoordinates" : true,
+    "renumberedInstances" : true
+  }
+}

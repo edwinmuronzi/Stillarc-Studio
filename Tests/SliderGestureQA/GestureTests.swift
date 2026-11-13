@@ -599,6 +599,17 @@ final class GestureTests:XCTestCase {
         toggle.tap();toggle.tap()
         app.buttons["Done"].tap();XCTAssertTrue(app.buttons["Add mask"].waitForExistence(timeout:10))
     }
+    func testObjectVideoMatteSelection() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--video-demo","--tool","Masks"];app.launch()
+        XCTAssertTrue(app.buttons["Add mask"].waitForExistence(timeout:30));app.buttons["Add mask"].tap();app.buttons["Object video matte"].tap()
+        let prepare=app.buttons["preparePeopleVideoMatte"];XCTAssertTrue(prepare.waitForExistence(timeout:10));XCTAssertFalse(prepare.isEnabled)
+        let preview=app.descendants(matching:.any).matching(identifier:"objectVideoPickPreview").firstMatch
+        XCTAssertTrue(preview.waitForExistence(timeout:20));preview.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).tap();XCTAssertTrue(prepare.isEnabled)
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer {XCUIDevice.shared.orientation = .portrait}
+        XCTAssertTrue(app.buttons["Done"].isHittable);app.buttons["Done"].tap();XCTAssertTrue(app.buttons["Add mask"].waitForExistence(timeout:10))
+    }
     func testPeopleVideoMatteControls() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments=["--video-demo","--tool","Masks"];app.launch()

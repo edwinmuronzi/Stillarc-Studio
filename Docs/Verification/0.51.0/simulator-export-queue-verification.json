@@ -1,0 +1,14 @@
+{
+  "thermal" : 0,
+  "missingSourceHandled" : true,
+  "outputRemoval" : true,
+  "version" : "0.51.0",
+  "reorderCancelRetry" : true,
+  "completedFilesSurviveReload" : true,
+  "passed" : true,
+  "interruptedProcessRecovery" : true,
+  "seconds" : 1.8036789894104004,
+  "serialPhotoVideoExports" : true,
+  "explicitStartAndSnapshot" : true,
+  "pauseResumeAndNoAutoStart" : true
+}

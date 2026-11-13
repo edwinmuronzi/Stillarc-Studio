@@ -712,6 +712,7 @@ import UniformTypeIdentifiers
             Menu {
                 if session.project.isVideo {
                     Button("People video matte"){peopleMatte=PeopleMatteTarget()}.disabled(session.recipe.masks.count>=4)
+                    Button("Object video matte"){peopleMatte=PeopleMatteTarget(object:true)}.disabled(session.recipe.masks.count>=4)
                     Button("Remove video background"){peopleMatte=PeopleMatteTarget(cutout:true)}.disabled(session.recipe.masks.count>=4)
                 }
                 Button("Subject & Background") {automaticTarget=AutomaticSelectionTarget(kind:.subject,maskID:nil,paired:true)}.disabled(session.recipe.masks.count>2)
@@ -730,7 +731,11 @@ import UniformTypeIdentifiers
             if session.recipe.hasCutout {Button("Replace background",systemImage:"photo.on.rectangle"){showMask=false;backgroundSheet=true}.buttonStyle(.bordered).accessibilityIdentifier("replaceBackground")}
             if session.recipe.masks.count>2 {Text("Subject & Background needs two free mask slots. Remove a mask to create both regions.").font(.caption).foregroundStyle(StudioStyle.secondary)}
             if let layer = selectedMask {
-                if layer.automatic?.temporal != nil {Button("Rebuild People video matte"){peopleMatte=PeopleMatteTarget(maskID:layer.id,cutout:layer.cutout == true)}.font(.caption)}
+                if layer.automatic?.temporal != nil {
+                    let object=layer.automatic?.selectionMode == .picked
+                    Button(object ? "Rebuild Object video matte":"Rebuild People video matte"){peopleMatte=PeopleMatteTarget(maskID:layer.id,cutout:layer.cutout == true,object:object)}.font(.caption)
+                    Toggle("Remove background outside mask",isOn:Binding(get:{layer.cutout == true},set:{value in session.change {r in r.setCutout(layer.id,enabled:value);if value && (r.background == nil || r.background?.mode == .transparent) {r.background=PhotoBackground(mode:.solid)}};if value {showMask=false}})).font(.caption).accessibilityIdentifier("videoMatteCutout")
+                }
                 Button("Duplicate mask",systemImage:"plus.square.on.square") {
                     var copy=layer;copy.id=UUID();copy.cutout=nil;copy.combination=nil
                     session.change {$0.masks.append(copy)};selectedMaskID=copy.id
@@ -748,7 +753,7 @@ import UniformTypeIdentifiers
                     }.pickerStyle(.menu)
                     Text("Uses mask \(index)’s selection. Intersect keeps the overlap; Add includes either area; Subtract removes the previous area. Its adjustment strength and On/off state do not change this selection. Delete a preceding mask and the link follows the new previous mask.").font(.caption).foregroundStyle(StudioStyle.secondary)
                 }
-                if session.project.isVideo && (layer.kind == .radial || layer.kind == .brush || layer.kind == .subject) {
+                if session.project.isVideo && layer.automatic?.temporal == nil && (layer.kind == .radial || layer.kind == .brush || layer.kind == .subject) {
                     HStack {
                         if let motion=layer.motion {
                             Button("Correct tracking",systemImage:"point.topleft.down.to.point.bottomright.curvepath"){correctionMask=layer}.disabled(!motion.matches(session.recipe,duration:session.project.video?.duration ?? 0)).accessibilityIdentifier("correctMaskTracking")
@@ -773,7 +778,7 @@ import UniformTypeIdentifiers
                     Button { updateMask { $0.inverted.toggle() } } label: { Label("Invert",systemImage:"circle.lefthalf.filled").font(.caption) }.tint(layer.inverted ? StudioStyle.blue : .gray).accessibilityValue(layer.inverted ? "On" : "Off")
                 }.buttonStyle(.bordered)
                 if layer.kind.isAutomatic {
-                    Button("Recreate \(layer.title.lowercased()) selection",systemImage:"arrow.clockwise") { automaticTarget = AutomaticSelectionTarget(kind:layer.kind,maskID:layer.id) }.font(.caption)
+                    if layer.automatic?.temporal == nil {Button("Recreate \(layer.title.lowercased()) selection",systemImage:"arrow.clockwise") { automaticTarget = AutomaticSelectionTarget(kind:layer.kind,maskID:layer.id) }.font(.caption)}
                     if let stored = layer.automatic,!stored.matches(session.recipe) { Text("Updating the selection for the new framing. Export also updates it automatically.").font(.caption).foregroundStyle(StudioStyle.secondary) }
                     DisclosureGroup("Refine automatic selection",isExpanded:$automaticRefineExpanded) {
                         ViewThatFits(in:.horizontal) {

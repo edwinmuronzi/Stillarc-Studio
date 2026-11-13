@@ -63,7 +63,7 @@ enum MaskFramingRepair {
         for i in result.masks.indices where result.masks[i].kind.isAutomatic {
             try Task.checkCancellation()
             guard let old = result.masks[i].automatic,!old.matches(recipe) else { continue }
-            if old.temporal != nil {throw AutomaticSelectionEngine.error("Rebuild the People video matte after extending the kept clip or changing input conversion. Existing edits are preserved.")}
+            if old.temporal != nil {throw AutomaticSelectionEngine.error("Rebuild the video matte after extending the kept clip or changing input conversion. Existing edits are preserved.")}
             if let moved = try reframe(old,to:recipe,sourceSize:size) {
                 result.masks[i].automatic = moved
                 if var motion = result.masks[i].motion,let previous = snapshot(motion.framing),sameField(previous,recipe) {

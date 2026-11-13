@@ -1,0 +1,20 @@
+{
+  "newIdentitiesAndRepeatedRestore" : true,
+  "privateReferenceBackground" : true,
+  "restoredExport" : true,
+  "midStreamCancellation" : true,
+  "backupAll21ProjectsTwoParts" : true,
+  "editsMasksLUTWarp" : true,
+  "packageBytes" : 1632072,
+  "seconds" : 0.931069016456604,
+  "symlinkRootRoundtrip" : true,
+  "versionsAndRatings" : true,
+  "photoVideoSourceBytes" : true,
+  "traversalDuplicateFutureRejected" : true,
+  "projectCount" : 6,
+  "cancelledRestoreSafe" : true,
+  "thermal" : 0,
+  "passed" : true,
+  "version" : "0.51.0",
+  "corruptionTruncationTrailing" : true
+}

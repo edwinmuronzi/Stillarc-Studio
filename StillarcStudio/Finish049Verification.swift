@@ -80,11 +80,11 @@ enum Finish049Verification {
         let frames=try [frame(CGRect(x:0,y:0,width:32,height:32),0),frame(CGRect(x:32,y:0,width:32,height:32),0.1)]
         let matte=try TemporalMatte(start:0,end:0.2,sourceDuration:0.4,sourceWidth:320,sourceHeight:240,input:InputConversion(),frames:frames)
         try check(matte.frame(at:0.05).id==frames[0].id && matte.frame(at:0.1).id==frames[1].id,"Matte source-time selection")
-        let extended=try (0..<360).map {n in TemporalMatte.Frame(id:UUID(),time:Double(n)/30,png:frames[n%2].png,width:64,height:32)}
-        let full=try TemporalMatte(start:0,end:12,sourceDuration:12,sourceWidth:320,sourceHeight:240,input:InputConversion(),frames:extended)
-        try check(full.frame(at:11.99).id==extended.last!.id,"Extended matte source-time lookup")
-        let roundtrip=try JSONDecoder().decode(TemporalMatte.self,from:JSONEncoder().encode(full));try check(roundtrip==full && roundtrip.frames.count==360,"Extended matte persistence")
-        do {_ = try TemporalMatte(start:0,end:12.1,sourceDuration:12.1,sourceWidth:320,sourceHeight:240,input:InputConversion(),frames:extended+[.init(id:UUID(),time:12,png:frames[0].png,width:64,height:32)]);throw PointSampling.failure("Unexpected361")} catch let e as NSError {try check(e.domain != "PointSample","Matte frame bound")}
+        let extended=try (0..<900).map {n in TemporalMatte.Frame(id:UUID(),time:Double(n)/60,png:frames[n%2].png,width:64,height:32)}
+        let full=try TemporalMatte(start:0,end:15,sourceDuration:15,sourceWidth:320,sourceHeight:240,input:InputConversion(),frames:extended)
+        try check(full.frame(at:14.99).id==extended.last!.id,"Extended matte source-time lookup")
+        let roundtrip=try JSONDecoder().decode(TemporalMatte.self,from:JSONEncoder().encode(full));try check(roundtrip==full && roundtrip.frames.count==900,"Extended matte persistence")
+        do {_ = try TemporalMatte(start:0,end:15.1,sourceDuration:15.1,sourceWidth:320,sourceHeight:240,input:InputConversion(),frames:extended+[.init(id:UUID(),time:15,png:frames[0].png,width:64,height:32)]);throw PointSampling.failure("Unexpected901")} catch let e as NSError {try check(e.domain != "PointSample","Matte frame bound")}
         let automatic=AutomaticMask(id:frames[0].id,png:frames[0].png,width:64,height:32,framing:MaskMotion.signature(Recipe()),videoStart:0,temporal:matte)
         var r=Recipe(),layer=LocalMask(kind:.subject);layer.automatic=automatic;layer.cutout=true;r.masks=[layer];r.background=PhotoBackground(mode:.solid,red:0,green:0,blue:1);r.video.end=0.2
         let source=image([1,0,0],size:CGSize(width:320,height:240))
@@ -108,7 +108,7 @@ enum Finish049Verification {
         var project=try await vault.importPhoto(movie);project.recipe=r;project=try await vault.save(project)
         let archive=try await vault.writeArchive([project.id]);defer {try? FileManager.default.removeItem(at:archive.deletingLastPathComponent())}
         let restored=try await vault.restoreArchive(archive);try check(restored.first?.recipe==r,"Matte archive restore")
-        return ["passed":true,"sourceTimeAndCrop":true,"encodedVideoReplacement":true,"persistenceBackup":true,"noPlaybackInference":true,"extended360FrameRoundtrip":true]
+        return ["passed":true,"sourceTimeAndCrop":true,"encodedVideoReplacement":true,"persistenceBackup":true,"noPlaybackInference":true,"extended900FrameRoundtrip":true]
     }
     static func personClip(_ source:URL,frames:Int=12) async throws ->URL {
         let photo=try ImageEngine.open(source,maxDimension:768),e=CGRect(x:0,y:0,width:320,height:480)
@@ -137,7 +137,7 @@ enum Finish049Verification {
         try check(AutomaticSelectionEngine.hasCoverage(faces) && AutomaticSelectionEngine.hasCoverage(skin),"Face/skin selection coverage")
         let faceRequest=VNDetectFaceRectanglesRequest();try VNImageRequestHandler(cgImage:cg,orientation:.up).perform([faceRequest])
         if let box=faceRequest.results?.first?.boundingBox {try check(sample(faces,x:box.midX*faces.extent.width,y:box.midY*faces.extent.height)[0]>0.5,"Face matte orientation")}
-        let count=ProcessInfo.processInfo.arguments.contains("--extended-matte-check") ? 210:12
+        let count=ProcessInfo.processInfo.arguments.contains("--extended-matte-check") ? 450:12
         let movie=try await personClip(portrait,frames:count);defer {try? FileManager.default.removeItem(at:movie.deletingLastPathComponent())}
         VerificationProgress.record("Finish049 person matting")
         let docs=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0],debugMovie=docs.appendingPathComponent("person-fixture-049.mov")

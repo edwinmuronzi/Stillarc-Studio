@@ -1,4 +1,8 @@
-# Stillarc Studio · 0.49
+# Stillarc Studio · 0.51
+
+## Tap an object. Follow its outline. · 0.51
+
+Object video matte saves a changing selection for each frame, with tap selection and optional background replacement. People and Object mattes now allow up to 15 seconds / 900 frames, within a 48 MiB saved-mask budget. Playback/export reuse the prepared masks. [How to use it and accuracy limits](VIDEO-MATTES-051.md).
 
 ## Moving-mask finishing & reliability · 0.50
 
