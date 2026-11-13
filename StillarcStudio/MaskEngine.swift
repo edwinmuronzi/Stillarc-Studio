@@ -22,8 +22,8 @@ enum MaskEngine {
         var retainMotionSupport=false
         var support=extent
         if m.kind.isAutomatic {
-            if let framing,let stored = m.automatic,stored.framing != framing { return CIImage(color:.black).cropped(to:extent) }
-            guard let stored = m.automatic,stored.bounded,let decoded = AutomaticMaskBitmap.image(stored,extent:extent,preview:preview) else { return CIImage(color:.black).cropped(to:extent) };mask = decoded
+            if let framing,let stored = m.automatic,stored.temporal == nil && stored.framing != framing { return CIImage(color:.black).cropped(to:extent) }
+            guard let stored = m.automatic,stored.bounded,let decoded = AutomaticMaskBitmap.image(stored,extent:extent,preview:preview,framing:framing) else { return CIImage(color:.black).cropped(to:extent) };mask = decoded
             if let motion=m.motion,let frame=MaskMotion.frame,motion.framing==frame.framing,let anchored=AutomaticMaskBitmap.motionImage(stored,motion:motion,extent:extent,preview:preview) {
                 mask=anchored;support=anchored.extent;retainMotionSupport=true
             }

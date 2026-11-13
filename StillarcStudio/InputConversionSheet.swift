@@ -7,7 +7,7 @@ struct InputConversionSheet:View {
         NavigationStack {
             Form {
                 Section {
-                    Picker("Recorded profile",selection:Binding(get:{ session.recipe.input.profile },set:{ profile in session.change { $0.input.profile = profile } })) {
+                    Picker("Recorded profile",selection:Binding(get:{ session.recipe.input.profile },set:{ profile in session.change { $0.input.profile = profile;if profile.technicalColorSpace != nil {$0.input.softHighlights=false} } })) {
                         ForEach(CameraLogProfile.allCases) { Text($0.title).tag($0) }
                     }.disabled(session.project.isRAW).accessibilityIdentifier("inputProfilePicker")
                     if let detected = session.project.video?.detectedLog { Text("File metadata identifies \(detected.shortTitle). You can override it if the clip was already converted.").font(.caption).foregroundStyle(.secondary) }
@@ -18,11 +18,12 @@ struct InputConversionSheet:View {
                         if let transfer = session.project.video?.hdrTransfer { Text("This source is tagged \(transfer) HDR. Keep Standard as its input profile.").font(.caption).foregroundStyle(.secondary) }
                     } header: { Text("Preview & output") } footer: { Text("HDR preserves brighter highlights on compatible screens and exports 10-bit HLG. SDR is best for universal sharing. The original stays intact.") }
                 }
+                if session.recipe.input.profile.technicalColorSpace != nil {Section {Text("Manual overrides reinterpret the original encoded RGB values. Standard already honours embedded ICC/video colour metadata and is correct for most photos. Choose an override only when you know the file is tagged incorrectly or contains linear sRGB values. These choices do not change Studio’s linear working space.").font(.caption)}}
                 if session.recipe.input.profile != .standard {
                     Section {
                         HStack { Text("Source exposure");Spacer();Text(session.recipe.input.exposure,format:.number.precision(.fractionLength(2))).monospacedDigit();Text("EV") }
                         Slider(value:$session.recipe.input.exposure,in:-4...4,onEditingChanged:{ $0 ? session.begin() : session.end() }).sliderReset { session.change { $0.input.exposure = 0 } }
-                        Toggle("Soft highlight roll-off",isOn:Binding(get:{ session.recipe.input.softHighlights },set:{ value in session.change { $0.input.softHighlights = value } }))
+                        if session.recipe.input.profile.technicalColorSpace == nil {Toggle("Soft highlight roll-off",isOn:Binding(get:{ session.recipe.input.softHighlights },set:{ value in session.change { $0.input.softHighlights = value } }))}
                         if session.project.isVideo && session.recipe.video.hdr { Text("HDR output preserves highlight headroom; the SDR soft roll-off is bypassed.").font(.caption).foregroundStyle(.secondary) }
                     } footer: { Text("Source exposure changes brightness before converting bright Log highlights to SDR. Soft roll-off gently fits highlights and saturated colors into the display range; it is Studio’s rendering, not a manufacturer’s official display LUT.") }
                 }

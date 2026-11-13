@@ -569,6 +569,35 @@ final class GestureTests:XCTestCase {
         app.scrollViews.firstMatch.swipeUp();app.buttons["Open Studio sample"].tap()
         XCTAssertTrue(app.buttons["Film"].waitForExistence(timeout:15));XCTAssertEqual(app.buttons["Film"].value as? String,"Adjustments applied")
     }
+    func testFinishPhotoControlsAndP3Export() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--finish-person-demo","--tool","Detail"];app.launch()
+        XCTAssertTrue(app.buttons["Photo development"].waitForExistence(timeout:30));app.buttons["Photo development"].tap()
+        let slider=app.sliders["Chroma noise cleanup"]
+        XCTAssertTrue(slider.waitForExistence(timeout:10))
+        let panel=app.scrollViews.element(boundBy:app.scrollViews.count-1)
+        for _ in 0..<8 {let y=slider.frame.midY,b=panel.frame;if y>b.minY+24 && y<b.maxY-24 {break};let up=y>=b.maxY-24;panel.coordinate(withNormalizedOffset:CGVector(dx:0.98,dy:up ? 0.8:0.3)).press(forDuration:0.05,thenDragTo:panel.coordinate(withNormalizedOffset:CGVector(dx:0.98,dy:up ? 0.5:0.6)))}
+        let initial=slider.value as? String;slider.adjust(toNormalizedSliderPosition:0.4);XCTAssertNotEqual(slider.value as? String,initial)
+        app.buttons["Done"].tap();app.buttons["Input conversion"].tap()
+        app.buttons["inputProfilePicker"].tap();app.buttons["Display P3 · manual override"].tap()
+        app.buttons["Reset input conversion"].tap();app.buttons["Done"].tap()
+        app.buttons["Masks"].tap();app.buttons["Add mask"].tap();app.buttons["Subject"].tap()
+        app.buttons["subjectSelectionMethod"].tap();app.buttons["Facial skin"].tap()
+        XCTAssertTrue(app.buttons["createAutomaticMask"].isEnabled)
+        let shot=XCTAttachment(screenshot:XCUIScreen.main.screenshot());shot.name="Facial skin selection guidance";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Done"].tap();app.buttons["Export photo"].tap()
+        app.buttons["PNG"].tap();app.buttons["photoOutputSpace"].tap();app.buttons["Display P3"].tap()
+        app.buttons["Create export"].tap();XCTAssertTrue(app.staticTexts["actualExportSize"].waitForExistence(timeout:40))
+    }
+    func testPeopleVideoMatteControls() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--video-demo","--tool","Masks"];app.launch()
+        XCTAssertTrue(app.buttons["Add mask"].waitForExistence(timeout:30));app.buttons["Add mask"].tap();app.buttons["Remove video background"].tap()
+        let prepare=app.buttons["preparePeopleVideoMatte"];XCTAssertTrue(prepare.waitForExistence(timeout:15))
+        let enabled=expectation(for:NSPredicate {_,_ in prepare.isEnabled},evaluatedWith:nil);wait(for:[enabled],timeout:20)
+        let shot=XCTAttachment(screenshot:XCUIScreen.main.screenshot());shot.name="People video matte limits and controls";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Done"].tap();XCTAssertTrue(app.buttons["Add mask"].waitForExistence(timeout:10))
+    }
     func testWhiteBalanceAndLevelsPickers() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments=["--point-picker-demo","--tool","Color"];app.launch()

@@ -1,5 +1,10 @@
 # Stillarc Studio
 
+## Camera, colour & moving masks · 0.49
+
+Share colour-only looks with Stillarc Camera, choose explicit sRGB/P3/linear input interpretation and tagged photo output, analyse rectangle size/rotation, prepare short People video mattes and composite video backgrounds. Faces/Facial skin and bounded chroma-noise cleanup extend photo finishing. [Workflows, limits and what to test](Docs/FINISHING-049.md).
+
+
 ## White balance & Levels pickers · 0.48
 
 Tap a neutral surface to set Warmth and Tint together, or pick the black/white points directly from a large preview. Both workflows use averaged patches, Undo/Redo and existing adjustment controls, with work only when you tap. [How to use both pickers](Docs/POINT-PICKERS-048.md).
@@ -35,7 +40,7 @@ Convert Canon Log 3 (Rec.2020), Nikon N-Log, Fujifilm F-Log2 and DJI X9 D-Log us
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.48 preview-picker milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.49 combined finishing milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -46,7 +51,7 @@ This is the **0.48 preview-picker milestone**. Development is ongoing. The long-
 - **Masks → Add mask → Subject or Sky:** open the analysis preview and choose **Create mask**. Subject finds foreground objects (possibly several); Sky finds likely sky, including cloudy areas where recognized. Both run on-device only when requested. Creating a mask selects an area; change Exposure, Warmth, Saturation or Contrast to edit it. **Guide** shows the selection in red without adding that red to exports.
 - **Refine automatic selection:** adjust threshold/edge transition, grow or shrink the border, and soften it. These are GPU refinements of the saved matte; they do not repeat AI analysis. Double-tap each slider to restore its default. Use a separate Brush with the existing combination controls to manually restrict or subtract from a selection. All mask types share the existing four-layer limit; the Add mask menu keeps them accessible without a crowded button row.
 - Automatic masks save with projects and complete versions, support Undo/Redo and stay out of reusable presets/copied grades. **Recreate selection** replaces the saved matte in one undoable action; canceling or leaving the app leaves existing masks unchanged. Recreate after changing the crop or a video’s kept-clip start before exporting. Changing global color edits does not rerun segmentation.
-- For video, automatic selection uses the **first kept frame once**. Creating or recreating an automatic mask pauses playback and returns to that frame so the saved selection can be inspected. A Subject mask can use the existing position tracker afterward. This is not changing-pose/per-frame video segmentation: moving limbs, hair, camera movement or a changing sky may need a new selection/manual corrections. Sky stays fixed unless restricted by another mask’s combination. Subject tracking moves its saved shape; it does not deform it.
+- For video, automatic selection uses the **first kept frame once**. Creating or recreating an automatic mask pauses playback and returns to that frame so the saved selection can be inspected. A Subject mask can use the existing position tracker afterward. This is not changing-pose/per-frame video segmentation: moving limbs, hair, camera movement or a changing sky may need a new selection/manual corrections. Sky stays fixed unless restricted by another mask’s combination. Rigid subject tracking moves its saved shape; the separately prepared People video matte follows a new silhouette for each kept frame within its displayed limits.
 - Foreground detection can miss low-contrast or small subjects and can include multiple objects. The compact sky model can mistake building details/reflections for sky or miss complex clouds/night scenes. Review the Guide and refine it; automatic selection is an editable starting point. Photos remain at full export resolution; the stored selection itself has finite model/matte resolution.
 
 - **Video mask tracking:** add a **Radial** mask, paint a **Brush** mask or create a **Subject** mask on the beginning of the kept clip, then choose **Track mask**. On the first kept frame, drag/size the blue target box over a textured region that stays visible. Choose **Analyze & save tracking**, then play/scrub the clip to review. The box chooses what to follow; the existing mask moves by that target’s displacement. For tracked brushes, clear tracking before painting more strokes. Brush tracking returns you to View mode so playback controls remain accessible.

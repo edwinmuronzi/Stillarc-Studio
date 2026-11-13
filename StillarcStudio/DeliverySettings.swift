@@ -32,9 +32,16 @@ enum VideoDeliveryCodec:String,CaseIterable,Codable,Identifiable,Sendable {
     case .proRes422:"10-bit MOV for further editing. Much larger files; compression quality is fixed. Uses supported hardware encoding. Save to Files for your editing app."
     }}
 }
+enum PhotoOutputSpace:String,Codable,CaseIterable,Identifiable,Sendable {
+    case sRGB="sRGB",displayP3="Display P3"
+    var id:String {rawValue}
+    var colorSpace:CGColorSpace {CGColorSpace(name:self == .sRGB ? CGColorSpace.sRGB:CGColorSpace.displayP3)!}
+}
 struct DeliverySettings:Codable,Equatable,Sendable {
     var size=DeliverySize.original
     var quality=DeliveryQuality.maximum
+    var photoSpace:PhotoOutputSpace? = nil
+    var outputSpace:PhotoOutputSpace {get {photoSpace ?? .sRGB} set {photoSpace=newValue == .sRGB ? nil:newValue}}
     var videoCodec:VideoDeliveryCodec? = nil
     var codec:VideoDeliveryCodec {get {videoCodec ?? .hevc} set {videoCodec=newValue == .hevc ? nil:newValue}}
     func dimensions(_ input:CGSize,video:Bool=false)->CGSize {
@@ -50,8 +57,8 @@ struct DeliverySettings:Codable,Equatable,Sendable {
         let aspect=(target.width/rect.width)/(target.height/rect.height)
         return normalized.applyingFilter("CILanczosScaleTransform",parameters:[kCIInputScaleKey:target.height/rect.height,kCIInputAspectRatioKey:aspect]).cropped(to:CGRect(origin:.zero,size:target))
     }
-    static func load(_ defaults:UserDefaults = .standard)->Self {Self(size:DeliverySize(rawValue:defaults.string(forKey:"delivery.size") ?? "") ?? .original,quality:DeliveryQuality(rawValue:defaults.string(forKey:"delivery.quality") ?? "") ?? .maximum,videoCodec:VideoDeliveryCodec(rawValue:defaults.string(forKey:"delivery.codec") ?? ""))}
-    func save(_ defaults:UserDefaults = .standard) {defaults.set(size.rawValue,forKey:"delivery.size");defaults.set(quality.rawValue,forKey:"delivery.quality");defaults.set(codec == .hevc ? nil:codec.rawValue,forKey:"delivery.codec")}
+    static func load(_ defaults:UserDefaults = .standard)->Self {Self(size:DeliverySize(rawValue:defaults.string(forKey:"delivery.size") ?? "") ?? .original,quality:DeliveryQuality(rawValue:defaults.string(forKey:"delivery.quality") ?? "") ?? .maximum,photoSpace:PhotoOutputSpace(rawValue:defaults.string(forKey:"delivery.photoSpace") ?? ""),videoCodec:VideoDeliveryCodec(rawValue:defaults.string(forKey:"delivery.codec") ?? ""))}
+    func save(_ defaults:UserDefaults = .standard) {defaults.set(outputSpace.rawValue,forKey:"delivery.photoSpace");defaults.set(size.rawValue,forKey:"delivery.size");defaults.set(quality.rawValue,forKey:"delivery.quality");defaults.set(codec == .hevc ? nil:codec.rawValue,forKey:"delivery.codec")}
 }
 struct DeliveryControls:View {
     @Binding var settings:DeliverySettings
@@ -66,6 +73,10 @@ struct DeliveryControls:View {
                 Text(settings.codec.help).font(.caption).foregroundStyle(StudioStyle.secondary)
                 if !VideoDeliveryCodec.proResHardware {Text("ProRes export requires a supported hardware encoder on this device.").font(.caption).foregroundStyle(StudioStyle.secondary)}
                 if hdr {Text("This delivery includes HDR. H.264 is SDR-only; Studio keeps your HDR choice intact.").font(.caption).foregroundStyle(StudioStyle.secondary)}
+            }
+            if photos || !video {
+                Picker("SDR photo colour space",selection:$settings.outputSpace) {ForEach(PhotoOutputSpace.allCases) {Text($0.rawValue).tag($0)}}.pickerStyle(.menu).accessibilityIdentifier("photoOutputSpace")
+                Text("sRGB is the safest sharing choice. Display P3 preserves more wide-gamut colour on compatible displays. HDR HEIF stays HLG Rec.2020; video uses its chosen SDR/HDR encoding.").font(.caption).foregroundStyle(StudioStyle.secondary)
             }
             Picker("Export size",selection:$settings.size) {ForEach(DeliverySize.allCases) {Text($0.rawValue).tag($0)}}.pickerStyle(.menu).accessibilityIdentifier("deliverySize")
             Text("Longest edge after cropping. Smaller items stay their original size; Studio never enlarges them.").font(.caption).foregroundStyle(StudioStyle.secondary)

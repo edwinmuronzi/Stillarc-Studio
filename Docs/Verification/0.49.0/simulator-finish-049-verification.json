@@ -1,0 +1,23 @@
+{
+  "temporal" : {
+    "encodedVideoReplacement" : true,
+    "persistenceBackup" : true,
+    "noPlaybackInference" : true,
+    "passed" : true,
+    "sourceTimeAndCrop" : true
+  },
+  "version" : "0.49.0",
+  "passed" : true,
+  "math" : {
+    "measuredManualPose" : true,
+    "chromaBrightnessPreserved" : true,
+    "passed" : true,
+    "outputProfile" : "Display P3",
+    "cameraImportVerified" : true,
+    "legacyDelivery" : true,
+    "lowStoragePreflight" : true,
+    "inputSRGBP3Linear" : true,
+    "studioShareCreated" : true
+  },
+  "thermal" : 0
+}

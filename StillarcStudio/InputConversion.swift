@@ -3,14 +3,17 @@ import CoreImage
 import Metal
 
 enum CameraLogProfile: String, Codable, CaseIterable, Identifiable, Sendable {
-    case standard, appleLog, appleLog2, sonySLog3Cine, panasonicVLog, canonLog3, nikonNLog, fujiFLog2, djiDLog
+    case standard, appleLog, appleLog2, sonySLog3Cine, panasonicVLog, canonLog3, nikonNLog, fujiFLog2, djiDLog, encodedSRGB, encodedP3, linearSRGB
     var id:String { rawValue }
-    var title:String { switch self { case .standard:"Standard / already converted"; case .appleLog:"Apple Log · Rec.2020"; case .appleLog2:"Apple Log 2 · Apple Wide Gamut"; case .sonySLog3Cine:"Sony S-Log3 · S-Gamut3.Cine"; case .panasonicVLog:"Panasonic V-Log · V-Gamut"; case .canonLog3:"Canon Log 3 · Rec.2020"; case .nikonNLog:"Nikon N-Log · Rec.2020"; case .fujiFLog2:"Fujifilm F-Log2 · F-Gamut"; case .djiDLog:"DJI D-Log · D-Gamut (X9 native EI)" } }
-    var shortTitle:String { switch self { case .standard:"STANDARD"; case .appleLog:"APPLE LOG"; case .appleLog2:"APPLE LOG 2"; case .sonySLog3Cine:"SONY S-LOG3"; case .panasonicVLog:"PANASONIC V-LOG"; case .canonLog3:"CANON LOG 3"; case .nikonNLog:"NIKON N-LOG"; case .fujiFLog2:"FUJI F-LOG2"; case .djiDLog:"DJI D-LOG" } }
+    var title:String { switch self { case .encodedSRGB:"Encoded sRGB · manual override";case .encodedP3:"Display P3 · manual override";case .linearSRGB:"Linear sRGB · manual override";case .standard:"Standard / already converted"; case .appleLog:"Apple Log · Rec.2020"; case .appleLog2:"Apple Log 2 · Apple Wide Gamut"; case .sonySLog3Cine:"Sony S-Log3 · S-Gamut3.Cine"; case .panasonicVLog:"Panasonic V-Log · V-Gamut"; case .canonLog3:"Canon Log 3 · Rec.2020"; case .nikonNLog:"Nikon N-Log · Rec.2020"; case .fujiFLog2:"Fujifilm F-Log2 · F-Gamut"; case .djiDLog:"DJI D-Log · D-Gamut (X9 native EI)" } }
+    var shortTitle:String { switch self { case .encodedSRGB:"sRGB OVERRIDE";case .encodedP3:"P3 OVERRIDE";case .linearSRGB:"LINEAR sRGB";case .standard:"STANDARD"; case .appleLog:"APPLE LOG"; case .appleLog2:"APPLE LOG 2"; case .sonySLog3Cine:"SONY S-LOG3"; case .panasonicVLog:"PANASONIC V-LOG"; case .canonLog3:"CANON LOG 3"; case .nikonNLog:"NIKON N-LOG"; case .fujiFLog2:"FUJI F-LOG2"; case .djiDLog:"DJI D-LOG" } }
+    var technicalColorSpace:CGColorSpace? {
+        switch self {case .encodedSRGB:CGColorSpace(name:CGColorSpace.sRGB);case .encodedP3:CGColorSpace(name:CGColorSpace.displayP3);case .linearSRGB:CGColorSpace(name:CGColorSpace.extendedLinearSRGB);default:nil}
+    }
     var kernelIndex:Double { switch self {case .sonySLog3Cine:1;case .panasonicVLog:2;case .canonLog3:3;case .nikonNLog:4;case .fujiFLog2:5;case .djiDLog:6;default:0} }
     var matrix:[[Double]] {
         switch self {
-        case .standard: [[1,0,0],[0,1,0],[0,0,1]]
+        case .standard,.encodedSRGB,.encodedP3,.linearSRGB: [[1,0,0],[0,1,0],[0,0,1]]
         case .appleLog, .canonLog3, .nikonNLog, .fujiFLog2: [[1.660491002108,-0.587641138789,-0.072849863320],[-0.124550474522,1.132899897126,-0.008349422604],[-0.018150763355,-0.100578898008,1.118729661363]]
         case .appleLog2: [[1.707280377174,-0.519019919932,-0.188260457242],[-0.125010746108,1.314662365482,-0.189651619374],[-0.043624333388,-0.191214371733,1.234838705120]]
         case .sonySLog3Cine: [[1.626947409729,-0.540138538870,-0.086808870859],[-0.178515527115,1.417940927464,-0.239425400349],[-0.044436115009,-0.195919966172,1.240356081181]]
@@ -36,6 +39,8 @@ struct InputConversion: Codable, Equatable, Sendable {
 /// Analytic input transform: no resampled 3D conversion table and no per-drag rebuild.
 enum LogConversion {
     static func decode(_ code:Double,profile:CameraLogProfile = .appleLog) -> Double {
+        if profile == .linearSRGB {return code}
+        if profile == .encodedSRGB || profile == .encodedP3 {return code<=0.04045 ? code/12.92:pow((code+0.055)/1.055,2.4)}
         if profile == .canonLog3 { return 0.9 * (code < 0.097465473 ? -(pow(10,(0.12783901-code)/0.36726845)-1)/14.98325 : code <= 0.15277891 ? (code-0.12512219)/1.9754798 : (pow(10,(code-0.12240537)/0.36726845)-1)/14.98325) }
         if profile == .nikonNLog { return code*1023 < 452 ? pow(code*1023/650,3)-0.0075 : exp((code*1023-619)/150) }
         if profile == .fujiFLog2 { return code >= 0.100686685370811 ? (pow(10,(code-0.384316)/0.245281)-0.064829)/5.555556 : (code-0.092864)/8.799461 }
@@ -45,6 +50,8 @@ enum LogConversion {
         return code >= 0.20855531595464202 ? pow(2,(code-0.69336945)/0.08550479)-0.00964052 : sqrt(max(0,code)/47.28711236)-0.05641088
     }
     static func encode(_ linear:Double,profile:CameraLogProfile = .appleLog) -> Double {
+        if profile == .linearSRGB {return linear}
+        if profile == .encodedSRGB || profile == .encodedP3 {return linear<=0.0031308 ? linear*12.92:1.055*pow(linear,1/2.4)-0.055}
         if profile == .canonLog3 { let x=linear/0.9;return x < -0.014 ? -0.36726845*log10(-14.98325*x+1)+0.12783901 : x <= 0.014 ? 1.9754798*x+0.12512219 : 0.36726845*log10(14.98325*x+1)+0.12240537 }
         if profile == .nikonNLog { return linear < 0.328 ? 650*cbrt(linear+0.0075)/1023 : (150*log(linear)+619)/1023 }
         if profile == .fujiFLog2 { return linear >= 0.000889 ? 0.245281*log10(5.555556*linear+0.064829)+0.384316 : 8.799461*linear+0.092864 }
@@ -107,6 +114,10 @@ enum LogConversion {
     static func prepare() throws { guard compiled.value != nil else { throw StudioError.render } }
     static func apply(_ source:CIImage,input:InputConversion) -> CIImage {
         guard input.profile != .standard else { return source }
+        if let space=input.profile.technicalColorSpace {
+            let matched=source.matchedToWorkingSpace(from:space) ?? source
+            return input.exposure==0 ? matched:matched.applyingFilter("CIExposureAdjust",parameters:[kCIInputEVKey:input.exposure])
+        }
         let matrix = input.profile.matrix
         let rows = matrix.map { CIVector(x:$0[0],y:$0[1],z:$0[2]) }
         return compiled.value?.apply(extent:source.extent,arguments:[source,rows[0],rows[1],rows[2],input.exposure,input.softHighlights ? 1.0 : 0.0,input.profile.kernelIndex]) ?? source

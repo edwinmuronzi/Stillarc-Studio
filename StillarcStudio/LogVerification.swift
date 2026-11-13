@@ -19,7 +19,7 @@ enum LogVerification {
         }
         try require(abs(LogConversion.decode(452.0/1023,profile:.nikonNLog)-exp((452.0-619)/150))<0.000001,"Nikon branch reference")
         var vectors = 0
-        for profile in CameraLogProfile.allCases where profile != .standard {
+        for profile in CameraLogProfile.allCases where profile != .standard && profile.technicalColorSpace == nil {
             for linear in [-0.04,0,0.001,0.01,0.18,1,4,12] {
                 let code = LogConversion.encode(linear,profile:profile)
                 try require(abs(LogConversion.decode(code,profile:profile)-linear)<0.000001,"Inverse transfer roundtrip failed")

@@ -70,6 +70,18 @@ struct VideoPreviewVerification:View {
                     func track(_ target:AnimationTarget,_ a:Double,_ b:Double)->AnimationTrack {var t=AnimationTrack(target:target);t.points=[AnimationPoint(time:0.2,value:a),AnimationPoint(time:5,value:b),AnimationPoint(time:9.7,value:a)];return t}
                     recipe.videoAnimation=VideoAnimation(tracks:[track(.exposure,-0.25,0.25),track(.look,0.3,1),track(.lut,1,0.4),track(.mask(local.id),0.2,1)])
                 }
+                if animationCheck {
+                    let context=ImageEngine.context(),gray=CGColorSpace(name:CGColorSpace.linearGray)!
+                    let frames=try (0..<180).map {n ->TemporalMatte.Frame in
+                        let shifted=autoShape.transformed(by:.init(translationX:0,y:Double(n%30)-15)).clampedToExtent().cropped(to:autoExtent)
+                        guard let png=context.pngRepresentation(of:shifted,format:.L8,colorSpace:gray,options:[:]) else {throw StudioError.render}
+                        return .init(id:UUID(),time:Double(n)/30,png:png,width:1280,height:720)
+                    }
+                    let temporal=try TemporalMatte(start:0,end:6,sourceDuration:10,sourceWidth:1920,sourceHeight:1080,input:recipe.input,frames:frames)
+                    let first=frames[0]
+                    recipe.masks[3].automatic=AutomaticMask(id:first.id,png:first.png,width:first.width,height:first.height,framing:MaskMotion.signature(recipe),videoStart:0,temporal:temporal);recipe.masks[3].motion=nil
+                    recipe.video.end=5.8;player.setEdit(recipe.video)
+                }
                 player.toggle();try await Task.sleep(for:.seconds(1))
                 guard let frame = player.frame else { throw StudioError.unreadable }
                 let pair = VideoEngine.images(frame,descriptor:descriptor,maxDimension:1280)
@@ -83,7 +95,9 @@ struct VideoPreviewVerification:View {
                 PreviewMetrics.shared.times = [];PreviewMetrics.shared.failures = 0
                 let began = CACurrentMediaTime(),thermal = ProcessInfo.processInfo.thermalState.rawValue,startFrames = player.frameNumber
                 let inferenceBefore = AutomaticSelectionEngine.analysisCount
-                let steps = animationCheck ? 1800 : ProcessInfo.processInfo.arguments.contains("--sustained-preview") ? 7200 : 180
+                let steps = animationCheck ? (ProcessInfo.processInfo.arguments.contains("--finish-long-soak") ? 5400:1800) : ProcessInfo.processInfo.arguments.contains("--sustained-preview") ? 7200 : 180
+                let memoryStart=ProcessMemoryVerification.footprint()
+                var memoryPeak=memoryStart
                 var peakThermal=thermal
                 var interrupted = false
                 for step in 0..<steps {
@@ -102,7 +116,7 @@ struct VideoPreviewVerification:View {
                     recipe.channelMixer.redGreen = sin(Double(step)*0.07)*0.04
                     }
                     if ProcessInfo.processInfo.arguments.contains("--precision-performance-check"),step % 30 == 0 {viewport=MaskViewport(scale:Double([1,2,4][(step/30)%3]),offset:CGSize(width:sin(Double(step))*40,height:cos(Double(step))*20))}
-                    if step % 30 == 0 {peakThermal=max(peakThermal,ProcessInfo.processInfo.thermalState.rawValue)}
+                    if step % 30 == 0 {peakThermal=max(peakThermal,ProcessInfo.processInfo.thermalState.rawValue);memoryPeak=max(memoryPeak,ProcessMemoryVerification.footprint())}
                     if step % 120 == 0 { status = "Decoded \(player.frameNumber-startFrames) frames · \(step)/\(steps) edits";progress = Double(step)/Double(steps) }
                     try await Task.sleep(for:.milliseconds(animationCheck ? 33:16))
                 }
@@ -112,7 +126,7 @@ struct VideoPreviewVerification:View {
                 let count = PreviewMetrics.shared.times.count
                 try await Task.sleep(for:.seconds(3))
                 let times = PreviewMetrics.shared.times.sorted(),idleFrames = times.count-count,decoded = player.frameNumber-startFrames
-                let result:[String:Any] = ["maskSizeRotation":true,"posedAutomaticAnchor":true,"lutLayers":3,"oneDLUTPoints":4096,"flexibleCurveChannels":4,"analysisCallsDuringPlayback":AutomaticSelectionEngine.analysisCount-inferenceBefore,"cachedAutomaticMask":true,"passed":AutomaticSelectionEngine.analysisCount == inferenceBefore && !interrupted && decoded>0 && count>0 && idleFrames == 0 && scopeSampler.completed == scopeCount && (animationCheck || scopeSampler.completed>0) && PreviewMetrics.shared.failures == 0,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","animationCheck":animationCheck,"privatePortraitFixtureRemoved":!FileManager.default.fileExists(atPath:FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("MaskPersonQA.png").path),"zoomedMaskPreview":ProcessInfo.processInfo.arguments.contains("--precision-performance-check"),"trackingCorrections":ProcessInfo.processInfo.arguments.contains("--correction-performance-check"),"trackedMaskPlayback":true,"maskCombinations":true,"colorAndLuminanceMasks":true,"liveBrushPainting":!animationCheck,"brushRaster":BrushMaskRasterizer.statistics(),"activeMaskLayers":4,"maskGuideVisible":!animationCheck,"splitComparison":true,"scopesEnabled":!animationCheck,"scopeJobs":scopeSampler.completed,"scopeJobsAfterHide":scopeSampler.completed-scopeCount,"scopeAnalysisP95Milliseconds":scopeSampler.analysisTimes.sorted().dropFirst(Int(Double(scopeSampler.analysisTimes.count)*0.95)).first ?? 0,"hdrPreview":true,"trimmedPlayback":true,"requestedUpdates":steps,"rendered":count,"decodedFrames":decoded,"elapsedSeconds":CACurrentMediaTime()-began,"p95Milliseconds":times.isEmpty ? 9999 : times[min(times.count-1,Int(Double(times.count)*0.95))],"gpuFailures":PreviewMetrics.shared.failures,"idleFrames":idleFrames,"thermalPeak":peakThermal,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
+                let result:[String:Any] = ["memoryStartBytes":memoryStart,"memoryPeakBytes":memoryPeak,"memoryEndBytes":ProcessMemoryVerification.footprint(),"temporalMatteFrames":animationCheck ? 180:0,"maskSizeRotation":true,"posedAutomaticAnchor":!animationCheck,"lutLayers":3,"oneDLUTPoints":4096,"flexibleCurveChannels":4,"analysisCallsDuringPlayback":AutomaticSelectionEngine.analysisCount-inferenceBefore,"cachedAutomaticMask":true,"passed":AutomaticSelectionEngine.analysisCount == inferenceBefore && !interrupted && decoded>0 && count>0 && idleFrames == 0 && scopeSampler.completed == scopeCount && (animationCheck || scopeSampler.completed>0) && PreviewMetrics.shared.failures == 0,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","animationCheck":animationCheck,"privatePortraitFixtureRemoved":!FileManager.default.fileExists(atPath:FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("MaskPersonQA.png").path),"zoomedMaskPreview":ProcessInfo.processInfo.arguments.contains("--precision-performance-check"),"trackingCorrections":ProcessInfo.processInfo.arguments.contains("--correction-performance-check"),"trackedMaskPlayback":true,"maskCombinations":true,"colorAndLuminanceMasks":true,"liveBrushPainting":!animationCheck,"brushRaster":BrushMaskRasterizer.statistics(),"activeMaskLayers":4,"maskGuideVisible":!animationCheck,"splitComparison":true,"scopesEnabled":!animationCheck,"scopeJobs":scopeSampler.completed,"scopeJobsAfterHide":scopeSampler.completed-scopeCount,"scopeAnalysisP95Milliseconds":scopeSampler.analysisTimes.sorted().dropFirst(Int(Double(scopeSampler.analysisTimes.count)*0.95)).first ?? 0,"hdrPreview":true,"trimmedPlayback":true,"requestedUpdates":steps,"rendered":count,"decodedFrames":decoded,"elapsedSeconds":CACurrentMediaTime()-began,"p95Milliseconds":times.isEmpty ? 9999 : times[min(times.count-1,Int(Double(times.count)*0.95))],"gpuFailures":PreviewMetrics.shared.failures,"idleFrames":idleFrames,"thermalPeak":peakThermal,"thermalStart":thermal,"thermalEnd":ProcessInfo.processInfo.thermalState.rawValue,"interrupted":interrupted]
                 try JSONSerialization.data(withJSONObject:result,options:.prettyPrinted).write(to:reportURL,options:.atomic)
                 status = "Video preview check complete";progress = 1
             } catch {

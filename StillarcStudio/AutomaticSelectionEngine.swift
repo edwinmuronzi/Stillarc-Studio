@@ -4,7 +4,17 @@ import CoreML
 import Vision
 
 /// Request-only inference: models and working images live on the background worker, not in playback.
-enum SubjectSelectionMode:String,CaseIterable,Identifiable {case foreground="All subjects",picked="Tap a subject",people="People · fine edges";var id:String {rawValue}}
+enum SubjectSelectionMode:String,Codable,CaseIterable,Identifiable,Sendable {
+    case foreground="All subjects",picked="Tap a subject",people="People · fine edges",faces="Faces",skin="Facial skin"
+    var id:String {rawValue}
+    var help:String {switch self {
+    case .foreground:"Selects foreground objects and people. Choose Tap a subject to isolate one."
+    case .picked:"Tap inside the one object or person you want, then create the mask. Refine its guide afterward."
+    case .people:"Uses refined person matting for hair and clothing edges. Selects all visible people. Check low-contrast and transparent details."
+    case .faces:"Creates soft selections around detected face shapes. This is a face-guided starting point; review and refine the guide."
+    case .skin:"Starts from detected face ovals and excludes eyes, eyebrows and lips where landmarks are found. It is not pixel-perfect skin recognition; refine the guide before strong retouching."
+    }}
+}
 enum AutomaticSelectionEngine {
     #if DEBUG
     private final class Counter:@unchecked Sendable { let lock = NSLock();var count = 0;func increment() { lock.lock();count += 1;lock.unlock() } }
@@ -67,7 +77,9 @@ enum AutomaticSelectionEngine {
         counter.increment()
         #endif
         let mask:CIImage
-        if kind == .subject && subjectMode == .people {
+        if kind == .subject && (subjectMode == .faces || subjectMode == .skin) {
+            mask=try FaceSelection.make(image,skin:subjectMode == .skin)
+        } else if kind == .subject && subjectMode == .people {
             let request=VNGeneratePersonSegmentationRequest();request.qualityLevel = .accurate;request.outputPixelFormat=kCVPixelFormatType_OneComponent32Float;request.preferBackgroundProcessing=true
             let handler=VNImageRequestHandler(cgImage:image,orientation:.up)
             try await withTaskCancellationHandler(operation:{try handler.perform([request])},onCancel:{request.cancel()})
@@ -107,6 +119,8 @@ enum AutomaticSelectionEngine {
         }
         try Task.checkCancellation()
         guard hasCoverage(mask) else {throw error(kind == .subject && subjectMode == .people ? "No clear person was found. Try All subjects, a closer crop or a brush. Existing masks are unchanged.":"No clear \(kind == .sky ? "sky":"foreground subject") was found. Try a different frame or use a brush mask. Existing masks are unchanged.")}
-        return try AutomaticMaskBitmap.make(mask,recipe:recipe,videoStart:videoStart)
+        var result=try AutomaticMaskBitmap.make(mask,recipe:recipe,videoStart:videoStart)
+        if kind == .subject {result.selectionMode=subjectMode}
+        return result
     }
 }

@@ -39,7 +39,7 @@ struct RawCapabilities:Sendable {
         if #available(iOS 26,*) {recovery=f.isHighlightRecoverySupported;recoveryEnabled=f.isHighlightRecoveryEnabled} else {recovery=false;recoveryEnabled=false}
     }
 }
-struct PhotoOptics:Codable,Equatable,Sendable {var chromatic=0.0;var defringe=0.0}
+struct PhotoOptics:Codable,Equatable,Sendable {var chromatic=0.0;var defringe=0.0;var chromaNoise:Double? = nil}
 enum PhotoRendering {
     private static let channels=CIColorKernel(source:"kernel vec4 channels(__sample r,__sample g,__sample b) {vec4 p=unpremultiply(g);return premultiply(vec4(unpremultiply(r).r,p.g,unpremultiply(b).b,p.a));}")
     private static let fringe=CIColorKernel(source:"kernel vec4 fringe(__sample src,__sample soft,float amount) {vec4 p=unpremultiply(src);vec3 b=unpremultiply(soft).rgb;float y=dot(p.rgb,vec3(0.2126,0.7152,0.0722));float edge=clamp(abs(y-dot(b,vec3(0.2126,0.7152,0.0722)))*12.0,0.0,1.0);float purple=step(p.g*1.15,min(p.r,p.b));float green=step(max(p.r,p.b)*1.2,p.g);return premultiply(vec4(mix(p.rgb,vec3(y),clamp(max(purple,green)*edge*amount,0.0,1.0)),p.a));}")

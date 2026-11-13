@@ -96,6 +96,7 @@ enum ImageEngine {
     }
     static func apply(_ source: CIImage, recipe r: Recipe, rangePreview: ColorRange? = nil,preview:Bool = false,stopBefore:SamplingStage? = nil) -> CIImage {
         var image = LogConversion.apply(PhotoRendering.optics(source,r.optics),input:r.input)
+        if let noise=r.optics?.chromaNoise,noise.isFinite,noise>0 {image=PhotoChromaNoise.apply(image,amount:min(1,noise))}
         func filter(_ name: String, _ values: [String: Any]) { image = image.applyingFilter(name, parameters: values) }
         if r.exposure != 0 { filter("CIExposureAdjust", [kCIInputEVKey: r.exposure]) }
         if stopBefore == .whiteBalance {return PhotoFraming.apply(image,recipe:r)}
@@ -160,10 +161,13 @@ enum ImageEngine {
 
     static func export(source: URL, recipe: Recipe, format: ExportFormat, privacy:ExportPrivacy = ExportPrivacy(),delivery:DeliverySettings = DeliverySettings()) throws -> ExportResult {
         try autoreleasepool {
+            try DeliveryStorage.require(planned:0)
             if recipe.hasTransparentCutout && format != .png {throw NSError(domain:"Cutout",code:1,userInfo:[NSLocalizedDescriptionKey:"Choose PNG to preserve the transparent background."])}
             let automatic = try AutomaticMaskBitmap.prepare(recipe)
             let original = try open(source,raw:recipe.rawDevelopment,hdr:recipe.photoHDR == true || format == .hdrHEIF)
             let framed = PhotoFraming.window(in:PhotoFraming.orientedSize(original.image.extent.size,recipe:recipe),recipe:recipe)
+            let size=delivery.dimensions(framed.size)
+            try DeliveryStorage.require(planned:size.width*size.height*(format == .png ? 4.2:2))
             let brushes = try BrushMaskRasterizer.prepareExport(layers:recipe.masks,extent:framed)
             if recipe.hasCutout,recipe.background?.mode == .image,recipe.background?.asset == nil {throw NSError(domain:"Background",code:1,userInfo:[NSLocalizedDescriptionKey:"Choose a replacement image, or change the background mode before exporting."])}
             let bg=try (recipe.background?.mode == .image ? recipe.background?.asset:nil).map {try BackgroundRendering.load($0,source:source,preview:false)}
@@ -183,7 +187,7 @@ enum ImageEngine {
                 try context.writeHEIF10Representation(of:tagged,to:url,colorSpace:HDRPipeline.hlg,options:[CIImageRepresentationOption(rawValue:kCGImageDestinationLossyCompressionQuality as String):delivery.quality.photo])
                 try Task.checkCancellation();completed=true;return ExportResult(url:url,width:Int(image.extent.width),height:Int(image.extent.height))
             }
-            guard let rendered = context.createCGImage(image,from:image.extent,format:.RGBA8,colorSpace:output),let destination = CGImageDestinationCreateWithURL(url as CFURL,(format == .jpeg ? UTType.jpeg.identifier : UTType.png.identifier) as CFString,1,nil) else { throw StudioError.render }
+            guard let rendered = context.createCGImage(image,from:image.extent,format:.RGBA8,colorSpace:delivery.outputSpace.colorSpace),let destination = CGImageDestinationCreateWithURL(url as CFURL,(format == .jpeg ? UTType.jpeg.identifier : UTType.png.identifier) as CFString,1,nil) else { throw StudioError.render }
             try Task.checkCancellation()
             var properties = privacy.photoProperties(source:source)
             if format == .jpeg { properties[kCGImageDestinationLossyCompressionQuality as String] = delivery.quality.photo }

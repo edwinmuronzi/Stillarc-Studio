@@ -14,9 +14,12 @@ struct AutomaticMask:Codable,Equatable,Sendable {
     let framing:String
     let videoStart:Double?
     var anchor:AutomaticMaskAnchor? = nil
+    var temporal:TemporalMatte? = nil
+    var selectionMode:SubjectSelectionMode? = nil
     var bounded:Bool { !png.isEmpty && png.count<=4_194_304 && width>0 && height>0 && width<=1536 && height<=1536 }
     func matches(_ recipe:Recipe) -> Bool {
-        framing == MaskMotion.signature(recipe) && (videoStart == nil || abs((videoStart ?? 0)-recipe.video.start)<0.002)
+        if let temporal {return temporal.matches(recipe)}
+        return framing == MaskMotion.signature(recipe) && (videoStart == nil || abs((videoStart ?? 0)-recipe.video.start)<0.002)
     }
 }
 struct AutomaticRefinement:Codable,Equatable,Sendable {
@@ -105,7 +108,16 @@ enum AutomaticMaskBitmap {
         }) else {return nil}
         return image(original,extent:support,preview:preview)
     }
-    static func image(_ mask:AutomaticMask?,extent:CGRect,preview:Bool) -> CIImage? {
+    static func image(_ mask:AutomaticMask?,extent:CGRect,preview:Bool,framing:String? = nil) -> CIImage? {
+        if let mask,let temporal=mask.temporal {
+            let selected=temporal.frame(at:MaskMotion.frame?.time ?? temporal.start)
+            let stored=AutomaticMask(id:selected.id,png:selected.png,width:selected.width,height:selected.height,framing:mask.framing,videoStart:mask.videoStart)
+            // This path runs on the existing render/export worker; the bounded cache retains only eight decoded mattes.
+            guard let cg=prepared?[selected.id] ?? cache.get(stored,preview:false),let crop=TemporalMatteProjection.recipe(framing ?? MaskMotion.frame?.framing ?? mask.framing) else {return nil}
+            let full=CIImage(cgImage:cg,options:[.colorSpace:NSNull()]).transformed(by:.init(scaleX:Double(temporal.sourceWidth)/Double(cg.width),y:Double(temporal.sourceHeight)/Double(cg.height)))
+            let framed=PhotoFraming.apply(full,recipe:crop),e=framed.extent
+            return framed.transformed(by:.init(translationX:-e.minX,y:-e.minY)).transformed(by:.init(scaleX:extent.width/e.width,y:extent.height/e.height)).transformed(by:.init(translationX:extent.minX,y:extent.minY)).cropped(to:extent)
+        }
         guard let mask,let cg = prepared?[mask.id] ?? cache.get(mask,preview:preview) else { return nil }
         return CIImage(cgImage:cg,options:[.colorSpace:NSNull()]).transformed(by:.init(scaleX:extent.width/Double(cg.width),y:extent.height/Double(cg.height))).transformed(by:.init(translationX:extent.minX,y:extent.minY)).cropped(to:extent)
     }

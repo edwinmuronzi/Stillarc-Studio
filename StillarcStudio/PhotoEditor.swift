@@ -19,6 +19,7 @@ import UniformTypeIdentifiers
     @State private var automaticTarget:AutomaticSelectionTarget?
     @State private var correctionMask:LocalMask?
     @State private var trackingMask:LocalMask?
+    @State private var peopleMatte:PeopleMatteTarget?
     @State private var selectedMaskID:UUID?
     @State private var showMask = true
     @State private var brushMode = BrushInteractionMode.paint
@@ -218,6 +219,7 @@ import UniformTypeIdentifiers
         .sheet(isPresented:$versionsSheet) { VersionsSheet(session:session,library:library) }
         .sheet(item:$automaticTarget) { target in AutomaticSelectionSheet(session:session,target:target) { id in selectedMaskID = id;showMask = !target.removeBackground } }
         .sheet(item:$correctionMask) { mask in MaskCorrectionSheet(session:session,maskID:mask.id,pool:pool,undoAction:{undoEdit()},redoAction:{undoEdit(redo:true)},initialTime:videoPosition.time,onFinish:{videoPosition.seek($0)}) }
+        .sheet(item:$peopleMatte) {target in PeopleVideoMatteSheet(session:session,target:target) {id in selectedMaskID=id;showMask = !target.cutout}}
         .sheet(item:$trackingMask) { mask in MaskTrackingSheet(session:session,maskID:mask.id) }
         .sheet(isPresented: $presets) { PresetsSheet(session: session,library: library) }
         .sheet(isPresented:$trimSheet) { VideoTrimSheet(session:session) }
@@ -470,9 +472,9 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,viewport:tool == .masks ? maskViewport:MaskViewport(),position:videoPosition)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !backgroundSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil && peopleMatte == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,viewport:tool == .masks ? maskViewport:MaskViewport(),position:videoPosition)
                         } else {
-                            LivePreview(source:PhotoRendering.rawPreview(source,recipe:session.recipe),recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !export && !presets && !versionsSheet && !retouchSheet && !detailSheet && !backgroundSheet && !photoDevelopment && transferSheet == nil && trackingMask == nil && correctionMask == nil && automaticTarget == nil,hdr:session.recipe.photoHDR == true && !sdrProof,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview).modifier(MaskViewportModifier(viewport:tool == .masks ? maskViewport:MaskViewport()))
+                            LivePreview(source:PhotoRendering.rawPreview(source,recipe:session.recipe),recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !export && !presets && !versionsSheet && !retouchSheet && !detailSheet && !backgroundSheet && !photoDevelopment && transferSheet == nil && trackingMask == nil && correctionMask == nil && automaticTarget == nil && peopleMatte == nil,hdr:session.recipe.photoHDR == true && !sdrProof,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview).modifier(MaskViewportModifier(viewport:tool == .masks ? maskViewport:MaskViewport()))
                         }
                     }
                         .padding(tool == .crop ? (cropDisplayFinal ? 8 : 22) : 0)
@@ -546,7 +548,7 @@ import UniformTypeIdentifiers
             }.coordinateSpace(name:"comparisonPreview").frame(width: geometry.size.width,height: geometry.size.height).clipped().contentShape(Rectangle())
         }
     }
-    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil && !inputSheet }
+    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil && peopleMatte == nil && !inputSheet }
     @ViewBuilder private var scopePanel:some View {
         if scopesVisible && tool != .crop { ScopePanel(sampler:scopeSampler,mode:$scopeMode) }
     }
@@ -708,6 +710,10 @@ import UniformTypeIdentifiers
     private var maskControls:some View {
         VStack(alignment:.leading,spacing:12) {
             Menu {
+                if session.project.isVideo {
+                    Button("People video matte"){peopleMatte=PeopleMatteTarget()}.disabled(session.recipe.masks.count>=4)
+                    Button("Remove video background"){peopleMatte=PeopleMatteTarget(cutout:true)}.disabled(session.recipe.masks.count>=4)
+                }
                 Button("Subject & Background") {automaticTarget=AutomaticSelectionTarget(kind:.subject,maskID:nil,paired:true)}.disabled(session.recipe.masks.count>2)
                 ForEach(LocalMaskKind.allCases) { kind in
                     Button(kind.rawValue) {
@@ -721,9 +727,10 @@ import UniformTypeIdentifiers
             if !session.project.isVideo {
                 Button("Remove background",systemImage:"person.crop.rectangle") {removeBackground()}.buttonStyle(.bordered).disabled(session.source == nil || (session.recipe.masks.count>=4 && !session.recipe.masks.contains(where:{$0.kind == .subject && !$0.inverted && $0.automatic?.matches(session.recipe)==true})))
             }
-            if !session.project.isVideo && session.recipe.hasCutout {Button("Replace background",systemImage:"photo.on.rectangle"){showMask=false;backgroundSheet=true}.buttonStyle(.bordered).accessibilityIdentifier("replaceBackground")}
+            if session.recipe.hasCutout {Button("Replace background",systemImage:"photo.on.rectangle"){showMask=false;backgroundSheet=true}.buttonStyle(.bordered).accessibilityIdentifier("replaceBackground")}
             if session.recipe.masks.count>2 {Text("Subject & Background needs two free mask slots. Remove a mask to create both regions.").font(.caption).foregroundStyle(StudioStyle.secondary)}
             if let layer = selectedMask {
+                if layer.automatic?.temporal != nil {Button("Rebuild People video matte"){peopleMatte=PeopleMatteTarget(maskID:layer.id,cutout:layer.cutout == true)}.font(.caption)}
                 Button("Duplicate mask",systemImage:"plus.square.on.square") {
                     var copy=layer;copy.id=UUID();copy.cutout=nil;copy.combination=nil
                     session.change {$0.masks.append(copy)};selectedMaskID=copy.id

@@ -53,7 +53,7 @@ enum TrackingVerification {
         result["thermal"]=ProcessInfo.processInfo.thermalState.rawValue
         if let data=try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted){try? data.write(to:url,options:.atomic)}
     }
-    static func fixture(rotated:Bool = false,frames:Int = 60) async throws -> URL {
+    static func fixture(rotated:Bool = false,frames:Int = 60,pose:Bool=false) async throws -> URL {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("TrackingFixture-\(UUID())")
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         let url = root.appendingPathComponent("moving.mov"),writer = try AVAssetWriter(outputURL:root.appendingPathComponent("moving.mov"),fileType:.mov)
@@ -71,7 +71,12 @@ enum TrackingVerification {
                 guard let pool = adaptor.pixelBufferPool,CVPixelBufferPoolCreatePixelBuffer(nil,pool,&buffer) == kCVReturnSuccess,let buffer else { throw StudioError.render }
                 let x = 192+128*Double(n)/Double(max(1,frames-1)),rect = CGRect(x:x-48,y:144,width:96,height:72)
                 let background = CIImage(color:CIColor(red:0.08,green:0.09,blue:0.1)).cropped(to:extent)
-                let target = checker.transformed(by:.init(translationX:x-48,y:144)).cropped(to:rect)
+                var target = checker.transformed(by:.init(translationX:x-48,y:144)).cropped(to:rect)
+                if pose {
+                    let border=CIImage(color:.white).cropped(to:rect),inner=target.cropped(to:rect.insetBy(dx:5,dy:5))
+                    let t=Double(n)/Double(max(1,frames-1)),s=1+0.25*t
+                    target=inner.composited(over:border).transformed(by:.init(translationX:-x,y:-180)).transformed(by:.init(scaleX:s,y:s)).transformed(by:.init(rotationAngle:0.2*t)).transformed(by:.init(translationX:x,y:180))
+                }
                 context.render(target.composited(over:background),to:buffer,bounds:extent,colorSpace:ImageEngine.output)
                 guard adaptor.append(buffer,withPresentationTime:CMTime(value:Int64(n),timescale:30)) else { throw StudioError.render }
             }

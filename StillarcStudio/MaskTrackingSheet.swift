@@ -5,6 +5,7 @@ struct MaskTrackingSheet:View {
     let maskID:UUID
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
+    @State private var geometry=TrackingGeometry.position
     @State private var quality=TrackingQuality.detailed
     @State private var seed = TrackingSeed()
     @State private var poster:CGImage?
@@ -36,12 +37,14 @@ struct MaskTrackingSheet:View {
                     seedSlider("Target vertical position",key:\.y,range:0...1)
                     seedSlider("Target width",key:\.width,range:0.08...0.7)
                     seedSlider("Target height",key:\.height,range:0.08...0.7)
+                    Picker("Track movement",selection:$geometry){ForEach(TrackingGeometry.allCases){Text($0.rawValue).tag($0)}}.pickerStyle(.menu).disabled(busy)
+                    Text("Position + size follows changes in the target box. Rectangle pose also follows rotation of a visible sign, screen or card. These move the saved mask rigidly; use People video matte for changing silhouettes.").font(.caption).foregroundStyle(StudioStyle.secondary)
                     Picker("Tracking quality",selection:$quality){ForEach(TrackingQuality.allCases){Text($0.rawValue).tag($0)}}.pickerStyle(.segmented).disabled(busy)
                     Text("Detailed uses a more accurate position tracker. Efficient favors faster analysis. Both analyze reduced-size frames once, then reuse the saved path during playback. Fine-tune drift afterward with Correct tracking.").font(.caption).foregroundStyle(StudioStyle.secondary)
                     if busy { ProgressView(value:progress);Text("Analyzing motion… \(Int(progress*100))%").font(.caption.monospacedDigit()) }
                     if let message { Text(message).font(.caption).foregroundStyle(StudioStyle.secondary) }
                     Button(action:analyze) { Label("Analyze & save tracking",systemImage:"viewfinder").frame(maxWidth:.infinity).padding(12) }.buttonStyle(.borderedProminent).disabled(!canAnalyze).accessibilityIdentifier("trackingAnalyze")
-                    Text("Tracks position only, forward across the kept clip (up to 2 minutes). Analysis uses up to 15 reduced-size frames per second; playback/export interpolate the saved motion at each frame’s timestamp. It stops if the target is lost or the phone needs cooling. No background tracking, shape deformation, scale or rotation tracking. Crop changes or extending the trim require a new track. Review the whole clip before exporting.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                    Text("Tracks the selected motion, forward across the kept clip (up to 2 minutes). Analysis uses up to 15 reduced-size frames per second; playback/export interpolate the saved motion at each frame’s timestamp. It stops if the target is lost or the phone needs cooling. No background inference or mesh deformation. Rectangle pose needs a visible rectangular target. Crop changes or extending the trim require a new track. Review the whole clip before exporting.").font(.caption).foregroundStyle(StudioStyle.secondary)
                 }.padding(20)
             }.navigationTitle("Track mask").navigationBarTitleDisplayMode(.inline)
                 .toolbar { Button(busy ? "Cancel analysis" : "Done") { job?.cancel();dismiss() } }
@@ -71,9 +74,10 @@ struct MaskTrackingSheet:View {
     }
     @MainActor private func analyze() {
         guard let url = session.sourceURL,let descriptor = session.project.video else { return }
-        let recipe = session.recipe,target = seed,mode=quality
+        if session.recipe.masks.first(where:{$0.id==maskID})?.automatic?.temporal != nil {message="This mask already follows every frame. Rebuild its video matte instead of adding a rigid track.";return}
+        let recipe = session.recipe,target = seed,mode=quality,shape=geometry
         busy = true;progress = 0;message = nil
-        let task = Task.detached(priority:.utility) { try await MaskTracker.analyze(url:url,descriptor:descriptor,recipe:recipe,seed:target,quality:mode) { amount in await MainActor.run { progress = amount } } }
+        let task = Task.detached(priority:.utility) { try await MaskTracker.analyze(url:url,descriptor:descriptor,recipe:recipe,seed:target,quality:mode,geometry:shape) { amount in await MainActor.run { progress = amount } } }
         job = task
         Task { @MainActor in
             defer { busy = false;job = nil }

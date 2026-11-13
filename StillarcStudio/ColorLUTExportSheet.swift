@@ -18,6 +18,9 @@ struct ColorLUTExportSheet:View {
                     TextField("LUT name",text:$name).accessibilityIdentifier("colorLUTName")
                     Picker("Precision",selection:$dimension) { Text("33 · Standard").tag(33);Text("65 · Fine").tag(65) }
                 }.disabled(busy || result != nil)
+                Section("Stillarc Camera ↔ Studio") {
+                    Text("This 3D .cube file opens in Stillarc Camera → LUT → Import. Start with Standard style and full LUT strength, then enable baking if you want it in the saved capture. Camera can share its selected LUT back for Studio → Film → Import. Camera exposure/focus settings and spatial effects are not portable colour looks.").font(.caption)
+                }
                 Section("What is included") { Text("Exposure, white balance, contrast, saturation, vibrance, levels, RGB curves, tone shaping, fade, color mix, wheels, mixer, creative looks and the active LUT stack. Values outside SDR 0–1 are clipped.").font(.caption) }
                 Section("Keep the edit in Studio") {
                     Text("Input conversion, Highlights/Shadows, detail, grain, halation, bloom, vignette, masks, framing, clip settings and HDR cannot travel in this LUT. Export a Studio JSON preset for reusable edit instructions, or use Saved versions for this source’s complete edit including masks and framing.").font(.caption)

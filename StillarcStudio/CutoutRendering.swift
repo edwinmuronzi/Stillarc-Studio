@@ -15,8 +15,8 @@ enum CutoutRendering {
         let layer=raw.validated(),extent=source.extent
         // Show the working image, rather than an empty frame, while a crop/selection is being repaired.
         if layer.kind.isAutomatic {
-            guard let mask=layer.automatic,framing==nil || mask.framing==framing,
-                  AutomaticMaskBitmap.image(mask,extent:extent,preview:preview) != nil else {return source}
+            guard let mask=layer.automatic,mask.temporal != nil || framing==nil || mask.framing==framing,
+                  AutomaticMaskBitmap.image(mask,extent:extent,preview:preview,framing:framing) != nil else {return source}
         }
         var full=layer;full.amount=1
         var weight=MaskEngine.combinedWeight(full,layers:layers,extent:extent,preview:preview,reference:reference ?? source,framing:framing)

@@ -21,7 +21,7 @@ struct MaskCorrectionSheet:View {
     private var step:Double {1/max(1,session.project.video?.frameRate ?? 30)}
     private var time:Double {min(range.upperBound,max(range.lowerBound,position.time))}
     private var correction:(x:Double,y:Double) {motion?.correction(at:time) ?? (0,0)}
-    private var pose:(scale:Double,rotation:Double) {motion?.pose(at:time) ?? (1,0)}
+    private var pose:(scale:Double,rotation:Double) {motion?.manualPose(at:time) ?? (1,0)}
     private var point:MaskMotionPoint? {motion?.corrections?.first {abs($0.time-time)<=step*0.6}}
     private var valid:Bool {motion?.matches(session.recipe,duration:session.project.video?.duration ?? 0) == true}
     var body:some View {

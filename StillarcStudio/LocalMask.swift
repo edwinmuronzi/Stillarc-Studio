@@ -9,8 +9,9 @@ struct LocalMask:Identifiable,Codable,Equatable,Sendable {
     var id = UUID()
     var kind:LocalMaskKind
     var region:MaskRegion? = nil
+    var label:String? = nil
     var cutout:Bool? = nil
-    var title:String {region?.rawValue ?? kind.rawValue}
+    var title:String {label.map {String($0.prefix(80))} ?? region?.rawValue ?? kind.rawValue}
     var brush:BrushDrawing? = nil
     var selection:MaskSelection? = nil
     var combination:MaskCombination? = nil

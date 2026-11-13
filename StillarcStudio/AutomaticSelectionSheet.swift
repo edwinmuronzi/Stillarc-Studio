@@ -39,7 +39,7 @@ struct AutomaticSelectionSheet:View {
                     else if message == nil { ProgressView("Preparing analysis preview…").frame(maxWidth:.infinity).frame(height:240) }
                     if target.kind == .subject {
                         Picker("Selection method",selection:$subjectMode){ForEach(SubjectSelectionMode.allCases){Text($0.rawValue).tag($0)}}.pickerStyle(.menu).disabled(busy).accessibilityIdentifier("subjectSelectionMethod")
-                        Text(subjectMode == .picked ? "Tap inside the one object or person you want, then create the mask. The rest stays out. For fine manual detail, zoom the main Masks preview afterward." : (subjectMode == .people ? "Uses refined on-device person matting for softer hair and clothing edges. Selects all detected people, not other objects. Check the guide; low contrast and transparent details can still need refinement." : "Automatically selects the foreground objects and people. Choose Tap a subject to isolate just one.")).font(.caption).foregroundStyle(StudioStyle.secondary)
+                        Text(subjectMode.help).font(.caption).foregroundStyle(StudioStyle.secondary)
                     }
                     Text(target.paired ? "Subject & Background" : (background ? "Select the background" : (target.kind == .subject ? "Select foreground subjects" : "Select the sky"))).font(.title2.weight(.semibold))
                     Text(target.kind == .subject ? "Finds foreground subjects and saves a soft selection. It can include more than one object. Review the red Guide, then adjust exposure, color or contrast just in that area." : "Finds likely sky and saves a soft selection, including cloudy sky where recognized. Review the red Guide; buildings, reflections or detailed clouds can confuse a small model. Refine the edge or combine it with a brush when needed.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
@@ -63,6 +63,7 @@ struct AutomaticSelectionSheet:View {
     @MainActor private func load() async {
         guard let url = session.sourceURL else { return }
         message = nil
+        if let previous=session.recipe.masks.first(where:{$0.id==target.maskID})?.automatic?.selectionMode {subjectMode=previous}
         let recipe = session.recipe,video = session.project.video,prepared = session.source
         let task = Task.detached(priority:.userInitiated) { try await AutomaticSelectionEngine.input(url:url,video:video,recipe:recipe,prepared:prepared) };inputJob = task
         defer { inputJob = nil }
@@ -87,9 +88,9 @@ struct AutomaticSelectionSheet:View {
                     id = try updated.addSubjectBackground(stored)
                     session.change { $0 = updated }
                 } else if let previous = target.maskID,let index = session.recipe.masks.firstIndex(where:{ $0.id == previous }) {
-                    session.change { $0.masks[index].automatic = stored;$0.masks[index].motion = nil };id = previous
+                    session.change { $0.masks[index].automatic = stored;$0.masks[index].motion = nil;$0.masks[index].label=(mode == .faces || mode == .skin) ? mode.rawValue:nil };id = previous
                 } else if session.recipe.masks.count<4 {
-                    var layer = LocalMask(kind:kind);layer.automatic = stored;layer.refinement = AutomaticRefinement();layer.cutout=target.removeBackground ? true:nil
+                    var layer = LocalMask(kind:kind);layer.label=(mode == .faces || mode == .skin) ? mode.rawValue:nil;layer.automatic = stored;layer.refinement = AutomaticRefinement();layer.cutout=target.removeBackground ? true:nil
                     session.change { if target.removeBackground {for i in $0.masks.indices {$0.masks[i].cutout=nil}};$0.masks.append(layer) };id = layer.id
                 }
                 if let id { didSave(id) };dismiss()

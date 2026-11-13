@@ -35,7 +35,7 @@ struct MaskMotion:Codable,Equatable,Sendable {
         return r.crop.rawValue + ":" + [Double(r.rotation),r.straighten,r.cropX,r.cropY,g.width,g.height,g.flipHorizontal ? 1 : 0,g.flipVertical ? 1 : 0,g.horizontal,g.vertical].map { String($0) }.joined(separator:",") + suffix + (r.rawDevelopment?.lensProfile.map {":rawLens=\($0)"} ?? "")
     }
     var isValid:Bool {
-        validPivot && validSource && start.isFinite && end.isFinite && end>start && !points.isEmpty && points.count<=1802 && points.allSatisfy { $0.time.isFinite && $0.x.isFinite && $0.y.isFinite && abs($0.x)<=16 && abs($0.y)<=16 && $0.time>=start-0.001 && $0.time<=end+0.001 } && zip(points,points.dropFirst()).allSatisfy { $0.time < $1.time }
+        validPivot && validSource && start.isFinite && end.isFinite && end>start && !points.isEmpty && points.count<=1802 && points.allSatisfy { $0.time.isFinite && $0.x.isFinite && $0.y.isFinite && abs($0.x)<=16 && abs($0.y)<=16 && $0.time>=start-0.001 && $0.time<=end+0.001 && ($0.scale == nil || ($0.scale!.isFinite && (0.25...4).contains($0.scale!))) && ($0.rotation == nil || ($0.rotation!.isFinite && abs($0.rotation!)<=3600)) } && zip(points,points.dropFirst()).allSatisfy { $0.time < $1.time }
     }
     private var validPivot:Bool {
         [pivotX,pivotY].allSatisfy {$0 == nil || ($0!.isFinite && abs($0!)<=64)}
@@ -46,17 +46,22 @@ struct MaskMotion:Codable,Equatable,Sendable {
         return w.isFinite && h.isFinite && w>0 && h>0 && w<=32768 && h<=32768
     }
     func pose(at time:Double)->(scale:Double,rotation:Double) {
-        guard time.isFinite,let first=corrections?.first,let last=corrections?.last,let values=corrections else {return (1,0)}
+        let measured=Self.pose(points,at:time,blend:.linear),manual=manualPose(at:time)
+        return (measured.scale*manual.scale,measured.rotation+manual.rotation)
+    }
+    func manualPose(at time:Double)->(scale:Double,rotation:Double) {Self.pose(corrections ?? [],at:time,blend:correctionBlend ?? .linear)}
+    private static func pose(_ values:[MaskMotionPoint],at time:Double,blend:MaskCorrectionBlend)->(scale:Double,rotation:Double) {
+        guard time.isFinite,let first=values.first,let last=values.last else {return (1,0)}
         func result(_ p:MaskMotionPoint)->(Double,Double) {(p.scale ?? 1,p.rotation ?? 0)}
         if time<=first.time {return result(first)};if time>=last.time {return result(last)}
         var low=0,high=values.count-1
         while high-low>1 {let mid=(low+high)/2;if values[mid].time<=time {low=mid} else {high=mid}}
-        let a=values[low],b=values[high],f=(correctionBlend ?? .linear).fraction((time-a.time)/(b.time-a.time))
+        let a=values[low],b=values[high],f=blend.fraction((time-a.time)/(b.time-a.time))
         return ((a.scale ?? 1)+((b.scale ?? 1)-(a.scale ?? 1))*f,(a.rotation ?? 0)+((b.rotation ?? 0)-(a.rotation ?? 0))*f)
     }
     func affine(at time:Double,extent:CGRect,center:CGPoint)->CGAffineTransform {
         let offset=offset(at:time),pose=pose(at:time),dx=offset.x*extent.width,dy = -offset.y*extent.height
-        guard validPivot,pose.scale.isFinite,(0.25...4).contains(pose.scale),pose.rotation.isFinite,abs(pose.rotation)<=180,dx.isFinite,dy.isFinite else {return .identity}
+        guard validPivot,pose.scale.isFinite,(0.0625...16).contains(pose.scale),pose.rotation.isFinite,abs(pose.rotation)<=3780,dx.isFinite,dy.isFinite else {return .identity}
         if pose.scale==1 && pose.rotation==0 {return .init(translationX:dx,y:dy)}
         let x=extent.minX+extent.width*(pivotX ?? center.x),y=extent.minY+extent.height*(1-(pivotY ?? center.y))
         let angle=pose.rotation * .pi/180,a=pose.scale*cos(angle),b = -pose.scale*sin(angle),c=pose.scale*sin(angle),d=a
@@ -87,7 +92,7 @@ struct MaskMotion:Codable,Equatable,Sendable {
     mutating func setCorrection(time:Double,x:Double,y:Double,tolerance:Double,scale:Double? = nil,rotation:Double? = nil) {
         guard time.isFinite,x.isFinite,y.isFinite,tolerance.isFinite,tolerance>=0,(scale?.isFinite ?? true),(rotation?.isFinite ?? true) else {return}
         let t=min(end,max(start,time))
-        let current=pose(at:t),s=min(4,max(0.25,scale ?? current.scale)),r=min(180,max(-180,rotation ?? current.rotation))
+        let current=manualPose(at:t),s=min(4,max(0.25,scale ?? current.scale)),r=min(180,max(-180,rotation ?? current.rotation))
         let point=MaskMotionPoint(time:t,x:min(16,max(-16,x)),y:min(16,max(-16,y)),scale:s==1 ? nil:s,rotation:r==0 ? nil:r)
         var values=corrections ?? []
         if values.isEmpty && t>start+tolerance {values.append(.init(time:start,x:0,y:0))}
@@ -101,6 +106,9 @@ struct MaskMotion:Codable,Equatable,Sendable {
     }
     static func validateExport(_ recipe:Recipe,duration:Double) throws {
         for index in MaskEngine.requiredIndices(recipe.masks) {
+            if let matte=recipe.masks[index].automatic?.temporal {
+                guard matte.matches(recipe),abs(matte.sourceDuration-duration)<0.003,recipe.masks[index].motion==nil else {throw PeopleVideoMatteError.invalid}
+            }
             guard let track = recipe.masks[index].motion else { continue }
             guard track.matches(recipe,duration:duration) else {
                 throw NSError(domain:"MaskTracking",code:1,userInfo:[NSLocalizedDescriptionKey:"A mask track no longer matches this crop or kept clip. Track it again or clear its tracking before exporting."])
@@ -121,3 +129,5 @@ extension MaskMotion {
         if !validCorrections { corrections = nil }
     }
 }
+
+enum PeopleVideoMatteError:LocalizedError {case invalid;var errorDescription:String? {"Rebuild the People video matte for this input/kept clip and remove any additional rigid track before exporting."}}

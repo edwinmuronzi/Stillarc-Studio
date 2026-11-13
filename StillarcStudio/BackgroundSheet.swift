@@ -6,6 +6,8 @@ struct BackgroundSheet:View {
     @Bindable var session:EditSession
     @Bindable var library:StudioLibrary
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var phase
+    @State private var videoPhoto:PreparedPhoto?
     @State private var picker:PhotosPickerItem?
     @State private var files=false
     @State private var busy=false
@@ -21,6 +23,7 @@ struct BackgroundSheet:View {
         NavigationStack {ScrollView {VStack(alignment:.leading,spacing:20) {
             Text("Keep your subject. Change the scene.").font(.title2.weight(.semibold))
             Text("Create a cutout with Remove background first. These controls affect the replacement behind it; your foreground grade stays separate.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
+            if session.project.isVideo {Text("Video preview shows the first kept frame. Return to the editor to review movement. Choose a solid, image or blurred background before video export; alpha video is not supported.").font(.caption).foregroundStyle(StudioStyle.secondary)}
             Picker("Background mode",selection:Binding(get:{settings.mode},set:{v in update {$0.mode=v;if v == .blur && $0.blur == 0 {$0.blur=0.5}}})) {ForEach(PhotoBackgroundMode.allCases) {Text($0.rawValue).tag($0)}}.pickerStyle(.menu).accessibilityIdentifier("backgroundMode")
             if settings.mode == .solid || settings.mode == .image {
                 HStack {ForEach(Array([(0.05,0.06,0.08),(1.0,1.0,1.0),(0.15,0.35,0.70),(0.72,0.38,0.23)].enumerated()),id:\.offset) {index,c in Button {update {$0.red=c.0;$0.green=c.1;$0.blue=c.2}} label:{Circle().fill(Color(red:c.0,green:c.1,blue:c.2)).frame(width:38,height:38)}.accessibilityLabel("Background swatch \(index+1)")}}
@@ -40,7 +43,12 @@ struct BackgroundSheet:View {
             if busy {ProgressView("Importing background…")}
             if let error {Text(error).font(.caption).foregroundStyle(.orange)}
             Text("Use a little blur to soften distractions behind your subject. Check hair and translucent edges after replacing the background.").font(.caption).foregroundStyle(StudioStyle.secondary)
-        }.padding(20)}.safeAreaInset(edge:.top) {if let photo=session.source {LivePreview(source:PhotoRendering.rawPreview(photo,recipe:session.recipe),recipe:session.recipe,original:false,hdr:session.recipe.photoHDR == true).frame(height:220).clipShape(RoundedRectangle(cornerRadius:16)).padding(.horizontal,16).padding(.bottom,8)}}.navigationTitle("Background").navigationBarTitleDisplayMode(.inline).toolbar {Button("Done"){dismiss()}.disabled(busy)}}.tint(StudioStyle.blue).presentationDetents([.large]).interactiveDismissDisabled(busy)
+        }.padding(20)}.safeAreaInset(edge:.top) {if let photo=videoPhoto ?? session.source {LivePreview(source:PhotoRendering.rawPreview(photo,recipe:session.recipe),recipe:session.recipe,original:false,active:phase == .active,hdr:session.project.isVideo ? session.recipe.video.hdr:session.recipe.photoHDR == true,stillFrame:session.project.isVideo ? .init(time:session.recipe.video.start,framing:MaskMotion.signature(session.recipe)):nil).frame(height:220).clipShape(RoundedRectangle(cornerRadius:16)).padding(.horizontal,16).padding(.bottom,8)}}.navigationTitle("Background").navigationBarTitleDisplayMode(.inline).toolbar {Button("Done"){dismiss()}.disabled(busy)}}.tint(StudioStyle.blue).presentationDetents([.large]).interactiveDismissDisabled(busy)
+        .task {
+            guard let video=session.project.video,let url=session.sourceURL else {return}
+            let time=session.recipe.video.start
+            do {let worker=Task.detached(priority:.utility){try await VideoEngine.poster(url,descriptor:video,maxDimension:1536,time:time)};let loaded=try await withTaskCancellationHandler(operation:{try await worker.value},onCancel:{worker.cancel()});if !Task.isCancelled {videoPhoto=loaded}} catch {if !Task.isCancelled {self.error=error.localizedDescription}}
+        }
         .onChange(of:picker) {_,item in guard let item else {return};Task {do {guard let transfer=try await item.loadTransferable(type:PhotoTransfer.self) else {throw StudioError.unreadable};defer {try? FileManager.default.removeItem(at:transfer.url.deletingLastPathComponent())};await load(transfer.url)} catch {self.error=error.localizedDescription};picker=nil}}
         .fileImporter(isPresented:$files,allowedContentTypes:[.image]) {result in if case .success(let url)=result {Task {let secured=url.startAccessingSecurityScopedResource();defer {if secured {url.stopAccessingSecurityScopedResource()}};await load(url)}}}
     }

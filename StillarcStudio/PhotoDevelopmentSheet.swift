@@ -33,6 +33,8 @@ struct PhotoDevelopmentSheet:View {
             Divider();Text("Optics").font(.title2.bold())
             opticsSlider("Chromatic aberration",\.chromatic,-1...1)
             opticsSlider("Defringe",\.defringe,0...1)
+            VStack {Text("Chroma noise cleanup").font(.caption);Slider(value:Binding(get:{session.recipe.optics?.chromaNoise ?? 0},set:{v in var value=session.recipe.optics ?? PhotoOptics();value.chromaNoise=v;session.recipe.optics=value}),in:0...1,onEditingChanged:{$0 ? session.begin():session.end()}).accessibilityLabel("Chroma noise cleanup").sliderReset {session.change {$0.optics?.chromaNoise=nil}}}
+            Text("Softens coloured noise while retaining original brightness detail. Use lightly around fine coloured edges. This is spatial filtering, not AI or multi-frame reconstruction.").font(.caption).foregroundStyle(StudioStyle.secondary)
             Text("Chromatic aberration aligns red and blue edges. Defringe reduces purple/green color fringing; inspect small details before using a strong setting. Use small adjustments to keep fine detail natural.").font(.caption).foregroundStyle(StudioStyle.secondary)
             Divider();Text("HDR stills").font(.title2.bold())
             Toggle("Develop in HDR",isOn:Binding(get:{session.recipe.photoHDR == true},set:{v in session.change {$0.photoHDR=v}}))

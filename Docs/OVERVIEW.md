@@ -1,4 +1,9 @@
-# Stillarc Studio · 0.48
+# Stillarc Studio · 0.49
+
+## Camera, colour & moving masks · 0.49
+
+Share colour-only looks with Stillarc Camera, choose explicit sRGB/P3/linear input interpretation and tagged photo output, analyse rectangle size/rotation, prepare short People video mattes and composite video backgrounds. Faces/Facial skin and bounded chroma-noise cleanup extend photo finishing. [Workflows, limits and what to test](FINISHING-049.md).
+
 
 ## White balance & Levels pickers · 0.48
 

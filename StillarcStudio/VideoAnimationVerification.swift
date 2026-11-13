@@ -71,7 +71,7 @@ enum VideoAnimationVerification {
         let blob=try JSONEncoder().encode(loaded);let same=try JSONDecoder().decode(Project.self,from:blob);try check(same.recipe.videoAnimation==video.videoAnimation,"Queue snapshot serialization")
         VerificationProgress.record("Animation backup start")
         let package=try await vault.writeArchive([project.id]);defer {try? FileManager.default.removeItem(at:package.deletingLastPathComponent())}
-        let manifest=try ProjectArchive.inspect(package);try check(manifest.minimumReader==52,"Backup reader version")
+        let manifest=try ProjectArchive.inspect(package);try check(manifest.minimumReader==54,"Backup reader version")
         let restored=try await vault.restoreArchive(package);try check(restored[0].recipe.masks==video.masks && restored[0].recipe.videoAnimation==video.videoAnimation,"Animated backup")
         VerificationProgress.record("Animated queue start")
         let queue=await MainActor.run {StudioExportQueue(vault:vault,root:folder.appendingPathComponent("delivery-queue"))}

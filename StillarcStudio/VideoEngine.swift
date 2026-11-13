@@ -84,11 +84,13 @@ enum VideoEngine {
 
     static func export(source:URL,descriptor:VideoDescriptor,recipe:Recipe,tenBit:Bool = true,privacy:ExportPrivacy = ExportPrivacy(),delivery:DeliverySettings = DeliverySettings(),progress:@escaping @Sendable (Double) async -> Void,cooling:@escaping @Sendable (Bool) async -> Void = { _ in }) async throws -> ExportResult {
         try Task.checkCancellation()
-        guard !recipe.hasCutout else {throw NSError(domain:"Cutout",code:2,userInfo:[NSLocalizedDescriptionKey:"Transparent cutouts are photo-only. Turn off Keep selection as cutout before exporting video."])}
+        guard !recipe.hasTransparentCutout else {throw NSError(domain:"Cutout",code:2,userInfo:[NSLocalizedDescriptionKey:"Video export needs a solid, image or blurred background. Use Background to choose one; transparent video files are not supported."])}
         try LensRendering.prepare();try FilmRendering.prepare()
         try ColorPipeline.prepare(); try LogConversion.prepare();try HDRPipeline.prepare();try MaskEngine.prepare()
         try MaskMotion.validateExport(recipe,duration:descriptor.duration)
         let automatic = try AutomaticMaskBitmap.prepare(recipe)
+        if recipe.hasCutout,recipe.background?.mode == .image,recipe.background?.asset == nil {throw StudioError.unreadable}
+        let background=try (recipe.background?.mode == .image ? recipe.background?.asset:nil).map {try BackgroundRendering.load($0,source:source,preview:false)}
         let asset = AVURLAsset(url:source)
         guard let track = try await asset.loadTracks(withMediaType:.video).first else { throw StudioError.unreadable }
         let reader = try AVAssetReader(asset:asset)
@@ -98,6 +100,9 @@ enum VideoEngine {
         let trimStart = CMTime(seconds:selection.lowerBound,preferredTimescale:60000)
         let trimEnd = CMTime(seconds:selection.upperBound,preferredTimescale:60000)
         if trimmed { reader.timeRange = CMTimeRange(start:trimStart,end:trimEnd) }
+        let plannedSize=delivery.dimensions(PhotoFraming.window(in:PhotoFraming.orientedSize(CGSize(width:descriptor.width,height:descriptor.height),recipe:recipe),recipe:recipe).size,video:true)
+        let rate=delivery.codec == .proRes422 ? 147_000_000*(plannedSize.width*plannedSize.height/(1920*1080))*(descriptor.frameRate/29.97):Double(delivery.targetVideoBitRate(size:plannedSize,frameRate:descriptor.frameRate))
+        try DeliveryStorage.require(planned:(rate+(privacy.audio ? max(0,descriptor.audioDataRate ?? 3_072_000):0))*(selection.upperBound-selection.lowerBound)/8+65_536)
         let hdr = recipe.video.hdr
         let codec=delivery.codec
         guard codec.available else {throw NSError(domain:"Delivery",code:1,userInfo:[NSLocalizedDescriptionKey:"ProRes 422 hardware export is unavailable on this device. Choose HEVC or H.264."])}
@@ -176,7 +181,7 @@ enum VideoEngine {
                         CVBufferSetAttachment(destination,kCVImageBufferTransferFunctionKey,hdr ? kCVImageBufferTransferFunction_ITU_R_2100_HLG : kCVImageBufferTransferFunction_sRGB,.shouldPropagate)
                         CVBufferSetAttachment(destination,kCVImageBufferYCbCrMatrixKey,hdr ? kCVImageBufferYCbCrMatrix_ITU_R_2020 : kCVImageBufferYCbCrMatrix_ITU_R_709_2,.shouldPropagate)
                         let pair = images(sourceBuffer,descriptor:descriptor)
-                        var image = AutomaticMaskBitmap.$prepared.withValue(automatic) { MaskMotion.$frame.withValue(.init(time:presentation.seconds,framing:MaskMotion.signature(recipe))) { BrushMaskRasterizer.$preparedExport.withValue(brushes) { HDRPipeline.grade(recipe.input.profile == .standard ? pair.managed : pair.signal,recipe:recipe,hdr:hdr) } } }
+                        var image = BackgroundRendering.$fullImage.withValue(background) {AutomaticMaskBitmap.$prepared.withValue(automatic) { MaskMotion.$frame.withValue(.init(time:presentation.seconds,framing:MaskMotion.signature(recipe))) { BrushMaskRasterizer.$preparedExport.withValue(brushes) { HDRPipeline.grade(recipe.input.profile == .standard ? pair.managed : pair.signal,recipe:recipe,hdr:hdr) } } } }
                         // Match the SDR preview: clip scene headroom before encoding to an SDR buffer.
                         // Otherwise Core Image may tone-map the unclamped HDR graph during YUV conversion.
                         if !hdr { image = image.applyingFilter("CIColorClamp",parameters:["inputMinComponents":CIVector(x:0,y:0,z:0,w:0),"inputMaxComponents":CIVector(x:1,y:1,z:1,w:1)]) }

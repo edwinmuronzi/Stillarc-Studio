@@ -38,7 +38,7 @@ enum MaskFramingRepair {
             .transformed(by:.init(scaleX:before.width/Double(cg.width)*sx,y:before.height/Double(cg.height)*sy))
             .transformed(by:.init(translationX:(before.minX-after.minX)*sx,y:(before.minY-after.minY)*sy))
             .composited(over:CIImage(color:.black).cropped(to:target)).cropped(to:target)
-        var result = try AutomaticMaskBitmap.make(selected,recipe:recipe,videoStart:stored.videoStart);result.anchor = anchor
+        var result = try AutomaticMaskBitmap.make(selected,recipe:recipe,videoStart:stored.videoStart);result.anchor = anchor;result.selectionMode=stored.selectionMode
         return result
     }
     /// Adopt repaired geometry without overwriting controls changed while the worker ran.
@@ -59,10 +59,11 @@ enum MaskFramingRepair {
         else if let prepared { size = CGSize(width:prepared.width,height:prepared.height) }
         else { let opened = try ImageEngine.open(url,maxDimension:1536);size = CGSize(width:opened.width,height:opened.height) }
         let required = MaskEngine.requiredIndices(recipe.masks)
-        var input:CGImage?,created:[LocalMaskKind:AutomaticMask] = [:]
+        var input:CGImage?,created:[String:AutomaticMask] = [:]
         for i in result.masks.indices where result.masks[i].kind.isAutomatic {
             try Task.checkCancellation()
             guard let old = result.masks[i].automatic,!old.matches(recipe) else { continue }
+            if old.temporal != nil {throw AutomaticSelectionEngine.error("Rebuild the People video matte after extending the kept clip or changing input conversion. Existing edits are preserved.")}
             if let moved = try reframe(old,to:recipe,sourceSize:size) {
                 result.masks[i].automatic = moved
                 if var motion = result.masks[i].motion,let previous = snapshot(motion.framing),sameField(previous,recipe) {
@@ -80,8 +81,10 @@ enum MaskFramingRepair {
                 // Rotation/perspective or a different first video frame needs a fresh selection once.
                 if input == nil { input = try await AutomaticSelectionEngine.input(url:url,video:video,recipe:recipe,prepared:prepared) }
                 let kind = result.masks[i].kind
-                if created[kind] == nil { created[kind] = try await AutomaticSelectionEngine.analyze(input!,kind:kind,recipe:recipe,videoStart:video == nil ? nil : recipe.video.start) }
-                result.masks[i].automatic = created[kind];result.masks[i].motion = nil
+                let mode=old.selectionMode ?? .foreground,key=kind.rawValue+":"+mode.rawValue
+                if mode == .picked {throw AutomaticSelectionEngine.error("Recreate this tapped-subject selection after changing its rotation or perspective. It will not be replaced with a selection of every subject.")}
+                if created[key] == nil {created[key]=try await AutomaticSelectionEngine.analyze(input!,kind:kind,recipe:recipe,videoStart:video == nil ? nil:recipe.video.start,subjectMode:mode)}
+                result.masks[i].automatic = created[key];result.masks[i].motion = nil
             }
         }
         return result

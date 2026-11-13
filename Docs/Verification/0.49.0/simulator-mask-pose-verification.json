@@ -1,0 +1,14 @@
+{
+  "cropNoInference" : true,
+  "bounded32" : true,
+  "passed" : true,
+  "version" : "0.49.0",
+  "interpolationPivotClockwise" : true,
+  "invalidData" : true,
+  "persistence" : true,
+  "cropPoseMaxError" : 0,
+  "smoothAndHold" : true,
+  "legacyNeutral" : true,
+  "unchangedMeasuredPath" : true,
+  "renderedRotation" : true
+}
