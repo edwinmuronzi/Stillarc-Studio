@@ -67,6 +67,7 @@ enum StudioStyle {
     @State private var recovery = false
     @State private var emptyBinRequested=false
     @State private var files = false
+    @State private var originalMedia:Project?
     @State private var lookLibrary=false
     @State private var info = false
     @State private var deletion: Project?
@@ -190,7 +191,7 @@ enum StudioStyle {
             .task {
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("--privacy-demo") { ExportPrivacy().save() }
-                let qa = ProcessInfo.processInfo.arguments.contains("--verify-look-library") || ProcessInfo.processInfo.arguments.contains("--verify-mask-precision") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-corrections") || ProcessInfo.processInfo.arguments.contains("--verify-video-animation") || ProcessInfo.processInfo.arguments.contains("--verify-live-archive-paths") || ProcessInfo.processInfo.arguments.contains("--verify-export-queue") || ProcessInfo.processInfo.arguments.contains("--verify-archive-performance") || ProcessInfo.processInfo.arguments.contains("--verify-project-archive") || ProcessInfo.processInfo.arguments.contains("--verify-color-delivery") || ProcessInfo.processInfo.arguments.contains("--verify-reference-match") || ProcessInfo.processInfo.arguments.contains("--verify-photo-development") || ProcessInfo.processInfo.arguments.contains("--verify-cutout-history") || ProcessInfo.processInfo.arguments.contains("--verify-pool") || ProcessInfo.processInfo.arguments.contains("--verify-real-video") || ProcessInfo.processInfo.arguments.contains("--verify-real-media") || ProcessInfo.processInfo.arguments.contains("--verify-refinement") || ProcessInfo.processInfo.arguments.contains("--verify-color-batch") || ProcessInfo.processInfo.arguments.contains("--verify-export-privacy") || ProcessInfo.processInfo.arguments.contains("--verify-video-suite") || ProcessInfo.processInfo.arguments.contains("--verify-studio") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") || ProcessInfo.processInfo.arguments.contains("--verify-automatic-only")
+                let qa = ProcessInfo.processInfo.arguments.contains("--verify-original-media") || ProcessInfo.processInfo.arguments.contains("--verify-look-library") || ProcessInfo.processInfo.arguments.contains("--verify-mask-precision") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-corrections") || ProcessInfo.processInfo.arguments.contains("--verify-video-animation") || ProcessInfo.processInfo.arguments.contains("--verify-live-archive-paths") || ProcessInfo.processInfo.arguments.contains("--verify-export-queue") || ProcessInfo.processInfo.arguments.contains("--verify-archive-performance") || ProcessInfo.processInfo.arguments.contains("--verify-project-archive") || ProcessInfo.processInfo.arguments.contains("--verify-color-delivery") || ProcessInfo.processInfo.arguments.contains("--verify-reference-match") || ProcessInfo.processInfo.arguments.contains("--verify-photo-development") || ProcessInfo.processInfo.arguments.contains("--verify-cutout-history") || ProcessInfo.processInfo.arguments.contains("--verify-pool") || ProcessInfo.processInfo.arguments.contains("--verify-real-video") || ProcessInfo.processInfo.arguments.contains("--verify-real-media") || ProcessInfo.processInfo.arguments.contains("--verify-refinement") || ProcessInfo.processInfo.arguments.contains("--verify-color-batch") || ProcessInfo.processInfo.arguments.contains("--verify-export-privacy") || ProcessInfo.processInfo.arguments.contains("--verify-video-suite") || ProcessInfo.processInfo.arguments.contains("--verify-studio") || ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") || ProcessInfo.processInfo.arguments.contains("--verify-automatic-only")
                 let oldIdle = UIApplication.shared.isIdleTimerDisabled
                 if qa { UIApplication.shared.isIdleTimerDisabled = true }
                 defer { if qa { UIApplication.shared.isIdleTimerDisabled = oldIdle } }
@@ -220,6 +221,7 @@ enum StudioStyle {
                     do { let report = try await Task.detached { try await TrackingVerification.video() }.value;try JSONSerialization.data(withJSONObject:report,options:.prettyPrinted).write(to:reportURL,options:.atomic) }
                     catch { try? JSONSerialization.data(withJSONObject:["passed":false,"error":error.localizedDescription],options:.prettyPrinted).write(to:reportURL,options:.atomic) }
                 }
+                if ProcessInfo.processInfo.arguments.contains("--verify-original-media"){await OriginalMediaVerification.writeReport()}
                 if ProcessInfo.processInfo.arguments.contains("--verify-look-library"){await LookLibraryVerification.writeReport()}
                 if ProcessInfo.processInfo.arguments.contains("--verify-mask-precision"){await MaskPrecisionVerification.writeReport()}
                 if ProcessInfo.processInfo.arguments.contains("--verify-tracking-corrections"){await TrackingVerification.writeCorrectionReport()}
@@ -277,6 +279,10 @@ enum StudioStyle {
                     }
                 }
                 if ProcessInfo.processInfo.arguments.contains("--video-demo"),let url = try? await VideoFixtures.make(profile:.standard,frames:90) { selected = await library.add(url);try? FileManager.default.removeItem(at:url.deletingLastPathComponent()) }
+                if ProcessInfo.processInfo.arguments.contains("--original-media-ui-test"),let url=Bundle.main.url(forResource:"Sample",withExtension:"jpg") {
+                    let old=library.projects.filter {$0.name=="QA Original repair"};for p in old {await library.remove(p)}
+                    if var p=await library.add(url) {p.name="QA Original repair";_ = await library.save(p);originalMedia=p}
+                }
                 if ProcessInfo.processInfo.arguments.contains("--look-library-ui-test") {
                     let old=library.looks.filter {$0.name.hasPrefix("QA Library ")};for look in old {await library.removeLook(look)}
                     _ = await library.saveLook(name:"QA Library Amber",recipe:Recipe());_ = await library.saveLook(name:"QA Library Blue",recipe:Recipe())
@@ -299,6 +305,7 @@ enum StudioStyle {
             .fullScreenCover(item: $selected) { project in PhotoEditor(project: project, library: library) }
             .sheet(isPresented:$queueSheet){ExportQueueSheet(queue:library.exportQueue)}
             .fullScreenCover(isPresented:$archives){ProjectArchiveSheet(library:library,initialSelection:archiveIDs)}
+            .sheet(item:$originalMedia){project in OriginalMediaSheet(library:library,project:project)}
             .sheet(isPresented:$lookLibrary){LookLibrarySheet(library:library)}
             .sheet(isPresented:$info) { StudioAbout() }
             .sheet(isPresented:$recovery,onDismiss:{emptyBinRequested=false}) { RecentlyDeletedSheet(library:library,requestEmpty:emptyBinRequested) }
@@ -367,6 +374,7 @@ enum StudioStyle {
         Button("Delete selected",systemImage:"trash",role:.destructive) { deleteIDs = selection;confirmBulkDelete = true }
     }
     @ViewBuilder private func projectActions(_ project:Project) -> some View {
+        Button("Original media & repair",systemImage:"checkmark.shield"){searchFocused=false;originalMedia=project}
         Button("Back up project",systemImage:"externaldrive"){openBackups([project.id])}
         Button("Copy adjustments",systemImage:"doc.on.doc") { searchFocused = false;copyProject = project }
         Button("Paste adjustments",systemImage:"doc.on.clipboard") { searchFocused = false;pasteProject = project }.disabled(library.adjustmentClipboard == nil)
@@ -522,7 +530,8 @@ enum StudioStyle {
                 VStack(alignment: .leading,spacing: 24) {
                     StudioMark(size: 70)
                     Text("A little room\nfor a bigger vision.").font(.largeTitle.weight(.semibold))
-                    Text("Stillarc Studio · Look library · 0.39.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Stillarc Studio · Original media recovery · 0.40.0").font(.caption.monospaced()).foregroundStyle(StudioStyle.blue)
+                    Text("Original media & repair is in each Home project's menu. Save a fingerprint while the source is available, then Verify original to check the file later. If it is missing or changed, Restore matching original accepts only the exact saved bytes from Files. It keeps your edits, masks, trim and versions; changed non-empty copies are retained locally. A fingerprint is not a backup: keep a complete project backup too. Checks run only when requested, slow down when thermal pressure rises and stop if the phone needs cooling.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Look library is on Home beside the info button, and in Looks & presets → Manage look library. Star your favourites, put looks into named collections, search, sort or change their library order. Back up all or selected looks, then Save / share every numbered .studiolooks part to Files. Import adds reusable grades and embedded LUTs without replacing existing looks; exact duplicates are skipped. It excludes your photos, videos, masks and project edits. Favourite, collection and order changes use a small metadata index without rewriting LUTs.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("Masks now has preview-only Zoom and Fit, plus pinch/pan in Move/View mode up to 6×. Brush at the chosen magnification; Done brushing returns to navigation and reveals video playback without moving its slider off screen. Subject selection offers All subjects, Tap a subject and People · fine edges. People uses refined person matting; Tap isolates the detected object you choose. Detailed tracking favors accuracy; Efficient favors analysis speed. Analysis runs only when requested. Fine hair, occlusion and changing shapes still need review and brush/correction work.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     Text("If a tracked mask drifts, open Masks → Correct tracking. Pause or scrub, turn on Move mask in preview and drag the handle, or use horizontal/vertical sliders. Correction points blend along the original clip time. Undo/Redo, delete a point or Clear corrections restore control without repeating analysis. Playback, versions, backups and queued exports keep those corrections. This adjusts position, not shape, size or rotation.").font(.subheadline).foregroundStyle(StudioStyle.secondary)

@@ -1,4 +1,4 @@
-# Stillarc Studio · 0.39
+# Stillarc Studio · 0.40
 
 A local, reversible photo and single-clip video editor for iPhone and iPad. Black-and-blue controls keep the image central.
 
@@ -55,3 +55,6 @@ Source-time video animation now covers exposure offsets and look/LUT/local-mask 
 
 
 **Look library:** find favourites quickly, group saved grades into collections, search/sort/reorder and back up all or selected looks. Portable .studiolooks files carry the LUT itself without including private source media; large libraries use numbered parts. Imports keep existing looks and skip exact duplicates. A small metadata index keeps organisation changes separate from LUT storage.
+
+
+**Original media recovery:** save a fingerprint of an available original, verify it later, or repair a missing/changed source with an exact matching file. Wrong files are rejected before replacement; project edits and versions stay intact. It runs only on request and uses bounded, thermal-aware streaming. Keep a full project backup as well; a fingerprint cannot recover bytes by itself.

@@ -1,3 +1,7 @@
+## 0.40.0, build 44 — Original verification and repair
+
+Native exact-source repair, wrong-file rejection, empty/missing/corrupt cases, cancellation, saved-edit/version preservation and project-backup round-trip passed, including a generated Log2/audio source. Large/compact UI workflows passed. A 16 MiB streaming canary had a 17.85 ms maximum main-actor wake interval including 16 ms sleep. Native preview/export regression passed; sustained preview rendered 1,898 frames with 25.22 ms p95 GPU completion, zero failures/idle renders and nominal sampled thermal state throughout. [Reports and limits](Verification/0.40.0/README.md).
+
 ## 0.39.0, build 43 — Look library
 
 Native library/preset compatibility, embedded LUT round-trip, metadata-only writes, split packages, duplicate handling, cancellation and rendering equivalence passed. Compact core and interaction checks cover organisation, reopening and both entry points. Native preview/export regression passed; sustained preview rendered 1,896 frames with 25.25 ms p95 GPU completion, zero failures/idle frames and nominal sampled thermal state throughout. [Reports and limits](Verification/0.39.0/README.md).

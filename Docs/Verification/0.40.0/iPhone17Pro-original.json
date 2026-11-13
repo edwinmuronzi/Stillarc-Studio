@@ -1,0 +1,19 @@
+{
+  "unfingerprintedRepairRejected" : true,
+  "videoLogAudioPreserved" : true,
+  "mainActorMaximumWakeMilliseconds" : 17.845988273620605,
+  "hashDoesNotModifySource" : true,
+  "version" : "0.40.0",
+  "passed" : true,
+  "cancellationAndStagingCleanup" : true,
+  "thermal" : 0,
+  "changedSourceDetected" : true,
+  "atomicRepairAndPreservedChangedCopy" : true,
+  "streamFixtureBytes" : 16777216,
+  "emptySourceRepairAndBackup" : true,
+  "backupFingerprintRoundTrip" : true,
+  "editsVersionsOrganizationUnchanged" : true,
+  "missingSourceRestored" : true,
+  "wrongSameSizeCandidateRejected" : true,
+  "requestOnlyLegacyDefault" : true
+}

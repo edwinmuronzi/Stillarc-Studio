@@ -4,7 +4,7 @@
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.39 look-library milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.40 original-media recovery milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -389,3 +389,14 @@ Tap rows to choose looks, or Select visible to include the current filtered resu
 Backups contain reusable grades, embedded LUTs, favourite/collection information and their saved order. They do not include source photos/videos, masks, source input conversion, project framing, tracking, animation, versions or app preferences. Use project backups for editable media. Imported looks are added in file order; existing looks/order are kept and exact duplicates are skipped. A conflicting grade or organisation is imported as a separate look. New look-library files require Studio build 43 or later; single-preset JSON export remains available.
 
 Favourite/collection/order changes write a small atomic metadata index, rather than encoding LUT data again. Library packaging and decoding run off the UI actor, with cancellation before import commits. Playback stays paused behind the editor’s preset sheet; this batch adds no grading stage or continuous analysis.
+
+
+### Verify and repair originals (0.40)
+
+On Home, open a project's **… menu → Original media & repair**. The page shows its source type, size and dimensions (plus video duration/frame rate). **Save original fingerprint** records the file’s exact bytes while the Studio copy is available; **Verify original** later checks whether those bytes still match. This does not modify the source or run an image decoder.
+
+For a missing or changed file with a saved fingerprint, choose **Restore matching original** and select the exact unmodified file in Files. A renamed copy is fine; an edited/exported/recompressed file or a different file of the same size is rejected. The verified copy is staged and published atomically. Non-empty changed copies stay in the project folder as `before-repair-…` assets. Empty files contain no payload to retain. Edits, crop, masks, input interpretation, timing, audio and saved versions remain unchanged.
+
+A fingerprint is a check, **not a backup**, and does not prove that the file was healthy when first fingerprinted. Older projects remain supported but are not scanned automatically. If their original is already missing and no fingerprint exists, restore a complete `.stillarc` project backup; matching a name or dimensions alone cannot establish the exact source. Project backups made after fingerprinting carry that record into restored project copies.
+
+Hashing/copying uses bounded 512 KiB chunks on the vault worker, with request-only progress/cancellation, fair-state pacing and a serious-thermal stop. There are no startup scans, background checks, media conversions or new grading stages. Repair stages are cleaned on failure/cancellation. Once original bytes have committed, a failed timestamp-only index refresh does not incorrectly report that the byte repair failed.

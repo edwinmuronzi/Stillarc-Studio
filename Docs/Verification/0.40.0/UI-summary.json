@@ -1,0 +1,29 @@
+{
+  "passed": true,
+  "workflows": [
+    {
+      "name": "OriginalVerificationAndMissingSourceRepair",
+      "device": "iPhone 18 Pro simulator",
+      "checks": [
+        "save fingerprint",
+        "verify",
+        "remove isolated test original",
+        "restore exact fixture",
+        "result status"
+      ],
+      "passed": true
+    },
+    {
+      "name": "OriginalVerificationAndMissingSourceRepair",
+      "device": "iPhone 13 mini simulator",
+      "checks": [
+        "fingerprint",
+        "verify",
+        "recover",
+        "Home menu reentry"
+      ],
+      "passed": true
+    }
+  ],
+  "fixtures": "Debug-only QA project. Remove/restore test buttons are excluded from Release."
+}

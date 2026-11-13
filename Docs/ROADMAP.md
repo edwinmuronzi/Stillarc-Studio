@@ -145,3 +145,7 @@ Masks gains preview-only 1–6× zoom/pan, fitted source-coordinate painting/sha
 
 ### 0.39 checkpoint
 Reusable look management gains favourites, named collections, search/filter/sort and manual library order, available from Home and the editor. A separate small metadata index avoids rewriting LUTs for organisation changes. Bounded, cancelable .studiolooks library backup/import includes self-contained presets and organisation, splits by count/bytes into numbered parts, preserves existing records and skips exact duplicates. It is separate from source/project backups and does not establish Camera/Studio look interchange. Source relinking, additional camera transforms and temporally stable video matting remain later work; no timeline/beta/store work is included.
+
+
+### 0.40 checkpoint
+Home project menus add source information, request-only fingerprint creation/verification and exact-byte original repair. SHA-256/size matching precedes atomic source publication; non-empty changed copies are retained. Bounded streaming, cancellation cleanup and thermal pacing avoid background/rendering work. Saved edits/versions, video interpretation and audio remain unchanged, and project backups carry fingerprints into restored copies. Legacy projects are not automatically scanned; missing sources without fingerprints require a project backup. This is verified repair, not arbitrary source replacement or timeline conforming. Additional camera transforms, temporal video matting and shared Camera/Studio interchange remain later scope.

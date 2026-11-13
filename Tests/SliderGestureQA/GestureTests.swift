@@ -1,5 +1,25 @@
 import XCTest
 final class GestureTests:XCTestCase {
+    func testOriginalVerificationAndMissingSourceRepair() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--original-media-ui-test"];app.launch()
+        let verify=app.buttons["verifyOriginalMedia"];XCTAssertTrue(verify.waitForExistence(timeout:30));verify.tap()
+        XCTAssertTrue(app.staticTexts["Fingerprint saved. Keep a project backup too."].waitForExistence(timeout:10))
+        verify.tap();XCTAssertTrue(app.staticTexts["Verified: the original matches its saved fingerprint."].waitForExistence(timeout:10))
+        let remove=app.buttons["removeTestOriginal"]
+        for _ in 0..<8 {if remove.exists && remove.isHittable {break};app.swipeUp()}
+        XCTAssertTrue(remove.waitForExistence(timeout:10));remove.tap()
+        let restore=app.buttons["restoreTestOriginal"];XCTAssertTrue(restore.isEnabled);restore.tap()
+        let status=app.staticTexts["Original restored. Saved edits and versions are unchanged."]
+        for _ in 0..<8 {if status.exists {break};app.swipeDown()}
+        XCTAssertTrue(status.waitForExistence(timeout:15))
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Exact original media recovery";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["closeOriginalMedia"].tap()
+        let manage=app.descendants(matching:.any).matching(NSPredicate(format:"label == %@","Manage QA Original repair")).firstMatch
+        for _ in 0..<10 {if manage.exists && manage.isHittable {break};app.swipeUp()}
+        XCTAssertTrue(manage.waitForExistence(timeout:10));manage.tap();app.buttons["Original media & repair"].tap()
+        XCTAssertTrue(verify.waitForExistence(timeout:10));XCTAssertEqual(verify.label,"Verify original");app.buttons["closeOriginalMedia"].tap()
+    }
     func testLookLibraryFavoritesCollectionsAndReopen() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments=["--look-library-ui-test"];app.launch()
