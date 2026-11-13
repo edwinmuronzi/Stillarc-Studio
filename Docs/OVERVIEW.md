@@ -1,4 +1,8 @@
-# Stillarc Studio · 0.42
+# Stillarc Studio · 0.43
+
+## Export planning · 0.43
+
+Export shows a live approximate file-size range that follows format, resolution, quality, crop, clip length and sound. Pool delivery and the queue show totals; completed exports show the measured size. No sample render or encode is needed to update the estimate. [How estimates work](EXPORT-SIZES-043.md).
 
 ## Colour batch · 0.41
 

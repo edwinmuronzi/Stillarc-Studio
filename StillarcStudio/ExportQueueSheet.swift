@@ -14,6 +14,7 @@ struct ExportQueueSheet:View {
                 Section {
                     Text("Your deliveries, in order.").font(.title2.weight(.semibold))
                     Text("Each job keeps the edits and export settings you added. Start when ready. Only one job renders at a time. Closing this page or leaving the app pauses unfinished work; completed files remain here after reopening Studio.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
+                    if queue.jobs.contains(where:{$0.state == .waiting || $0.state == .running}) {ExportSizeSummary(estimate:ExportSizeEstimate.total(jobs:queue.jobs.filter {$0.state == .waiting || $0.state == .running}),title:"Pending size estimate",compact:true)}
                     Text("An interrupted job restarts from its beginning. Keep the source projects until delivery finishes. The queue never automatically starts on launch.").font(.caption).foregroundStyle(StudioStyle.secondary)
                 }
                 if queue.jobs.isEmpty {Text("Add a delivery from a photo/video Export page or batch export.").foregroundStyle(StudioStyle.secondary)}
@@ -23,6 +24,7 @@ struct ExportQueueSheet:View {
                             Text(job.title).font(.headline).lineLimit(2)
                             Text("\(job.format.rawValue) · \(job.delivery.size.rawValue) · \(job.delivery.quality.rawValue)").font(.caption).foregroundStyle(StudioStyle.secondary)
                             if job.projects.contains(where:{$0.isVideo}) {Text("Video · \(job.delivery.codec.rawValue) · \(job.delivery.codec.fileExtension.uppercased())").font(.caption).foregroundStyle(StudioStyle.secondary)}
+                            ExportSizeSummary(estimate:ExportSizeEstimate.total(projects:job.projects,format:job.format,privacy:job.privacy,delivery:job.delivery),urls:queue.urls(job),completed:!job.files.isEmpty,compact:true)
                             Text(label(job.state)).font(.caption.weight(.semibold)).foregroundStyle(job.state == .failed ? .orange:StudioStyle.blue).accessibilityIdentifier("queueState-"+job.id.uuidString)
                             if job.state == .running {ProgressView(value:queue.progress);Text(queue.status).font(.caption).lineLimit(2)}
                             if !job.files.isEmpty {

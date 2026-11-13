@@ -28,6 +28,8 @@ struct BatchExportSheet:View {
                     Text("Exports each project with its own current edit, crop and masks. Video keeps its trim and HDR choice; sound follows your export privacy settings. Work runs one item at a time; originals stay untouched.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     if projects.contains(where:{ !$0.isVideo }) { Picker("Photo format",selection:$format) { ForEach(ExportFormat.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).disabled(busy || result != nil) }
                     DeliveryControls(settings:$delivery,lossless:format == .png && !projects.contains(where:{$0.isVideo}),video:projects.contains(where:{$0.isVideo}),photos:projects.contains(where:{!$0.isVideo}),hdr:projects.contains(where:{$0.isVideo && $0.recipe.video.hdr})).disabled(busy || result != nil)
+                    if let result {ExportSizeSummary(estimate:nil,urls:result.urls,completed:true)}
+                    else {Text("Estimated totals are approximate; simple media can be much smaller. Actual size is measured for completed files.").font(.caption2).foregroundStyle(StudioStyle.secondary)}
                     if projects.contains(where:{$0.isVideo}) && delivery.codec == .h264 {Text("MP4 retains requested capture date and location. To include camera make/model, choose HEVC or ProRes MOV instead, or turn off Include camera details below.").font(.caption).foregroundStyle(privacy.camera ? .orange:StudioStyle.secondary)}
                     ExportPrivacyControls(policy:$privacy,video:projects.contains(where:{ $0.isVideo }),batch:true).disabled(busy || result != nil)
                     Text("\(projects.count) selected · full remaining source resolution").font(.caption).foregroundStyle(StudioStyle.secondary)
@@ -55,9 +57,11 @@ struct BatchExportSheet:View {
                     Text("Leaving the app cancels an unfinished batch. Export may pause to cool the phone. Completed files remain available here until you change options or close this sheet.").font(.caption).foregroundStyle(StudioStyle.secondary)
                 }.padding(22)
             }.safeAreaInset(edge:.bottom) {
-                if result == nil && !busy {
-                    Button("Create batch export") { start() }.buttonStyle(.borderedProminent).accessibilityIdentifier("createBatchExport")
-                        .frame(maxWidth:.infinity).padding(14).background(.regularMaterial)
+                if result == nil {
+                    VStack(spacing:10) {
+                        ExportSizeSummary(estimate:ExportSizeEstimate.total(projects:projects,format:format,privacy:privacy,delivery:delivery),title:"Estimated total",compact:true)
+                        if !busy {Button("Create batch export") {start()}.buttonStyle(.borderedProminent).accessibilityIdentifier("createBatchExport").frame(maxWidth:.infinity)}
+                    }.padding(14).background(.regularMaterial)
                 }
             }.navigationTitle("Batch export").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { dismiss() }.disabled(busy || saving) }
         }.tint(StudioStyle.blue).interactiveDismissDisabled(busy || saving)

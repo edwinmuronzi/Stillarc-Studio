@@ -1,0 +1,14 @@
+{
+  "version" : "0.43.0",
+  "estimateChecksum" : 247154499981.20038,
+  "thermal" : 0,
+  "legacyAudioFallback" : true,
+  "transparentPNG" : true,
+  "exactBytes" : true,
+  "passed" : true,
+  "poolQueueTotals" : true,
+  "arithmeticEstimates" : 5000,
+  "formatsCropQualityTrimAudio" : true,
+  "estimateSeconds" : 0.0038089752197265625,
+  "encoderBudgetUnchanged" : true
+}

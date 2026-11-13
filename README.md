@@ -1,5 +1,9 @@
 # Stillarc Studio
 
+## Export planning · 0.43
+
+Export shows a live approximate file-size range that follows format, resolution, quality, crop, clip length and sound. Pool delivery and the queue show totals; completed exports show the measured size. No sample render or encode is needed to update the estimate. [How estimates work](Docs/EXPORT-SIZES-043.md).
+
 ## Delivery batch · 0.42
 
 Choose **H.264 MP4** for broad SDR playback, **HEVC** for smaller files, or **10-bit ProRes 422 MOV** on supported hardware for further editing. Format choices are remembered and work in single, pool and queued delivery. HDR stays explicit; selecting H.264 never silently strips HDR. [Formats, sound and compatibility](Docs/DELIVERY-042.md).
@@ -13,7 +17,7 @@ Convert Canon Log 3 (Rec.2020), Nikon N-Log, Fujifilm F-Log2 and DJI X9 D-Log us
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.42 video delivery milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.43 export planning milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 

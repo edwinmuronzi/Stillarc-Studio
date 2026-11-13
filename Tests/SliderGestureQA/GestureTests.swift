@@ -532,6 +532,38 @@ final class GestureTests:XCTestCase {
         app.scrollViews.firstMatch.swipeUp();app.buttons["Open Studio sample"].tap()
         XCTAssertTrue(app.buttons["Film"].waitForExistence(timeout:15));XCTAssertEqual(app.buttons["Film"].value as? String,"Adjustments applied")
     }
+    func testLivePhotoExportEstimates() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--demo-editor","--neutral-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Export photo"].waitForExistence(timeout:30));app.buttons["Export photo"].tap()
+        let estimate=app.staticTexts["estimatedExportSize"]
+        XCTAssertTrue(estimate.waitForExistence(timeout:10));XCTAssertTrue(estimate.isHittable)
+        let initialSize=app.buttons["deliverySize"];if !initialSize.isHittable {app.swipeUp()};initialSize.tap();app.buttons["Original"].tap()
+        let jpeg=estimate.label
+        app.buttons["PNG"].tap();let png=estimate.label;XCTAssertNotEqual(jpeg,png)
+        app.buttons["JPEG"].tap();XCTAssertEqual(estimate.label,jpeg)
+        let size=app.buttons["deliverySize"]
+        if !size.isHittable {app.swipeUp()};size.tap();app.buttons["1280 px"].tap()
+        XCTAssertNotEqual(estimate.label,jpeg)
+        app.buttons["Create export"].tap()
+        let actual=app.staticTexts["actualExportSize"];XCTAssertTrue(actual.waitForExistence(timeout:30))
+        let ready=expectation(for:NSPredicate {_,_ in actual.label != "Checking…" && actual.label != "Unavailable"},evaluatedWith:nil);wait(for:[ready],timeout:10)
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Measured photo export size";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Done"].tap()
+    }
+    func testLiveVideoExportEstimates() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--video-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Export video"].waitForExistence(timeout:40));app.buttons["Export video"].tap()
+        let picker=app.buttons["deliveryVideoCodec"],estimate=app.staticTexts["estimatedExportSize"]
+        XCTAssertTrue(picker.waitForExistence(timeout:10));picker.tap();app.buttons["HEVC"].tap();let hevc=estimate.label
+        picker.tap();app.buttons["H.264"].tap();XCTAssertNotEqual(estimate.label,hevc)
+        app.buttons["Create export"].tap()
+        let actual=app.staticTexts["actualExportSize"];XCTAssertTrue(actual.waitForExistence(timeout:40))
+        let ready=expectation(for:NSPredicate {_,_ in actual.label != "Checking…" && actual.label != "Unavailable"},evaluatedWith:nil);wait(for:[ready],timeout:10)
+        app.swipeUp();let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Measured MP4 export size";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Done"].tap()
+    }
     func testVideoCodecChoicesAndHDRGuard() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments=["--video-demo"];app.launch()

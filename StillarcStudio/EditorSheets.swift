@@ -39,6 +39,8 @@ import UniformTypeIdentifiers
                     if session.project.isVideo { Toggle("HDR video · HLG",isOn:Binding(get:{ session.recipe.video.hdr },set:{ value in session.change { $0.video.hdr = value } })).disabled(busy || result != nil);Text("HDR keeps brighter highlights on supported screens. SDR is the safest choice for universal sharing. HDR uses 10-bit HEVC or ProRes; SDR looks/LUTs can change highlight detail.").font(.caption).foregroundStyle(StudioStyle.secondary) }
                     if session.project.isVideo && delivery.codec == .hevc { Picker("Video depth",selection:$tenBitVideo) { Text("10-bit HEVC").tag(true);Text("8-bit HEVC").tag(false) }.pickerStyle(.segmented).disabled(busy || result != nil || session.recipe.video.hdr) }
                     DeliveryControls(settings:$delivery,lossless:!session.project.isVideo && (format == .png || session.recipe.hasTransparentCutout),video:session.project.isVideo,photos:!session.project.isVideo,hdr:session.recipe.video.hdr).disabled(busy || result != nil)
+                    if result != nil {ExportSizeSummary(estimate:nil,urls:result.map {[$0.url]} ?? [],completed:true)}
+                    else {Text("Size estimates are approximate; simple images or clips may be much smaller. Actual size appears after export.").font(.caption2).foregroundStyle(StudioStyle.secondary)}
                     if session.project.isVideo && delivery.codec == .h264 {Text("MP4 retains requested capture date and location. To include camera make/model, choose HEVC or ProRes MOV instead, or turn off Include camera details below.").font(.caption).foregroundStyle(privacy.camera ? .orange:StudioStyle.secondary)}
                     ExportPrivacyControls(policy:$privacy,video:session.project.isVideo).disabled(busy || result != nil)
                     VStack(alignment: .leading,spacing: 14) {
@@ -66,10 +68,12 @@ import UniformTypeIdentifiers
                 }.padding(26)
             }.safeAreaInset(edge:.bottom) {
                 if result == nil {
+                    VStack(spacing:10) {
+                        ExportSizeSummary(estimate:ExportSizeEstimate.make(project:session.projectWithCurrentRecipe,format:format,privacy:privacy,delivery:delivery),compact:true)
                         Button { Task { await render() } } label: {
                             HStack { if busy { ProgressView().tint(.white) }; Text(busy ? (session.project.isVideo ? "Exporting video…" : "Developing full-resolution photo…") : "Create export").fontWeight(.semibold) }.font(.subheadline).frame(maxWidth: .infinity).padding(17).background(StudioStyle.blue,in: Capsule()).foregroundStyle(.white)
                         }.disabled(busy)
-                        .padding(.horizontal,20).padding(.vertical,12).background(.regularMaterial)
+                    }.padding(.horizontal,20).padding(.vertical,12).background(.regularMaterial)
                 }
             }.background(StudioStyle.ink).navigationTitle(session.project.isVideo ? "Export video" : "Export photo").navigationBarTitleDisplayMode(.inline)
                 .toolbar { Button("Done") { dismiss() }.disabled(saving || busy) }

@@ -157,3 +157,7 @@ Home project menus add source information, request-only fingerprint creation/ver
 0.42 adds remembered delivery codec choices: H.264 SDR MP4 with mono/stereo AAC, existing HEVC MOV and hardware-supported ProRes 422 10-bit MOV. HEVC/ProRes retain HLG HDR; the interface keeps mixed HDR batches on HDR-capable choices and the engine rejects incompatible stale H.264/HDR requests. Queue schema 5 snapshots codec choices while reading older queues. ProRes uses fixed compression; JPEG/HEIF quality remains available for mixed photo/video deliveries. Export grading, audio timestamps, metadata policy and serial thermal pacing stay shared.
 
 Remaining candidate work: Camera/Studio shared-look interchange, supported 1D shapers, additional validated input/output spaces and richer mask motion. Temporal video matting and a multi-clip timeline remain separate substantial projects. No external beta or App Store work in this batch.
+
+
+### 0.43 checkpoint
+Delivery planning now shows approximate photo/video sizes, shared encoder bitrate budgets, crop/quality/trim/audio-aware estimates, pool totals and per-job/pending queue totals. Finished delivery measures exact file lengths asynchronously. Audio metadata is captured once during new imports, with safe legacy fallbacks. No preview rendering or trial encoding is added. Shared Camera/Studio look interchange, supported 1D shapers and richer mask motion remain later candidates.

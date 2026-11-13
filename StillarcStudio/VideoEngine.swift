@@ -7,6 +7,8 @@ struct VideoDescriptor: Codable, Equatable, Sendable {
     var transform:[Double]
     var detectedLog:CameraLogProfile?
     var hdrTransfer:String? = nil
+    var audioDataRate:Double? = nil
+    var audioChannels:[Int]? = nil
     var affine:CGAffineTransform { guard transform.count == 6,transform.allSatisfy(\.isFinite) else { return .identity }; return CGAffineTransform(a:transform[0],b:transform[1],c:transform[2],d:transform[3],tx:transform[4],ty:transform[5]) }
 }
 enum VideoEngine {
@@ -32,7 +34,17 @@ enum VideoEngine {
                 else if transfer.contains("hlg") || transfer.contains("2100") { hdrTransfer = "HLG" }
             }
         }
-        return VideoDescriptor(width:Int(abs(bounds.width).rounded()),height:Int(abs(bounds.height).rounded()),duration:duration,frameRate:rate,transform:[transform.a,transform.b,transform.c,transform.d,transform.tx,transform.ty].map(Double.init),detectedLog:log,hdrTransfer:hdrTransfer)
+        // Audio metadata is read once at import, never while changing delivery sliders.
+        var audioDataRate:Double?,audioChannels:[Int]?
+        if let tracks=try? await asset.loadTracks(withMediaType:.audio),tracks.count<=32 {
+            var channels=[Int](),total=0.0,known=true
+            for audio in tracks {
+                if let rate=try? await audio.load(.estimatedDataRate),rate.isFinite,rate>0 {total+=Double(rate)} else {known=false}
+                if let formats=try? await audio.load(.formatDescriptions),let first=formats.first,let description=CMAudioFormatDescriptionGetStreamBasicDescription(first) {channels.append(Int(description.pointee.mChannelsPerFrame))} else {channels.append(0)}
+            }
+            audioChannels=channels;audioDataRate=tracks.isEmpty ? 0:(known ? total:nil)
+        }
+        return VideoDescriptor(width:Int(abs(bounds.width).rounded()),height:Int(abs(bounds.height).rounded()),duration:duration,frameRate:rate,transform:[transform.a,transform.b,transform.c,transform.d,transform.tx,transform.ty].map(Double.init),detectedLog:log,hdrTransfer:hdrTransfer,audioDataRate:audioDataRate,audioChannels:audioChannels)
     }
     static var pixelAttributes:[String:Any] {
         #if targetEnvironment(simulator)
@@ -101,13 +113,13 @@ enum VideoEngine {
         var completed = false
         defer { if !completed { reader.cancelReading(); writer.cancelWriting(); try? FileManager.default.removeItem(at:url) } }
         writer.metadata = try await privacy.videoMetadata(asset)
-        let bitrate = max(Int(8_000_000*delivery.quality.video),min(80_000_000,Int(Double(width*height)*max(24,descriptor.frameRate)*0.14*delivery.quality.video)))
+        let bitrate = delivery.targetVideoBitRate(size:target,frameRate:descriptor.frameRate)
         let primaries = hdr ? AVVideoColorPrimaries_ITU_R_2020 : AVVideoColorPrimaries_ITU_R_709_2
         let transfer = hdr ? AVVideoTransferFunction_ITU_R_2100_HLG : kCVImageBufferTransferFunction_sRGB as String
         let matrix = hdr ? AVVideoYCbCrMatrix_ITU_R_2020 : AVVideoYCbCrMatrix_ITU_R_709_2
         var settings:[String:Any]=[AVVideoCodecKey:codec.avCodec,AVVideoWidthKey:width,AVVideoHeightKey:height,AVVideoColorPropertiesKey:[AVVideoColorPrimariesKey:primaries,AVVideoTransferFunctionKey:transfer,AVVideoYCbCrMatrixKey:matrix]]
         if codec != .proRes422 {
-            settings[AVVideoCompressionPropertiesKey]=[AVVideoAverageBitRateKey:codec == .h264 ? Int(Double(bitrate)*1.4):bitrate,AVVideoExpectedSourceFrameRateKey:max(1,descriptor.frameRate),AVVideoProfileLevelKey:codec == .h264 ? AVVideoProfileLevelH264HighAutoLevel:(tenBit ? "HEVC_Main10_AutoLevel":"HEVC_Main_AutoLevel")]
+            settings[AVVideoCompressionPropertiesKey]=[AVVideoAverageBitRateKey:bitrate,AVVideoExpectedSourceFrameRateKey:max(1,descriptor.frameRate),AVVideoProfileLevelKey:codec == .h264 ? AVVideoProfileLevelH264HighAutoLevel:(tenBit ? "HEVC_Main10_AutoLevel":"HEVC_Main_AutoLevel")]
         }
         guard writer.canApply(outputSettings:settings,forMediaType:.video) else {throw NSError(domain:"Delivery",code:3,userInfo:[NSLocalizedDescriptionKey:"This device cannot encode the chosen format at this size. Choose a smaller export size or HEVC."])}
         let input = AVAssetWriterInput(mediaType:.video,outputSettings:settings)
