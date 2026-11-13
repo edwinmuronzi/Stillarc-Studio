@@ -21,6 +21,7 @@ struct MaskMotion:Codable,Equatable,Sendable {
     var start:Double
     var end:Double
     var points:[MaskMotionPoint]
+    var recoveryTime:Double? = nil
     var corrections:[MaskMotionPoint]? = nil
     var correctionBlend:MaskCorrectionBlend? = nil
     var pivotX:Double? = nil
@@ -35,7 +36,7 @@ struct MaskMotion:Codable,Equatable,Sendable {
         return r.crop.rawValue + ":" + [Double(r.rotation),r.straighten,r.cropX,r.cropY,g.width,g.height,g.flipHorizontal ? 1 : 0,g.flipVertical ? 1 : 0,g.horizontal,g.vertical].map { String($0) }.joined(separator:",") + suffix + (r.rawDevelopment?.lensProfile.map {":rawLens=\($0)"} ?? "")
     }
     var isValid:Bool {
-        validPivot && validSource && start.isFinite && end.isFinite && end>start && !points.isEmpty && points.count<=1802 && points.allSatisfy { $0.time.isFinite && $0.x.isFinite && $0.y.isFinite && abs($0.x)<=16 && abs($0.y)<=16 && $0.time>=start-0.001 && $0.time<=end+0.001 && ($0.scale == nil || ($0.scale!.isFinite && (0.25...4).contains($0.scale!))) && ($0.rotation == nil || ($0.rotation!.isFinite && abs($0.rotation!)<=3600)) } && zip(points,points.dropFirst()).allSatisfy { $0.time < $1.time }
+        (recoveryTime == nil || (recoveryTime!.isFinite && recoveryTime!>=start && recoveryTime!<=end)) && validPivot && validSource && start.isFinite && end.isFinite && end>start && !points.isEmpty && points.count<=1802 && points.allSatisfy { $0.time.isFinite && $0.x.isFinite && $0.y.isFinite && abs($0.x)<=16 && abs($0.y)<=16 && $0.time>=start-0.001 && $0.time<=end+0.001 && ($0.scale == nil || ($0.scale!.isFinite && (0.25...4).contains($0.scale!))) && ($0.rotation == nil || ($0.rotation!.isFinite && abs($0.rotation!)<=3600)) } && zip(points,points.dropFirst()).allSatisfy { $0.time < $1.time }
     }
     private var validPivot:Bool {
         [pivotX,pivotY].allSatisfy {$0 == nil || ($0!.isFinite && abs($0!)<=64)}
@@ -121,6 +122,7 @@ extension MaskMotion {
     init(from decoder:Decoder) throws {
         let c = try decoder.container(keyedBy:CodingKeys.self)
         framing = try c.decode(String.self,forKey:.framing);start = try c.decode(Double.self,forKey:.start);end = try c.decode(Double.self,forKey:.end);points = try c.decode([MaskMotionPoint].self,forKey:.points)
+        recoveryTime=try c.decodeIfPresent(Double.self,forKey:.recoveryTime)
         pivotX=try c.decodeIfPresent(Double.self,forKey:.pivotX);pivotY=try c.decodeIfPresent(Double.self,forKey:.pivotY)
         sourceWidth=try c.decodeIfPresent(Double.self,forKey:.sourceWidth);sourceHeight=try c.decodeIfPresent(Double.self,forKey:.sourceHeight)
         correctionBlend = try c.decodeIfPresent(MaskCorrectionBlend.self,forKey:.correctionBlend)

@@ -22,9 +22,14 @@ struct PeopleVideoMatteSheet:View {
             ScrollView {VStack(alignment:.leading,spacing:12) {
                 Text(target.cutout ? "Keep people. Replace the scene.":"Follow a changing silhouette.").font(.headline)
                 Text("Processes every kept video frame once using on-device People matting, then reuses the saved masks during playback and export. All visible people are included. Saved matte resolution is bounded to 1536 pixels on its longest edge; video output keeps its chosen resolution. Review hair, fast movement and occlusions; this is not perfect roto or general object segmentation.").font(.caption).foregroundStyle(StudioStyle.secondary)
-                Text("Up to 6 seconds, 180 source frames and 8 MB of saved mattes. Shorten the kept clip first. No frames are skipped to fit the budget. Processing stops if cancelled, interrupted or too hot, leaving the previous edit unchanged.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                Text("Up to 12 seconds, 360 source frames and 16 MB of saved mattes. Shorten the kept clip first. No frames are skipped to fit the budget. Processing stops if cancelled, interrupted or too hot, leaving the previous edit unchanged.").font(.caption).foregroundStyle(StudioStyle.secondary)
                 if target.cutout {Text("Starts with a solid background. Use Replace background afterward for a colour, image or blur. Transparent video-file export is not supported.").font(.caption).foregroundStyle(StudioStyle.secondary)}
-                if busy {ProgressView(value:progress);Text("Preparing frame mattes… \(Int(progress*100))%").font(.caption.monospacedDigit())}
+                if busy {
+                    ProgressView(value:progress)
+                    Text("Preparing frame mattes… \(Int(progress*100))%").font(.caption.monospacedDigit())
+                    Text("You can cancel safely. The new matte is saved only when every kept frame is ready.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                    Button("Cancel processing",role:.cancel){job?.cancel()}.buttonStyle(.bordered).accessibilityIdentifier("cancelPeopleVideoMatte")
+                }
                 if let message {Text(message).font(.caption).foregroundStyle(.orange)}
                 Button(busy ? "Processing…":"Prepare & save video matte",systemImage:"person.crop.rectangle") {create()}.buttonStyle(.borderedProminent).disabled(busy || image==nil).accessibilityIdentifier("preparePeopleVideoMatte")
             }.padding(18)}.frame(width:wide ? min(340,geometry.size.width*0.42):nil).frame(maxHeight:wide ? .infinity:280).background(StudioStyle.panel)
@@ -34,11 +39,11 @@ struct PeopleVideoMatteSheet:View {
             guard let url=session.sourceURL else {return}
             let r=session.recipe,video=session.project.video
             do {let worker=Task.detached(priority:.utility){try await AutomaticSelectionEngine.input(url:url,video:video,recipe:r)};let loaded=try await withTaskCancellationHandler(operation:{try await worker.value},onCancel:{worker.cancel()});if !Task.isCancelled {image=loaded}} catch {if !Task.isCancelled {message=error.localizedDescription}}
-        }.onDisappear {job?.cancel()}.onChange(of:phase){_,value in if value != .active {job?.cancel()}}
+        }.onDisappear {job?.cancel()}.onChange(of:phase){_,value in if value != .active {job?.cancel();message="Processing stopped when Studio left the foreground. Previous edits are unchanged; prepare again when ready."}}
     }
     private func create() {
         guard !busy,let url=session.sourceURL,let video=session.project.video else {return}
-        let captured=session.recipe;busy=true;message=nil
+        let captured=session.recipe;busy=true;progress=0;message=nil
         let worker=Task.detached(priority:.utility) {try await PeopleVideoMatte.analyze(url:url,descriptor:video,recipe:captured){value in await MainActor.run {progress=value}}};job=worker
         Task { @MainActor in
             defer {busy=false;job=nil}

@@ -589,6 +589,16 @@ final class GestureTests:XCTestCase {
         app.buttons["PNG"].tap();app.buttons["photoOutputSpace"].tap();app.buttons["Display P3"].tap()
         app.buttons["Create export"].tap();XCTAssertTrue(app.staticTexts["actualExportSize"].waitForExistence(timeout:40))
     }
+    func testTrackingRecoveryControls() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--tracking-demo"];app.launch()
+        XCTAssertTrue(app.sliders["Target horizontal position"].waitForExistence(timeout:30))
+        let toggle=app.switches["Keep reliable tracking if target is lost"]
+        for _ in 0..<5 where !toggle.isHittable {app.swipeUp()}
+        XCTAssertTrue(toggle.waitForExistence(timeout:10));XCTAssertTrue(toggle.isHittable)
+        toggle.tap();toggle.tap()
+        app.buttons["Done"].tap();XCTAssertTrue(app.buttons["Add mask"].waitForExistence(timeout:10))
+    }
     func testPeopleVideoMatteControls() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments=["--video-demo","--tool","Masks"];app.launch()
@@ -1011,6 +1021,13 @@ final class GestureTests:XCTestCase {
         XCTAssertTrue(threshold.waitForExistence(timeout:10))
         if !threshold.isHittable { app.scrollViews.firstMatch.swipeUp() }
         let original = threshold.value as? String
+        let fine=app.buttons["edgePresetFine detail"].firstMatch
+        if !fine.isHittable {app.scrollViews.firstMatch.swipeDown()}
+        fine.tap();XCTAssertNotEqual(threshold.value as? String,original)
+        app.buttons["Undo"].tap();XCTAssertEqual(threshold.value as? String,original)
+        app.buttons["Redo"].tap();XCTAssertNotEqual(threshold.value as? String,original)
+        app.buttons["edgePresetReset edges"].firstMatch.tap();XCTAssertEqual(threshold.value as? String,original)
+        if !threshold.isHittable {app.scrollViews.firstMatch.swipeUp()}
         threshold.adjust(toNormalizedSliderPosition:0.8);XCTAssertNotEqual(threshold.value as? String,original)
         threshold.doubleTap();XCTAssertEqual(threshold.value as? String,original)
         let capture = XCTAttachment(screenshot:app.screenshot());capture.name = "Sky selection and refinement";capture.lifetime = .keepAlways;self.add(capture)

@@ -50,7 +50,7 @@ enum MaskTracker {
         guard let sample = output.copyNextSampleBuffer(),let buffer = CMSampleBufferGetImageBuffer(sample) else { throw StudioError.unreadable }
         try Task.checkCancellation();return try frame(buffer,descriptor:descriptor,recipe:recipe,context:ImageEngine.context())
     }
-    static func analyze(url:URL,descriptor:VideoDescriptor,recipe:Recipe,seed:TrackingSeed,quality:TrackingQuality = .detailed,geometry:TrackingGeometry = .position,progress:@escaping @Sendable (Double) async -> Void) async throws -> MaskMotion {
+    static func analyze(url:URL,descriptor:VideoDescriptor,recipe:Recipe,seed:TrackingSeed,quality:TrackingQuality = .detailed,geometry:TrackingGeometry = .position,recoverUsablePath:Bool = false,progress:@escaping @Sendable (Double) async -> Void) async throws -> MaskMotion {
         try Task.checkCancellation();try LogConversion.prepare()
         guard seed.x.isFinite,seed.y.isFinite,seed.width.isFinite,seed.height.isFinite,(0...1).contains(seed.x),(0...1).contains(seed.y),(0.08...0.7).contains(seed.width),(0.08...0.7).contains(seed.height) else { throw failure("Choose a valid target box inside the picture.") }
         let range = recipe.video.range(duration:descriptor.duration)
@@ -66,6 +66,7 @@ enum MaskTracker {
         var points = [MaskMotionPoint](),lastTime = -Double.infinity
         var anchor:CGPoint?
         var anchorSize:Double?,anchorAngle:Double?,lastAngle=0.0
+        var recoveryTime:Double?
         while let sample = output.copyNextSampleBuffer() {
             try Task.checkCancellation()
             guard ProcessInfo.processInfo.thermalState.rawValue<ProcessInfo.ThermalState.serious.rawValue else { throw failure("The phone needs to cool before tracking. Your previous edits are unchanged.") }
@@ -74,7 +75,7 @@ enum MaskTracker {
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") && points.count%15 == 0 { VerificationProgress.record("Tracking frame \(points.count) before Vision") }
             #endif
-            try autoreleasepool {
+            do {try autoreleasepool {
                 guard let buffer = CMSampleBufferGetImageBuffer(sample) else { throw StudioError.unreadable }
                 let cg = try frame(buffer,descriptor:descriptor,recipe:recipe,context:context)
                 if points.isEmpty,geometry == .rectangle {
@@ -109,6 +110,13 @@ enum MaskTracker {
                 if !points.isEmpty,geometry == .rectangle,abs(angle-lastAngle)>45 {throw failure("Rotation tracking became unreliable. The previous track is unchanged.")}
                 points.append(MaskMotionPoint(time:time,x:dx,y:dy,scale:scale==1 ? nil:scale,rotation:angle==0 ? nil:angle));lastTime = time;lastAngle=angle
                 request.inputObservation = observation
+            }} catch {
+                // Only a lost/unreliable target can produce a reviewable partial path. Reader,
+                // decoding, cancellation and thermal failures still discard the attempted update.
+                let e=error as NSError
+                guard recoverUsablePath,e.domain=="MaskTracking",points.count>=2,let last=points.last else {throw error}
+                recoveryTime=last.time
+                break
             }
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("--verify-tracking-only") && points.count%15 == 1 { VerificationProgress.record("Tracking frame \(points.count) completed") }
@@ -117,8 +125,9 @@ enum MaskTracker {
             try await Task.sleep(for:.milliseconds(ProcessInfo.processInfo.thermalState == .fair ? 20 : 3))
         }
         try Task.checkCancellation()
-        guard reader.status == .completed,points.count>=2 else { throw failure("The kept clip is too short to track.") }
-        let motion = MaskMotion(framing:MaskMotion.signature(recipe),start:range.lowerBound,end:range.upperBound,points:points,pivotX:anchor?.x ?? initial.midX,pivotY:1-(anchor?.y ?? initial.midY),sourceWidth:Double(descriptor.width),sourceHeight:Double(descriptor.height))
+        guard (reader.status == .completed || recoveryTime != nil),points.count>=2 else { throw failure("The kept clip is too short to track.") }
+        var motion = MaskMotion(framing:MaskMotion.signature(recipe),start:range.lowerBound,end:range.upperBound,points:points,pivotX:anchor?.x ?? initial.midX,pivotY:1-(anchor?.y ?? initial.midY),sourceWidth:Double(descriptor.width),sourceHeight:Double(descriptor.height))
+        motion.recoveryTime=recoveryTime
         guard motion.isValid else { throw StudioError.render };return motion
     }
 }

@@ -6,6 +6,8 @@ struct MaskTrackingSheet:View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
     @State private var geometry=TrackingGeometry.position
+    @State private var recoverUsablePath=true
+    @State private var pendingRecovery:MaskMotion?
     @State private var quality=TrackingQuality.detailed
     @State private var seed = TrackingSeed()
     @State private var poster:CGImage?
@@ -39,6 +41,8 @@ struct MaskTrackingSheet:View {
                     seedSlider("Target height",key:\.height,range:0.08...0.7)
                     Picker("Track movement",selection:$geometry){ForEach(TrackingGeometry.allCases){Text($0.rawValue).tag($0)}}.pickerStyle(.menu).disabled(busy)
                     Text("Position + size follows changes in the target box. Rectangle pose also follows rotation of a visible sign, screen or card. These move the saved mask rigidly; use People video matte for changing silhouettes.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                    Toggle("Keep reliable tracking if target is lost",isOn:$recoverUsablePath).disabled(busy)
+                    Text("If the target disappears, review the usable path before saving. The last reliable pose holds afterward; use Correct tracking when the subject returns. Studio does not guess through an occlusion.").font(.caption).foregroundStyle(StudioStyle.secondary)
                     Picker("Tracking quality",selection:$quality){ForEach(TrackingQuality.allCases){Text($0.rawValue).tag($0)}}.pickerStyle(.segmented).disabled(busy)
                     Text("Detailed uses a more accurate position tracker. Efficient favors faster analysis. Both analyze reduced-size frames once, then reuse the saved path during playback. Fine-tune drift afterward with Correct tracking.").font(.caption).foregroundStyle(StudioStyle.secondary)
                     if busy { ProgressView(value:progress);Text("Analyzing motion… \(Int(progress*100))%").font(.caption.monospacedDigit()) }
@@ -50,6 +54,10 @@ struct MaskTrackingSheet:View {
                 .toolbar { Button(busy ? "Cancel analysis" : "Done") { job?.cancel();dismiss() } }
                 .interactiveDismissDisabled(busy)
         }.tint(StudioStyle.blue).presentationDetents([.large])
+            .confirmationDialog("Tracking needs review",isPresented:Binding(get:{pendingRecovery != nil},set:{if !$0 {pendingRecovery=nil}}),titleVisibility:.visible) {
+                Button("Save reliable path for correction") {if let track=pendingRecovery {save(track)};pendingRecovery=nil}
+                Button("Discard attempted track",role:.cancel){pendingRecovery=nil}
+            } message: {Text("The target was lost at \(String(format:"%.2f",(pendingRecovery?.recoveryTime ?? 0)-(pendingRecovery?.start ?? 0))) seconds. The last reliable pose holds afterward. Review and correct the rest before export; your previous track is kept if you discard.")}
             .task { await load() }
             .onDisappear { job?.cancel() }
             .onChange(of:phase) { _,value in if value != .active { job?.cancel();message = "Analysis canceled when Studio left the foreground. Your previous track is unchanged." } }
@@ -72,19 +80,23 @@ struct MaskTrackingSheet:View {
         }
         catch { message = error.localizedDescription }
     }
+    @MainActor private func save(_ track:MaskMotion) {
+        guard phase == .active,MaskMotion.signature(session.recipe)==track.framing,let index=session.recipe.masks.firstIndex(where:{$0.id==maskID}) else {return}
+        session.change {$0.masks[index].motion=track};dismiss()
+    }
     @MainActor private func analyze() {
         guard let url = session.sourceURL,let descriptor = session.project.video else { return }
         if session.recipe.masks.first(where:{$0.id==maskID})?.automatic?.temporal != nil {message="This mask already follows every frame. Rebuild its video matte instead of adding a rigid track.";return}
-        let recipe = session.recipe,target = seed,mode=quality,shape=geometry
+        let recipe = session.recipe,target = seed,mode=quality,shape=geometry,recover=recoverUsablePath
         busy = true;progress = 0;message = nil
-        let task = Task.detached(priority:.utility) { try await MaskTracker.analyze(url:url,descriptor:descriptor,recipe:recipe,seed:target,quality:mode,geometry:shape) { amount in await MainActor.run { progress = amount } } }
+        let task = Task.detached(priority:.utility) { try await MaskTracker.analyze(url:url,descriptor:descriptor,recipe:recipe,seed:target,quality:mode,geometry:shape,recoverUsablePath:recover) { amount in await MainActor.run { progress = amount } } }
         job = task
         Task { @MainActor in
             defer { busy = false;job = nil }
             do {
                 let track = try await task.value
                 guard !task.isCancelled,phase == .active,MaskMotion.signature(session.recipe) == track.framing,let index = session.recipe.masks.firstIndex(where:{ $0.id == maskID }) else { return }
-                session.change { $0.masks[index].motion = track };dismiss()
+                if track.recoveryTime != nil {pendingRecovery=track} else {session.change { $0.masks[index].motion = track };dismiss()}
             } catch is CancellationError { message = "Analysis canceled. Your previous track is unchanged." }
             catch { message = error.localizedDescription }
         }

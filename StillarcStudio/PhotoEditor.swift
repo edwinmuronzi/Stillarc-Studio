@@ -776,6 +776,11 @@ import UniformTypeIdentifiers
                     Button("Recreate \(layer.title.lowercased()) selection",systemImage:"arrow.clockwise") { automaticTarget = AutomaticSelectionTarget(kind:layer.kind,maskID:layer.id) }.font(.caption)
                     if let stored = layer.automatic,!stored.matches(session.recipe) { Text("Updating the selection for the new framing. Export also updates it automatically.").font(.caption).foregroundStyle(StudioStyle.secondary) }
                     DisclosureGroup("Refine automatic selection",isExpanded:$automaticRefineExpanded) {
+                        ViewThatFits(in:.horizontal) {
+                            HStack {edgePreset("Fine detail",.init(threshold:0.45,transition:1));edgePreset("Clean edge",.init(threshold:0.58,transition:0.65,expand:-0.0004,softness:0.0005));edgePreset("Reset edges",nil)}
+                            VStack(alignment:.leading) {edgePreset("Fine detail",.init(threshold:0.45,transition:1));edgePreset("Clean edge",.init(threshold:0.58,transition:0.65,expand:-0.0004,softness:0.0005));edgePreset("Reset edges",nil)}
+                        }.buttonStyle(.bordered)
+                        Text("Fine detail keeps soft probabilities such as hair. Clean edge tightens the border to reduce spill. These are editable starting points, not new AI analysis; inspect the result over your chosen background. Undo restores the previous edge settings.").font(.caption2).foregroundStyle(StudioStyle.secondary)
                         automaticSlider("Selection threshold",key:\.threshold,range:0.05...0.95).id("automaticThreshold")
                         automaticSlider("Edge transition",key:\.transition,range:0.02...1)
                         automaticSlider("Grow / shrink (%)",key:\.expand,range:-0.01...0.01,scale:100)
@@ -841,6 +846,7 @@ import UniformTypeIdentifiers
             Text("Up to four masks. Drag the center in the fitted preview, or use position sliders. Feather softens the edge; invert adjusts the other side. For brush masks, paint directly on the image; View restores preview controls and video scrubbing. Painting pauses video. Size/softness apply to new strokes; undo removes a whole stroke. Masks are anchored to the current crop, stay with this source, and are excluded from reusable looks and copy/paste. Untracked brush and gradient masks stay fixed in video; tracked Radial/Brush masks follow saved position changes. Color and luminance masks select matching pixels in each frame, without object tracking or keyframes. The red guide is never exported.").font(.caption).foregroundStyle(StudioStyle.secondary)
         }
     }
+    private func edgePreset(_ title:String,_ refinement:AutomaticRefinement?)->some View {Button(title){updateMask {$0.refinement=refinement}}.accessibilityIdentifier("edgePreset"+title)}
     private func automaticSlider(_ title:String,key:WritableKeyPath<AutomaticRefinement,Double>,range:ClosedRange<Double>,scale:Double = 1) -> some View {
         VStack(spacing:5) {
             HStack { Text(title);Spacer();Text((selectedMask?.refinement ?? AutomaticRefinement())[keyPath:key]*scale,format:.number.precision(.fractionLength(2))).monospacedDigit() }.font(.caption)

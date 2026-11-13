@@ -1,5 +1,9 @@
 # Stillarc Studio · 0.49
 
+## Moving-mask finishing & reliability · 0.50
+
+People video mattes now support up to 12 seconds / 360 frames, with safe cancellation and reversible edge presets. Lost tracking can retain a reviewed reliable path with a source-time recovery marker and manual correction. Colour/export and sustained-preview regression checks accompany the update. [Workflows and limits](FINISHING-050.md).
+
 ## Camera, colour & moving masks · 0.49
 
 Share colour-only looks with Stillarc Camera, choose explicit sRGB/P3/linear input interpretation and tagged photo output, analyse rectangle size/rotation, prepare short People video mattes and composite video backgrounds. Faces/Facial skin and bounded chroma-noise cleanup extend photo finishing. [Workflows, limits and what to test](FINISHING-049.md).

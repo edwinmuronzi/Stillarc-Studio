@@ -53,7 +53,7 @@ enum TrackingVerification {
         result["thermal"]=ProcessInfo.processInfo.thermalState.rawValue
         if let data=try? JSONSerialization.data(withJSONObject:result,options:.prettyPrinted){try? data.write(to:url,options:.atomic)}
     }
-    static func fixture(rotated:Bool = false,frames:Int = 60,pose:Bool=false) async throws -> URL {
+    static func fixture(rotated:Bool = false,frames:Int = 60,pose:Bool=false,disappear:Bool=false) async throws -> URL {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("TrackingFixture-\(UUID())")
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         let url = root.appendingPathComponent("moving.mov"),writer = try AVAssetWriter(outputURL:root.appendingPathComponent("moving.mov"),fileType:.mov)
@@ -77,6 +77,7 @@ enum TrackingVerification {
                     let t=Double(n)/Double(max(1,frames-1)),s=1+0.25*t
                     target=inner.composited(over:border).transformed(by:.init(translationX:-x,y:-180)).transformed(by:.init(scaleX:s,y:s)).transformed(by:.init(rotationAngle:0.2*t)).transformed(by:.init(translationX:x,y:180))
                 }
+                if disappear && n>=frames/2 {target=background}
                 context.render(target.composited(over:background),to:buffer,bounds:extent,colorSpace:ImageEngine.output)
                 guard adaptor.append(buffer,withPresentationTime:CMTime(value:Int64(n),timescale:30)) else { throw StudioError.render }
             }

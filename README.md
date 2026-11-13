@@ -1,5 +1,9 @@
 # Stillarc Studio
 
+## Moving-mask finishing & reliability · 0.50
+
+People video mattes now support up to 12 seconds / 360 frames, with safe cancellation and reversible edge presets. Lost tracking can retain a reviewed reliable path with a source-time recovery marker and manual correction. Colour/export and sustained-preview regression checks accompany the update. [Workflows and limits](Docs/FINISHING-050.md).
+
 ## Camera, colour & moving masks · 0.49
 
 Share colour-only looks with Stillarc Camera, choose explicit sRGB/P3/linear input interpretation and tagged photo output, analyse rectangle size/rotation, prepare short People video mattes and composite video backgrounds. Faces/Facial skin and bounded chroma-noise cleanup extend photo finishing. [Workflows, limits and what to test](Docs/FINISHING-049.md).
@@ -40,7 +44,7 @@ Convert Canon Log 3 (Rec.2020), Nikon N-Log, Fujifilm F-Log2 and DJI X9 D-Log us
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.49 combined finishing milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.50 finishing and reliability milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 

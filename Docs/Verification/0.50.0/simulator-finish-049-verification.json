@@ -1,0 +1,24 @@
+{
+  "version" : "0.50.0",
+  "temporal" : {
+    "sourceTimeAndCrop" : true,
+    "persistenceBackup" : true,
+    "passed" : true,
+    "noPlaybackInference" : true,
+    "extended360FrameRoundtrip" : true,
+    "encodedVideoReplacement" : true
+  },
+  "thermal" : 0,
+  "math" : {
+    "studioShareCreated" : true,
+    "chromaBrightnessPreserved" : true,
+    "legacyDelivery" : true,
+    "measuredManualPose" : true,
+    "inputSRGBP3Linear" : true,
+    "lowStoragePreflight" : true,
+    "passed" : true,
+    "outputProfile" : "Display P3",
+    "cameraImportVerified" : true
+  },
+  "passed" : true
+}

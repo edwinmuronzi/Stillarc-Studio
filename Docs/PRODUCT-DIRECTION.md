@@ -1,3 +1,5 @@
+> Current checkpoint: **0.50** adds longer bounded People mattes, reversible edge shortcuts and explicit tracking-loss recovery. See [current workflows and limits](FINISHING-050.md). Historical roadmap statements below are not a claim that every competitor feature is complete.
+
 # Studio feature evaluation — 12 November 2026
 
 Current implementation is Studio 0.49, not the historical 0.28 baseline evaluated below. Editing pools, reference matching, delivery/backup workflows and the newer colour/mask tools have shipped since that comparison. See [the 0.49 finishing overview](FINISHING-049.md) and [validation/open gates](Verification/0.49.0/README.md) for current scope.

@@ -1,0 +1,15 @@
+{
+  "passed" : true,
+  "version" : "0.26.0",
+  "photo" : {
+    "independentChoices" : true,
+    "defaultStrip" : true,
+    "preferencePersistence" : true,
+    "allowlist" : true,
+    "orientation" : true,
+    "originalPreserved" : true,
+    "passed" : true,
+    "batchPropagationAndNames" : true,
+    "jpegPNGMetadata" : true
+  }
+}

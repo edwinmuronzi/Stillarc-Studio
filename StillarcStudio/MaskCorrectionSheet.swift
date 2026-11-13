@@ -34,6 +34,10 @@ struct MaskCorrectionSheet:View {
                     ScrollView {
                         VStack(alignment:.leading,spacing:14) {
                             Text("Fix a drifting mask").font(.headline)
+                            if let recovery=motion?.recoveryTime {
+                                Text("Target lost at \(String(format:"%.2f",recovery-range.lowerBound)) s. The last reliable pose holds after this point. Correct the path when the subject returns; it has not been automatically reacquired.").font(.caption).foregroundStyle(.orange)
+                                Button("Jump to tracking loss"){position.pause();position.seek(recovery,exact:true)}.buttonStyle(.bordered).accessibilityIdentifier("jumpToTrackingLoss")
+                            }
                             Text("Pause or scrub to the drift. Turn on Move mask and drag the blue handle, or use the sliders. Open Size & rotation to make the mask bigger, smaller or turn it. Corrections blend between saved points without running tracking again.").font(.caption).foregroundStyle(StudioStyle.secondary)
                             HStack {Text(String(format:"%.2f s",time-range.lowerBound)).monospacedDigit();Spacer();Button("Start"){position.seek(range.lowerBound)};Button("End"){position.seek(max(range.lowerBound,range.upperBound-step))}}.font(.caption).buttonStyle(.bordered)
                             HStack(spacing:10) {
@@ -58,7 +62,7 @@ struct MaskCorrectionSheet:View {
                                 VStack(spacing:14) {
                                     poseSlider("Mask size",scale:true)
                                     poseSlider("Mask rotation",scale:false)
-                                    Text("Size and rotation pivot around the tracked target centre. For older tracks, the mask centre is used; track again to choose a new target centre. These are manual corrections, not automatic pose tracking.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                                    Text("Size and rotation pivot around the tracked target centre. For older tracks, the mask centre is used; track again to choose a new target centre. These refine the measured pose without running analysis again.").font(.caption).foregroundStyle(StudioStyle.secondary)
                                 }.padding(.top,10)
                             }.font(.subheadline)
                             HStack {

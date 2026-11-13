@@ -57,7 +57,13 @@ struct DeliverySettings:Codable,Equatable,Sendable {
         let aspect=(target.width/rect.width)/(target.height/rect.height)
         return normalized.applyingFilter("CILanczosScaleTransform",parameters:[kCIInputScaleKey:target.height/rect.height,kCIInputAspectRatioKey:aspect]).cropped(to:CGRect(origin:.zero,size:target))
     }
-    static func load(_ defaults:UserDefaults = .standard)->Self {Self(size:DeliverySize(rawValue:defaults.string(forKey:"delivery.size") ?? "") ?? .original,quality:DeliveryQuality(rawValue:defaults.string(forKey:"delivery.quality") ?? "") ?? .maximum,photoSpace:PhotoOutputSpace(rawValue:defaults.string(forKey:"delivery.photoSpace") ?? ""),videoCodec:VideoDeliveryCodec(rawValue:defaults.string(forKey:"delivery.codec") ?? ""))}
+    static func load(_ defaults:UserDefaults = .standard)->Self {
+        var result=Self(size:DeliverySize(rawValue:defaults.string(forKey:"delivery.size") ?? "") ?? .original,quality:DeliveryQuality(rawValue:defaults.string(forKey:"delivery.quality") ?? "") ?? .maximum)
+        // Canonicalize explicit persisted defaults through the same setters as the UI.
+        result.outputSpace=PhotoOutputSpace(rawValue:defaults.string(forKey:"delivery.photoSpace") ?? "") ?? .sRGB
+        result.codec=VideoDeliveryCodec(rawValue:defaults.string(forKey:"delivery.codec") ?? "") ?? .hevc
+        return result
+    }
     func save(_ defaults:UserDefaults = .standard) {defaults.set(outputSpace.rawValue,forKey:"delivery.photoSpace");defaults.set(size.rawValue,forKey:"delivery.size");defaults.set(quality.rawValue,forKey:"delivery.quality");defaults.set(codec == .hevc ? nil:codec.rawValue,forKey:"delivery.codec")}
 }
 struct DeliveryControls:View {
