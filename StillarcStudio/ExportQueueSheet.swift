@@ -49,8 +49,20 @@ struct ExportQueueSheet:View {
                 if let error=queue.error {Text(error).font(.caption).foregroundStyle(.orange)}
             }.navigationTitle("Export queue").navigationBarTitleDisplayMode(.inline).toolbar {Button("Done"){queue.pause();dismiss()}.disabled(saving != nil).accessibilityIdentifier("closeExportQueue")}
                 .safeAreaInset(edge:.bottom) {
-                    if queue.running {Button(queue.pausing ? "Pausing…":"Pause queue"){queue.pause()}.disabled(queue.pausing).buttonStyle(.borderedProminent).frame(maxWidth:.infinity).padding(16).background(.regularMaterial).accessibilityIdentifier("pauseExportQueue")}
-                    else {Button("Start queue (\(queue.pending))"){queue.start()}.buttonStyle(.borderedProminent).disabled(queue.pending==0 || !queue.loaded).frame(maxWidth:.infinity).padding(16).background(.regularMaterial).accessibilityIdentifier("startExportQueue")}
+                    Button {
+                        if queue.running {queue.pause()} else {queue.start()}
+                    } label: {
+                        Text(queue.running ? (queue.pausing ? "Pausing…":"Pause queue") : "Start queue (\(queue.pending))")
+                            .font(.subheadline.weight(.semibold)).frame(maxWidth:.infinity).padding(.vertical,16)
+                            .foregroundStyle(.white).background(StudioStyle.blue,in:Capsule())
+                    }.buttonStyle(.plain)
+                    .disabled(queue.running ? queue.pausing:(queue.pending==0 || !queue.loaded))
+                    .accessibilityIdentifier(queue.running ? "pauseExportQueue":"startExportQueue")
+                    .padding(8).background(.regularMaterial,in:RoundedRectangle(cornerRadius:32))
+                    .overlay(RoundedRectangle(cornerRadius:32).stroke(.white.opacity(0.1),lineWidth:1))
+                    .shadow(color:.black.opacity(0.2),radius:12,y:4)
+                    .padding(.horizontal,20).padding(.top,8).padding(.bottom,12)
+
                 }
         }.tint(StudioStyle.blue).task {await queue.load()}.onDisappear {queue.pause()}.onChange(of:phase){_,value in if value != .active {queue.pause()}}
             .alert("Remove this delivery?",isPresented:Binding(get:{removing != nil},set:{if !$0 {removing=nil}})) {

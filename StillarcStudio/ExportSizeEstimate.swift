@@ -6,7 +6,13 @@ struct ExportSizeEstimate:Equatable,Sendable {
     var lower:Double
     var upper:Double
     var isPhoto=false
-    var label:String {"\(Self.bytes(lower)) – \(Self.bytes(upper))"}
+    var label:String {
+        let value=max(0,(lower+upper)/2)
+        let units=["KB","MB","GB","TB"]
+        var scaled=value/1000,index=0
+        while scaled>=1000 && index<units.count-1 {scaled/=1000;index+=1}
+        return "≈ \(scaled.formatted(.number.precision(.fractionLength(0...1)))) \(units[index])"
+    }
     static func bytes(_ value:Double)->String {
         let safe=value.isFinite ? min(Double(Int64.max/2),max(0,value)):0
         return ByteCountFormatter.string(fromByteCount:Int64(safe.rounded()),countStyle:.file)
