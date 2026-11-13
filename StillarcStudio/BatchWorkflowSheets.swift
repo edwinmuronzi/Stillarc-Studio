@@ -27,7 +27,8 @@ struct BatchExportSheet:View {
                     Text("Your edits, together.").font(.title.weight(.semibold))
                     Text("Exports each project with its own current edit, crop and masks. Video keeps its trim and HDR choice; sound follows your export privacy settings. Work runs one item at a time; originals stay untouched.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     if projects.contains(where:{ !$0.isVideo }) { Picker("Photo format",selection:$format) { ForEach(ExportFormat.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).disabled(busy || result != nil) }
-                    DeliveryControls(settings:$delivery,lossless:format == .png && !projects.contains(where:{$0.isVideo})).disabled(busy || result != nil)
+                    DeliveryControls(settings:$delivery,lossless:format == .png && !projects.contains(where:{$0.isVideo}),video:projects.contains(where:{$0.isVideo}),photos:projects.contains(where:{!$0.isVideo}),hdr:projects.contains(where:{$0.isVideo && $0.recipe.video.hdr})).disabled(busy || result != nil)
+                    if projects.contains(where:{$0.isVideo}) && delivery.codec == .h264 {Text("MP4 retains requested capture date and location. To include camera make/model, choose HEVC or ProRes MOV instead, or turn off Include camera details below.").font(.caption).foregroundStyle(privacy.camera ? .orange:StudioStyle.secondary)}
                     ExportPrivacyControls(policy:$privacy,video:projects.contains(where:{ $0.isVideo }),batch:true).disabled(busy || result != nil)
                     Text("\(projects.count) selected · full remaining source resolution").font(.caption).foregroundStyle(StudioStyle.secondary)
                     if projects.contains(where:{$0.recipe.hasTransparentCutout}) {Text("Photo cutouts always export as transparent PNG; other photos use the chosen format.").font(.caption).foregroundStyle(StudioStyle.secondary)}
@@ -83,7 +84,7 @@ struct BatchExportSheet:View {
         guard authorization == .authorized || authorization == .limited else { error = "Allow access to add media in Settings, or save the files with Share.";return }
         do {
             try await PHPhotoLibrary.shared().performChanges {
-                for url in urls { if url.pathExtension == "mov" { PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL:url) } else { PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL:url) } }
+                for url in urls { if VideoEngine.isMovie(url) { PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL:url) } else { PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL:url) } }
             }
             message = "Saved \(urls.count) items to Photos."
         } catch { self.error = error.localizedDescription }

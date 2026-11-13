@@ -36,16 +36,17 @@ import UniformTypeIdentifiers
                     Text("A finished copy. Your original stays yours.").font(.subheadline).foregroundStyle(StudioStyle.secondary)
                     if !session.project.isVideo && !session.recipe.hasTransparentCutout { Picker("File format",selection: $format) { ForEach(ExportFormat.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).disabled(busy || result != nil) }
                     if !session.project.isVideo && session.recipe.hasTransparentCutout {Label("PNG · Transparent background",systemImage:"square.dashed").font(.subheadline).accessibilityIdentifier("transparentPNGFormat")}
-                    if session.project.isVideo { Toggle("HDR video · HLG",isOn:Binding(get:{ session.recipe.video.hdr },set:{ value in session.change { $0.video.hdr = value } })).disabled(busy || result != nil);Text("HDR keeps brighter highlights on supported screens. SDR is the safest choice for universal sharing. HDR uses 10-bit HEVC; SDR looks/LUTs can change highlight detail.").font(.caption).foregroundStyle(StudioStyle.secondary) }
-                    if session.project.isVideo { Picker("Video depth",selection:$tenBitVideo) { Text("10-bit HEVC").tag(true);Text("8-bit HEVC").tag(false) }.pickerStyle(.segmented).disabled(busy || result != nil || session.recipe.video.hdr) }
-                    DeliveryControls(settings:$delivery,lossless:!session.project.isVideo && (format == .png || session.recipe.hasTransparentCutout)).disabled(busy || result != nil)
+                    if session.project.isVideo { Toggle("HDR video · HLG",isOn:Binding(get:{ session.recipe.video.hdr },set:{ value in session.change { $0.video.hdr = value } })).disabled(busy || result != nil);Text("HDR keeps brighter highlights on supported screens. SDR is the safest choice for universal sharing. HDR uses 10-bit HEVC or ProRes; SDR looks/LUTs can change highlight detail.").font(.caption).foregroundStyle(StudioStyle.secondary) }
+                    if session.project.isVideo && delivery.codec == .hevc { Picker("Video depth",selection:$tenBitVideo) { Text("10-bit HEVC").tag(true);Text("8-bit HEVC").tag(false) }.pickerStyle(.segmented).disabled(busy || result != nil || session.recipe.video.hdr) }
+                    DeliveryControls(settings:$delivery,lossless:!session.project.isVideo && (format == .png || session.recipe.hasTransparentCutout),video:session.project.isVideo,photos:!session.project.isVideo,hdr:session.recipe.video.hdr).disabled(busy || result != nil)
+                    if session.project.isVideo && delivery.codec == .h264 {Text("MP4 retains requested capture date and location. To include camera make/model, choose HEVC or ProRes MOV instead, or turn off Include camera details below.").font(.caption).foregroundStyle(privacy.camera ? .orange:StudioStyle.secondary)}
                     ExportPrivacyControls(policy:$privacy,video:session.project.isVideo).disabled(busy || result != nil)
                     VStack(alignment: .leading,spacing: 14) {
                         exportDetail("Resolution",value: delivery.size == .original ? "Full original · crop applied" : delivery.size.rawValue+" maximum edge · crop applied")
                         exportDetail("Color",value:session.project.isVideo ? (session.recipe.video.hdr ? "Rec.2020 · HLG HDR":"sRGB · SDR") : (format == .hdrHEIF ? "Rec.2020 · HLG HDR":"sRGB · SDR"))
-                        exportDetail("Quality",value:session.project.isVideo ? "HEVC · \((tenBitVideo || session.recipe.video.hdr) ? 10 : 8)-bit · \(delivery.quality.rawValue) · source timing" : (format == .jpeg ? "\(Int(delivery.quality.photo*100))% JPEG" : (format == .png ? "Lossless PNG · 8-bit":"10-bit HLG HEIF · \(Int(delivery.quality.photo*100))%")))
+                        exportDetail("Quality",value:session.project.isVideo ? "\(delivery.codec.rawValue) · \(delivery.codec == .h264 ? 8:delivery.codec == .proRes422 || tenBitVideo || session.recipe.video.hdr ? 10:8)-bit · source timing" : (format == .jpeg ? "\(Int(delivery.quality.photo*100))% JPEG" : (format == .png ? "Lossless PNG · 8-bit":"10-bit HLG HEIF · \(Int(delivery.quality.photo*100))%")))
                         if let video = session.project.video { let r = session.recipe.video.range(duration:video.duration);exportDetail("Duration",value:String(format:"%.2f seconds",r.upperBound-r.lowerBound)) }
-                        if session.project.isVideo { exportDetail("Audio",value:privacy.audio ? "Original tracks preserved" : "Sound removed") }
+                        if session.project.isVideo { exportDetail("Audio",value:privacy.audio ? (delivery.codec == .h264 ? "AAC sound · source timing":"Original tracks preserved") : "Sound removed") }
                         exportDetail("Location",value:privacy.location ? "Included when present" : "Omitted")
                     }.padding(20).background(StudioStyle.panel,in: RoundedRectangle(cornerRadius: 20))
                     if let result {
@@ -111,7 +112,7 @@ import UniformTypeIdentifiers
         guard authorization == .authorized || authorization == .limited else { error = "Allow Stillarc Studio to add photos in Settings, or use Share to save to Files."; return }
         do {
             try await PHPhotoLibrary.shared().performChanges {
-                if url.pathExtension.lowercased() == "mov" { PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL:url) }
+                if VideoEngine.isMovie(url) { PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL:url) }
                 else { PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL:url) }
             }
             message = "Saved to Photos."

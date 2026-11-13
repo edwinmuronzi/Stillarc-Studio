@@ -1,4 +1,4 @@
-# Stillarc Studio · 0.40
+# Stillarc Studio · 0.42
 
 ## Colour batch · 0.41
 
@@ -11,7 +11,7 @@ Develop light and color with Levels, RGB curves, selective color, wheels and cha
 
 Natural grain gives an image fine texture; Halation adds warmth around bright edges; Bloom softens bright areas. Manual lens distortion correction helps straighten bowed lines. Each can be undone, reset or left off.
 
-Trim video and export HEVC SDR or 10-bit HLG HDR, with explicit metadata/privacy choices. Photos export at full remaining source resolution as SDR JPEG/PNG or 10-bit HLG HEIF. Originals stay untouched. Favorites, ratings, batch actions, saved versions and Recently Deleted help organize local work.
+Trim video and export H.264 SDR MP4/AAC, HEVC SDR/HLG or hardware-supported 10-bit ProRes 422 SDR/HLG MOV, with explicit metadata/privacy choices. Photos export at full remaining source resolution as SDR JPEG/PNG or 10-bit HLG HEIF. Originals stay untouched. Favorites, ratings, batch actions, saved versions and Recently Deleted help organize local work.
 
 <img src="Screenshots/FilmCompact.png" width="280" alt="Actual compact iPhone simulator Film controls"> <img src="Screenshots/FilmIPad.png" width="480" alt="Actual iPad simulator Film controls">
 

@@ -87,13 +87,17 @@ enum VideoEngine {
         let trimEnd = CMTime(seconds:selection.upperBound,preferredTimescale:60000)
         if trimmed { reader.timeRange = CMTimeRange(start:trimStart,end:trimEnd) }
         let hdr = recipe.video.hdr
-        let tenBit = tenBit || hdr
+        let codec=delivery.codec
+        guard codec.available else {throw NSError(domain:"Delivery",code:1,userInfo:[NSLocalizedDescriptionKey:"ProRes 422 hardware export is unavailable on this device. Choose HEVC or H.264."])}
+        guard !(codec == .h264 && privacy.camera) else {throw NSError(domain:"Delivery",code:4,userInfo:[NSLocalizedDescriptionKey:"MP4 cannot retain camera make/model here. Choose HEVC or ProRes MOV, or turn off Include camera details."])}
+        guard !(hdr && codec == .h264) else {throw NSError(domain:"Delivery",code:2,userInfo:[NSLocalizedDescriptionKey:"H.264 is SDR-only. Choose HEVC or ProRes to keep HDR, or turn HDR off explicitly."])}
+        let tenBit = codec == .proRes422 || (codec == .hevc && (tenBit || hdr))
         guard reader.canAdd(video) else { throw StudioError.render }; reader.add(video)
         let framed = PhotoFraming.window(in:PhotoFraming.orientedSize(CGSize(width:descriptor.width,height:descriptor.height),recipe:recipe),recipe:recipe)
         let target=delivery.dimensions(framed.size,video:true)
         let width=Int(target.width),height=Int(target.height)
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("Stillarc-Video-\(UUID().uuidString.prefix(8)).mov")
-        let writer = try AVAssetWriter(outputURL:url,fileType:.mov)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("Stillarc-Video-\(UUID().uuidString.prefix(8)).\(codec.fileExtension)")
+        let writer = try AVAssetWriter(outputURL:url,fileType:codec.fileType)
         var completed = false
         defer { if !completed { reader.cancelReading(); writer.cancelWriting(); try? FileManager.default.removeItem(at:url) } }
         writer.metadata = try await privacy.videoMetadata(asset)
@@ -101,15 +105,28 @@ enum VideoEngine {
         let primaries = hdr ? AVVideoColorPrimaries_ITU_R_2020 : AVVideoColorPrimaries_ITU_R_709_2
         let transfer = hdr ? AVVideoTransferFunction_ITU_R_2100_HLG : kCVImageBufferTransferFunction_sRGB as String
         let matrix = hdr ? AVVideoYCbCrMatrix_ITU_R_2020 : AVVideoYCbCrMatrix_ITU_R_709_2
-        let input = AVAssetWriterInput(mediaType:.video,outputSettings:[AVVideoCodecKey:AVVideoCodecType.hevc,AVVideoWidthKey:width,AVVideoHeightKey:height,AVVideoColorPropertiesKey:[AVVideoColorPrimariesKey:primaries,AVVideoTransferFunctionKey:transfer,AVVideoYCbCrMatrixKey:matrix],AVVideoCompressionPropertiesKey:[AVVideoAverageBitRateKey:bitrate,AVVideoExpectedSourceFrameRateKey:max(1,descriptor.frameRate),AVVideoProfileLevelKey:tenBit ? "HEVC_Main10_AutoLevel" : "HEVC_Main_AutoLevel"]])
+        var settings:[String:Any]=[AVVideoCodecKey:codec.avCodec,AVVideoWidthKey:width,AVVideoHeightKey:height,AVVideoColorPropertiesKey:[AVVideoColorPrimariesKey:primaries,AVVideoTransferFunctionKey:transfer,AVVideoYCbCrMatrixKey:matrix]]
+        if codec != .proRes422 {
+            settings[AVVideoCompressionPropertiesKey]=[AVVideoAverageBitRateKey:codec == .h264 ? Int(Double(bitrate)*1.4):bitrate,AVVideoExpectedSourceFrameRateKey:max(1,descriptor.frameRate),AVVideoProfileLevelKey:codec == .h264 ? AVVideoProfileLevelH264HighAutoLevel:(tenBit ? "HEVC_Main10_AutoLevel":"HEVC_Main_AutoLevel")]
+        }
+        guard writer.canApply(outputSettings:settings,forMediaType:.video) else {throw NSError(domain:"Delivery",code:3,userInfo:[NSLocalizedDescriptionKey:"This device cannot encode the chosen format at this size. Choose a smaller export size or HEVC."])}
+        let input = AVAssetWriterInput(mediaType:.video,outputSettings:settings)
         input.expectsMediaDataInRealTime = false
         guard writer.canAdd(input) else { throw StudioError.render }; writer.add(input)
-        let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput:input,sourcePixelBufferAttributes:[kCVPixelBufferPixelFormatTypeKey as String:tenBit ? kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange : kCVPixelFormatType_32BGRA,kCVPixelBufferWidthKey as String:width,kCVPixelBufferHeightKey as String:height,kCVPixelBufferIOSurfacePropertiesKey as String:[:]])
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput:input,sourcePixelBufferAttributes:[kCVPixelBufferPixelFormatTypeKey as String:codec == .proRes422 ? kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange : (tenBit ? kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange : kCVPixelFormatType_32BGRA),kCVPixelBufferWidthKey as String:width,kCVPixelBufferHeightKey as String:height,kCVPixelBufferIOSurfacePropertiesKey as String:[:]])
         var audio:[(AVAssetReaderTrackOutput,AVAssetWriterInput)] = []
         for audioTrack in (privacy.audio ? try await asset.loadTracks(withMediaType:.audio) : []) {
-            let output = AVAssetReaderTrackOutput(track:audioTrack,outputSettings:nil); output.alwaysCopiesSampleData = false
             let hint = try await audioTrack.load(.formatDescriptions).first
-            let input = AVAssetWriterInput(mediaType:.audio,outputSettings:nil,sourceFormatHint:hint)
+            var audioSettings:[String:Any]?=nil
+            var readSettings:[String:Any]?=nil
+            if codec == .h264 {
+                guard let hint,let asbd=CMAudioFormatDescriptionGetStreamBasicDescription(hint),[1,2].contains(Int(asbd.pointee.mChannelsPerFrame)),asbd.pointee.mSampleRate.isFinite,(8000...96000).contains(asbd.pointee.mSampleRate) else {throw StudioError.unsupportedVideoAudio}
+                readSettings=[AVFormatIDKey:kAudioFormatLinearPCM,AVLinearPCMBitDepthKey:16,AVLinearPCMIsFloatKey:false,AVLinearPCMIsNonInterleaved:false]
+                audioSettings=[AVFormatIDKey:kAudioFormatMPEG4AAC,AVSampleRateKey:asbd.pointee.mSampleRate,AVNumberOfChannelsKey:Int(asbd.pointee.mChannelsPerFrame),AVEncoderBitRateKey:asbd.pointee.mChannelsPerFrame == 1 ? 96000:192000]
+                guard writer.canApply(outputSettings:audioSettings,forMediaType:.audio) else {throw StudioError.unsupportedVideoAudio}
+            }
+            let output = AVAssetReaderTrackOutput(track:audioTrack,outputSettings:readSettings); output.alwaysCopiesSampleData = false
+            let input = AVAssetWriterInput(mediaType:.audio,outputSettings:audioSettings,sourceFormatHint:codec == .h264 ? nil:hint)
             guard reader.canAdd(output),writer.canAdd(input) else { throw StudioError.unsupportedVideoAudio }
             reader.add(output);writer.add(input); audio.append((output,input))
         }

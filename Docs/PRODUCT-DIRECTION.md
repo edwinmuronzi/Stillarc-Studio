@@ -81,3 +81,11 @@ Reusable look management gains favourites, named collections, search/filter/sort
 
 ### 0.40 checkpoint
 Home project menus add source information, request-only fingerprint creation/verification and exact-byte original repair. SHA-256/size matching precedes atomic source publication; non-empty changed copies are retained. Bounded streaming, cancellation cleanup and thermal pacing avoid background/rendering work. Saved edits/versions, video interpretation and audio remain unchanged, and project backups carry fingerprints into restored copies. Legacy projects are not automatically scanned; missing sources without fingerprints require a project backup. This is verified repair, not arbitrary source replacement or timeline conforming. Additional camera transforms, temporal video matting and shared Camera/Studio interchange remain later scope.
+
+
+### 0.41–0.42 checkpoints
+0.41 adds explicit Canon Log 3/Rec.2020, Nikon N-Log/Rec.2020, Fujifilm F-Log2/F-Gamut and DJI X9 native-EI D-Log/D-Gamut; three creative LUT layers with independent strength/bypass/reordering; and nonuniform Master/RGB curves with up to twelve points.
+
+0.42 adds remembered delivery codec choices: H.264 SDR MP4 with mono/stereo AAC, existing HEVC MOV and hardware-supported ProRes 422 10-bit MOV. HEVC/ProRes retain HLG HDR; the interface keeps mixed HDR batches on HDR-capable choices and the engine rejects incompatible stale H.264/HDR requests. Queue schema 5 snapshots codec choices while reading older queues. ProRes uses fixed compression; JPEG/HEIF quality remains available for mixed photo/video deliveries. Export grading, audio timestamps, metadata policy and serial thermal pacing stay shared.
+
+Remaining candidate work: Camera/Studio shared-look interchange, supported 1D shapers, additional validated input/output spaces and richer mask motion. Temporal video matting and a multi-clip timeline remain separate substantial projects. No external beta or App Store work in this batch.

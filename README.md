@@ -1,5 +1,9 @@
 # Stillarc Studio
 
+## Delivery batch · 0.42
+
+Choose **H.264 MP4** for broad SDR playback, **HEVC** for smaller files, or **10-bit ProRes 422 MOV** on supported hardware for further editing. Format choices are remembered and work in single, pool and queued delivery. HDR stays explicit; selecting H.264 never silently strips HDR. [Formats, sound and compatibility](Docs/DELIVERY-042.md).
+
 ## Colour batch · 0.41
 
 Convert Canon Log 3 (Rec.2020), Nikon N-Log, Fujifilm F-Log2 and DJI X9 D-Log using explicit gamma/gamut choices. Combine up to three creative LUTs with individual strengths, bypass and ordering. Shape Master/RGB curves with up to twelve movable points per channel; scroll safely with editing locked. These edits save, sync, undo and export together. [Usage, exact profile pairings and technical sources](Docs/COLOUR-041.md).
@@ -9,7 +13,7 @@ Convert Canon Log 3 (Rec.2020), Nikon N-Log, Fujifilm F-Log2 and DJI X9 D-Log us
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.40 original-media recovery milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.42 video delivery milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -55,7 +59,7 @@ This is the **0.40 original-media recovery milestone**. Development is ongoing. 
 - Tap **Scopes** in the preview for an RGB histogram, RGB waveform or color vectorscope. The histogram shows where dark/bright tones sit; the waveform shows brightness across the image; the vectorscope shows color direction and saturation. These are sampled preview guides, not full-resolution or RAW sensor measurements.
 - In Crop, choose **Free** to change width and height independently, drag a corner handle to resize the frame, then drag inside it or use framing sliders to position it. Flip horizontally/vertically, correct leaning buildings with horizontal/vertical perspective, rotate, or straighten a horizon. Perspective correction trims edges to avoid empty corners. Crop reset and undo restore the earlier framing; saved creative presets keep each source’s geometry intact.
 
-- Open a photo or video from Photos or Files. Videos up to 4K can be played, scrubbed, graded with the same tools, and exported as a new HEVC movie with original audio tracks and frame timing. Trim the start/end without changing the original. This is a single-clip workflow, without a multi-clip timeline.
+- Open a photo or video from Photos or Files. Videos up to 4K can be played, scrubbed, graded with the same tools, and exported as HEVC/ProRes MOV or H.264 MP4, retaining frame timing (H.264 encodes mono/stereo sound as AAC). Trim the start/end without changing the original. This is a single-clip workflow, without a multi-clip timeline.
 - Export video as SDR or **10-bit HLG HDR**. HDR preserves brighter highlights on compatible displays; SDR gives the widest sharing compatibility. HLG/PQ-tagged HDR input is recognized automatically and starts with HDR output enabled. HDR video uses extended-range live previews on compatible screens. Photo exports remain SDR JPEG/PNG.
 - Convert Apple Log (BT.2020) or Apple Log 2 (Apple Wide Gamut) into the linear grading pipeline before creative looks/LUTs. Recognized video Log metadata selects the input automatically; use **INPUT** to override it for untagged clips or imported Log still frames. Input exposure and optional soft highlights help fit bright scenes into SDR. This is Studio’s own rendering, not Apple’s official conversion LUT. RAW photos use Apple’s RAW development instead.
 - Supported photo originals: JPEG, HEIF, PNG, TIFF and RAW originals are copied into the local Studio workspace. RAW support depends on Apple's decoder and the source camera.
@@ -96,7 +100,7 @@ The included Studio Cool LUT is a subtle original demonstration, not a camera co
 2. Tap the **INPUT** badge. Choose the exact recorded profile if metadata did not identify it: Apple Log/Log 2, Sony S-Log3 with S-Gamut3.Cine, or Panasonic V-Log with V-Gamut. Standard leaves normal footage color-managed without a Log transform. Do not guess the input profile from how flat a clip looks.
 3. Adjust input exposure/soft highlights, then grade with Light, Color, Curves, Mix, Wheels and Film. Tap the video to reveal Play/pause and scrubbing; hold Compare for the unconverted original.
 4. Tap **scissors** beside Play to choose start/end points. The trim sheet previews the retained range; adjust an endpoint to inspect it. Undo or **Use entire clip** restores the previous/full range.
-5. Choose **HDR preview & export** in INPUT, or **HDR video · HLG** in Export. HDR always uses 10-bit HEVC, Rec.2020 primaries and HLG transfer. SDR offers 10-bit or 8-bit HEVC, Rec.709 primaries and sRGB transfer. Share/save to Files or add a new copy to Photos. Frame cadence and audio are retained within the chosen range, with a zero-based exported timeline. Source dimensions stay full-size unless framing changes them, with even pixel dimensions for HEVC.
+5. Choose **HDR preview & export** in INPUT, or **HDR video · HLG** in Export. HDR uses 10-bit HEVC or supported-hardware ProRes 422, Rec.2020 primaries and HLG transfer. SDR offers 10-bit/8-bit HEVC, 8-bit H.264 MP4 or supported-hardware 10-bit ProRes 422, Rec.709 primaries and sRGB transfer. Share/save to Files or add a new copy to Photos. Frame cadence and audio are retained within the chosen range, with a zero-based exported timeline. Source dimensions stay full-size unless framing changes them, with even pixel dimensions for HEVC.
 
 Apple Log/Log 2 plus manual Sony S-Log3/S-Gamut3.Cine and Panasonic V-Log/V-Gamut conversion are supported; HLG/PQ video is color-managed automatically. Videos larger than 4K are rejected with an explanation. HDR output is HLG, not Dolby Vision, HDR10+ or Log. Source conversion, trim and HDR choice are saved with the project and excluded from creative presets. A source that was already SDR does not gain missing highlight detail simply by choosing HDR.
 
@@ -128,7 +132,7 @@ RGB curves use bounded cached 1024-sample float tables. Selective color, wheels 
 
 The preview is decoded once, capped at 1600 pixels on its long edge and rendered directly with Core Image/Metal. The view draws on changes, with one GPU submission in flight and newest-state coalescing; it has no perpetual display loop. Import and full-resolution export run away from the main actor. The preview pauses behind export/preset sheets and when the scene is inactive. Photo export reopens the original; export dimensions follow your delivery size choice, independently of preview sizing.
 
-LUT files are parsed and validated away from the UI actor. Immutable float tables are shared by undo states, not rebuilt or hashed during slider moves. LUTs run after built-in looks and before texture/detail; zero strength skips the LUT stage. Input/output numbers are interpreted as display sRGB, with explicit transfer curves around the cube in the linear working pipeline. Non-default input domains are normalized, and inputs outside the domain clamp to its edges. One LUT can be active at a time. Camera input conversion is separate and happens before creative grading. Creative LUTs still need to target display sRGB; a camera conversion LUT would double-convert an input already set to Apple Log/Log 2. 1D shapers, combined shaper/3D files and LUT stacking remain planned. Color-only LUT-file export is available separately.
+LUT files are parsed and validated away from the UI actor. Immutable float tables are shared by undo states, not rebuilt or hashed during slider moves. LUTs run after built-in looks and before texture/detail; zero strength skips the LUT stage. Input/output numbers are interpreted as display sRGB, with explicit transfer curves around the cube in the linear working pipeline. Non-default input domains are normalized, and inputs outside the domain clamp to its edges. Up to three LUTs can run in order, with independent strength and bypass. Camera input conversion is separate and happens before creative grading. Creative LUTs still need to target display sRGB; a camera conversion LUT would double-convert an input already set to Apple Log/Log 2. 1D shapers and combined shaper/3D files remain planned. Color-only LUT-file export is available separately.
 
 Video playback runs up to 30 preview frames per second and grades a bounded 1280-pixel preview with at most one GPU submission in flight. Playback pauses when covered/inactive; paused settled frames stop rendering. Export processes the full source, uses progress/cancellation, yields more at fair thermal state and pauses at serious/critical state without reducing output resolution or skipping frames. Backgrounding cancels an active export safely.
 
@@ -154,7 +158,7 @@ Debug verification instructions are in [Docs/VALIDATION.md](Docs/VALIDATION.md).
 
 ## Important boundaries
 
-Per-frame/deforming video segmentation, deformation/scale/rotation tracking, healing, HDR photo export, multi-clip video timelines and Camera/Studio preset exchange are **planned**, not available in this build. Studio presets are not yet compatible with Camera presets. A LUT can encode compatible color transformations, but cannot encode grain, bloom, sharpening, masks or geometry.
+Per-frame/deforming video segmentation, deformation/scale/rotation tracking, multi-clip video timelines and Camera/Studio preset exchange are **planned**, not available in this build. Studio presets are not yet compatible with Camera presets. A LUT can encode compatible color transformations, but cannot encode grain, bloom, sharpening, masks or geometry.
 
 ### Direct crop handles (0.17)
 
@@ -202,7 +206,7 @@ Favorites and ratings belong to Studio projects; they do not change the original
 ### Batch workflow and recovery (0.21)
 
 - **Open photo or video** or **Files** now accepts up to **20 items**. Studio imports them one at a time to limit memory use, preserves their filenames, and reports partial failures. **Cancel remaining** lets the current item finish safely. A single import opens the editor; multiple imports stay in the workspace.
-- Tap **Select**, choose up to 20 projects, then **Export**. Each photo or clip keeps its own saved adjustments, framing, masks, trim and audio settings. Photos use full remaining source resolution as JPEG/PNG; clips use the existing HEVC SDR/HDR export pipeline. Share the completed files or save all to Photos. Failures are listed individually. Leaving the app cancels an unfinished export batch and removes its temporary files.
+- Tap **Select**, choose up to 20 projects, then **Export**. Each photo or clip keeps its own saved adjustments, framing, masks, trim and audio settings. Photos use full remaining source resolution as JPEG/PNG; clips use the chosen HEVC, H.264 or supported ProRes format. H.264 requires SDR; mixed HDR pools retain HDR-compatible format choices. Share the completed files or save all to Photos. Failures are listed individually. Leaving the app cancels an unfinished export batch and removes its temporary files.
 - Deletes move Studio copies into **Recently Deleted** for up to **30 days**. Restore brings back media, edits, versions, ratings and favorites. Permanent deletion requires confirmation; original items in Photos/Files are untouched. Expiry is checked when the workspace or Recently Deleted opens, not by a background timer. Uninstalling Studio still removes its local storage.
 - Local metadata recovery keeps a separate atomic copy of project settings and saved looks. Healthy saves refresh the settings backup at most every 30 seconds; organization changes force a refresh. If a project index is damaged, Studio tries the backup and shows a notice; up to 30 seconds of recent saved edits may be absent. Unreadable media/index files are retained rather than silently deleted. This is metadata recovery, not a second media copy or cloud backup. Export important work separately.
 - **Curves** scrolls normally by default. Tap **Edit curve points** to drag points, then **Done editing points** to return to scrolling. A scroll gutter remains beside the graph; exact-value controls and VoiceOver adjustment remain available.
@@ -238,7 +242,7 @@ Open **Metadata & privacy** in a single or batch export:
 
 Choices are remembered on this device and shared between single and batch export. **Remove identifying metadata** clears the date, camera, location and project-name choices; sound has its own switch. Only supported metadata already present in the imported file can be copied—Studio does not request additional Photos/location access or infer missing information. Color profiles and technical encoding/playback information remain.
 
-JPEG remains 96% quality, PNG remains lossless 8-bit sRGB, and video keeps the existing HEVC SDR/HLG path and source timing. Metadata is attached during the existing encode, without a second compression/grading pass. Save to Photos or Share uses the same completed file. **Change export options** discards the temporary export and lets you create another; share/save completed files before changing options or closing the sheet. Errors retain project edits and originals.
+JPEG remains 96% quality, PNG remains lossless 8-bit sRGB, and video keeps source timing in the selected codec (H.264 is SDR; HEVC/ProRes can use HLG). Metadata is attached during the existing encode, without a second compression/grading pass. Save to Photos or Share uses the same completed file. **Change export options** discards the temporary export and lets you create another; share/save completed files before changing options or closing the sheet. Errors retain project edits and originals.
 
 [Implementation and validation references](Docs/EXPORT-PRIVACY.md)
 
@@ -333,7 +337,7 @@ Open a project → **Looks → Color Warp** (also accessible in Color). Add up t
 
 Warps belong to the Color copy/sync/reset group, persist with projects/versions and are included in Studio presets and color-only LUT export. Warped presets use schema 5; older Studio versions reject them instead of silently dropping the adjustment. No object detection is implied.
 
-Single and pool exports now share remembered **Original / 3840 / 1920 / 1280 px** longest-edge limits, applied after cropping. Small originals are never enlarged; video dimensions remain even for HEVC. **Maximum / Balanced / Compact** change JPEG/HEIF compression and target HEVC bitrate, preserving selected size, trim, HDR/SDR, audio policy and source timing. PNG stays lossless and preserves transparency. Original + Maximum remain the defaults. Full-source grading precedes Lanczos downsizing so mask geometry and film scale do not depend on preview size. Compression ratios and resulting file sizes vary with content.
+Single and pool exports now share remembered **Original / 3840 / 1920 / 1280 px** longest-edge limits, applied after cropping. Small originals are never enlarged; video dimensions remain even for HEVC. **Maximum / Balanced / Compact** change JPEG/HEIF compression and target HEVC/H.264 bitrate (ProRes uses fixed mastering compression), preserving selected size, trim, HDR/SDR, audio policy and source timing. PNG stays lossless and preserves transparency. Original + Maximum remain the defaults. Full-source grading precedes Lanczos downsizing so mask geometry and film scale do not depend on preview size. Compression ratios and resulting file sizes vary with content.
 
 ## Editable project backups · 0.34
 

@@ -22,6 +22,7 @@ struct ExportQueueSheet:View {
                         VStack(alignment:.leading,spacing:10) {
                             Text(job.title).font(.headline).lineLimit(2)
                             Text("\(job.format.rawValue) · \(job.delivery.size.rawValue) · \(job.delivery.quality.rawValue)").font(.caption).foregroundStyle(StudioStyle.secondary)
+                            if job.projects.contains(where:{$0.isVideo}) {Text("Video · \(job.delivery.codec.rawValue) · \(job.delivery.codec.fileExtension.uppercased())").font(.caption).foregroundStyle(StudioStyle.secondary)}
                             Text(label(job.state)).font(.caption.weight(.semibold)).foregroundStyle(job.state == .failed ? .orange:StudioStyle.blue).accessibilityIdentifier("queueState-"+job.id.uuidString)
                             if job.state == .running {ProgressView(value:queue.progress);Text(queue.status).font(.caption).lineLimit(2)}
                             if !job.files.isEmpty {
@@ -60,6 +61,6 @@ struct ExportQueueSheet:View {
         let access=await PHPhotoLibrary.requestAuthorization(for:.addOnly)
         guard access == .authorized || access == .limited else {message="Allow Photos access in Settings, or use Share to save to Files.";return}
         let urls=queue.urls(job)
-        do {try await PHPhotoLibrary.shared().performChanges {for url in urls {if url.pathExtension == "mov" {PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL:url)} else {PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL:url)}}};message="Saved to Photos."} catch {message=error.localizedDescription}
+        do {try await PHPhotoLibrary.shared().performChanges {for url in urls {if VideoEngine.isMovie(url) {PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL:url)} else {PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL:url)}}};message="Saved to Photos."} catch {message=error.localizedDescription}
     }
 }

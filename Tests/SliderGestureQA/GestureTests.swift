@@ -532,6 +532,29 @@ final class GestureTests:XCTestCase {
         app.scrollViews.firstMatch.swipeUp();app.buttons["Open Studio sample"].tap()
         XCTAssertTrue(app.buttons["Film"].waitForExistence(timeout:15));XCTAssertEqual(app.buttons["Film"].value as? String,"Adjustments applied")
     }
+    func testVideoCodecChoicesAndHDRGuard() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--video-demo"];app.launch()
+        XCTAssertTrue(app.buttons["Export video"].waitForExistence(timeout:40));app.buttons["Export video"].tap()
+        let picker=app.buttons["deliveryVideoCodec"]
+        XCTAssertTrue(picker.waitForExistence(timeout:10));picker.tap();app.buttons["H.264"].tap()
+        XCTAssertTrue(app.staticTexts["8-bit SDR MP4 for broad compatibility. Sound is encoded as AAC. For HDR, choose HEVC or ProRes."].waitForExistence(timeout:5))
+        XCTAssertFalse(app.buttons["10-bit HEVC"].exists)
+        app.buttons["Create export"].tap()
+        let share=app.buttons["Share or save to Files"];XCTAssertTrue(share.waitForExistence(timeout:40))
+        let save=app.buttons["Save to Photos"]
+        for _ in 0..<8 {if save.exists && save.isHittable {break};app.swipeUp()};save.tap()
+        let system=XCUIApplication(bundleIdentifier:"com.apple.springboard");let alert=system.alerts.firstMatch
+        if alert.waitForExistence(timeout:3) {let allow=alert.buttons.matching(NSPredicate(format:"label BEGINSWITH[c] 'Allow'")).firstMatch;if allow.exists {allow.tap()}}
+        XCTAssertTrue(app.staticTexts["Saved to Photos."].waitForExistence(timeout:20))
+        let change=app.buttons["Change export options"]
+        for _ in 0..<8 {if change.exists && change.isHittable {break};app.swipeUp()};change.tap()
+        for _ in 0..<8 {if app.switches["HDR video · HLG"].isHittable {break};app.swipeDown()}
+        app.switches["HDR video · HLG"].tap()
+        XCTAssertTrue(app.staticTexts["Smaller files with high detail. Supports SDR and 10-bit HLG HDR. Best everyday choice."].waitForExistence(timeout:5))
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="HDR-safe video formats";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Done"].tap()
+    }
     func testNewLogProfilesAndColorLUTExport() throws {
         let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments = ["--demo-editor","--neutral-demo","--color-tools-demo"];app.launch()

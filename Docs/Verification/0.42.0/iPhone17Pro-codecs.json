@@ -1,0 +1,64 @@
+{
+  "queueBatchCodec" : true,
+  "requestedMetadata" : true,
+  "fourKProRes" : [
+    {
+      "height" : 2160,
+      "hdr" : false,
+      "redLinear" : 0.9990234375,
+      "width" : 3840
+    },
+    {
+      "redLinear" : 1.7919921875,
+      "width" : 3840,
+      "height" : 2160,
+      "hdr" : true
+    }
+  ],
+  "proResHardware" : true,
+  "exports" : [
+    {
+      "codec" : "HEVC",
+      "previewExportMaxError" : 0.00146484375,
+      "bytes" : 5689,
+      "hdr" : false,
+      "seconds" : 0.10490202903747559
+    },
+    {
+      "codec" : "HEVC",
+      "seconds" : 0.11725699901580811,
+      "hdr" : true,
+      "bytes" : 12112,
+      "previewExportMaxError" : 0.00341796875
+    },
+    {
+      "hdr" : false,
+      "codec" : "H.264",
+      "previewExportMaxError" : 0.002685546875,
+      "seconds" : 0.12544500827789307,
+      "bytes" : 5516
+    },
+    {
+      "codec" : "ProRes 422",
+      "previewExportMaxError" : 0.00146484375,
+      "bytes" : 66989,
+      "hdr" : false,
+      "seconds" : 0.18072903156280518
+    },
+    {
+      "previewExportMaxError" : 0.00341796875,
+      "codec" : "ProRes 422",
+      "bytes" : 65789,
+      "hdr" : true,
+      "seconds" : 0.16952598094940186
+    }
+  ],
+  "silentExport" : true,
+  "HDRGuard" : true,
+  "started" : 1794537738.8715219,
+  "passed" : true,
+  "legacyDefaults" : true,
+  "rememberedSettings" : true,
+  "version" : "0.42.0",
+  "thermal" : 0
+}
