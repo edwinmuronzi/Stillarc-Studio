@@ -1,4 +1,8 @@
-# Stillarc Studio · 0.44
+# Stillarc Studio · 0.45
+
+## Mask motion · 0.45
+
+Use **Masks → Correct tracking → Size & rotation** to manually resize or turn a tracked mask at chosen moments. Changes blend with the measured path, with Undo/Redo and matching playback/export. Cached original mattes keep compatible crop repairs from clipping moving selections. [How to use it](MASK-POSE-045.md).
 
 ## LUT workflow · 0.44
 
@@ -61,7 +65,7 @@ Fixed backup asset paths across canonical/symlink directory aliases, with an agg
 Source-time video animation now covers exposure offsets and look/LUT/local-mask strength fades, with bounded points, Linear/Smooth interpolation, live slider preview, seek/add/update/delete/move, source/pool Undo/Redo and portrait/landscape layouts. Frame-time grading is shared by preview, direct/queued export, references and saved-source work. Animation stays out of reusable grades/LUTs; versions and backups retain it. New packages require reader build 40; queue schema 2 preserves animation while still loading earlier records. Additional camera transforms, source relinking, richer tracking correction and shared Camera/Studio look interchange remain separate scope.
 
 
-**Tracking corrections:** pause a video and shift a drifting tracked mask with a preview handle or two sliders. Source-time points blend those nudges without another analysis; clear them to return to the measured path. Whole drags support Undo/Redo and the same path is used in exports. Position only; review the clip for changes in shape or scale.
+**Tracking corrections:** pause a video and shift a drifting tracked mask with a preview handle or two sliders. Source-time points blend those nudges without another analysis; clear them to return to the measured path. Whole drags support Undo/Redo and the same path is used in exports. Manual size/rotation points can refine the track; review the clip because the mask does not deform with a changing subject silhouette.
 
 
 **Precision masking:** zoom/pan the preview to work on small details, paint in the same source coordinates, then tap Done brushing to use video playback again. Subject choices isolate all foreground, one tapped object, or people with finer edge matting. Detailed tracking uses a more accurate position tracker, with an Efficient analysis option and a subject-based suggested target. These are on-request, on-device operations; changing-pose video matting remains future work.

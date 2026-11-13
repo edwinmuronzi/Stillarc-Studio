@@ -67,8 +67,12 @@ enum MaskFramingRepair {
                 result.masks[i].automatic = moved
                 if var motion = result.masks[i].motion,let previous = snapshot(motion.framing),sameField(previous,recipe) {
                     let field = PhotoFraming.orientedSize(size,recipe:recipe),a = PhotoFraming.window(in:field,recipe:previous),b = PhotoFraming.window(in:field,recipe:recipe)
-                    motion.points = motion.points.map { .init(time:$0.time,x:$0.x*a.width/b.width,y:$0.y*a.height/b.height) }
-                    motion.corrections = motion.corrections?.map { .init(time:$0.time,x:$0.x*a.width/b.width,y:$0.y*a.height/b.height) };motion.framing = MaskMotion.signature(recipe)
+                    motion.sourceWidth=size.width;motion.sourceHeight=size.height
+                    let px=motion.pivotX ?? result.masks[i].centerX,py=motion.pivotY ?? result.masks[i].centerY
+                    motion.pivotX=(a.minX+a.width*px-b.minX)/b.width
+                    motion.pivotY=(b.maxY-(a.maxY-a.height*py))/b.height
+                    motion.points = motion.points.map {var point=$0;point.x *= a.width/b.width;point.y *= a.height/b.height;return point}
+                    motion.corrections = motion.corrections?.map {var point=$0;point.x *= a.width/b.width;point.y *= a.height/b.height;return point};motion.framing = MaskMotion.signature(recipe)
                     result.masks[i].motion = motion
                 }
             } else {

@@ -91,7 +91,7 @@ enum MaskTracker {
         }
         try Task.checkCancellation()
         guard reader.status == .completed,points.count>=2 else { throw failure("The kept clip is too short to track.") }
-        let motion = MaskMotion(framing:MaskMotion.signature(recipe),start:range.lowerBound,end:range.upperBound,points:points)
+        let motion = MaskMotion(framing:MaskMotion.signature(recipe),start:range.lowerBound,end:range.upperBound,points:points,pivotX:anchor?.x ?? initial.midX,pivotY:1-(anchor?.y ?? initial.midY),sourceWidth:Double(descriptor.width),sourceHeight:Double(descriptor.height))
         guard motion.isValid else { throw StudioError.render };return motion
     }
 }

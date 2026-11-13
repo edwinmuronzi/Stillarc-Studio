@@ -165,3 +165,7 @@ Delivery planning now shows approximate photo/video sizes, shared encoder bitrat
 
 ### 0.44 checkpoint
 Standalone 1D creative .cube imports (2–4096 points/channel) now join existing 3D LUTs, with visible type/size details and matching scalar or per-channel domain headers. Small cached GPU tables retain original samples without 3D expansion. Mixed stacks participate in presets, colour transfer, colour-LUT baking and photo/video/direct/queued export. Schema-7 presets and reader-build-49 packages protect the new data while retaining old 3D fingerprints. Combined technical shaper+cube files, arbitrary working/output spaces and shared Camera/Studio presets remain later candidates.
+
+
+### 0.45 checkpoint
+Tracking correction points now optionally carry uniform size and clockwise rotation as well as translation. New tracks retain the measured target centre and source dimensions. Cached GPU affine transforms reuse the base matte/brush map; compatible automatic-mask crop repairs preserve original off-crop pixels, pivots and pose values without new inference. Undo/redo, deletion/reset, versions, HDR/direct/queued exports and reader-build-50 source backups retain the changes. Queue schema 7 protects the added motion fields. This is manual pose correction, not automatic scale/rotation tracking, mesh deformation or temporal matting.

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Uses the existing video renderer; only the saved translation changes while editing.
+/// Reuses the existing video renderer and cached mattes; no additional inference.
 struct MaskCorrectionSheet:View {
     @Bindable var session:EditSession
     let maskID:UUID
@@ -21,6 +21,7 @@ struct MaskCorrectionSheet:View {
     private var step:Double {1/max(1,session.project.video?.frameRate ?? 30)}
     private var time:Double {min(range.upperBound,max(range.lowerBound,position.time))}
     private var correction:(x:Double,y:Double) {motion?.correction(at:time) ?? (0,0)}
+    private var pose:(scale:Double,rotation:Double) {motion?.pose(at:time) ?? (1,0)}
     private var point:MaskMotionPoint? {motion?.corrections?.first {abs($0.time-time)<=step*0.6}}
     private var valid:Bool {motion?.matches(session.recipe,duration:session.project.video?.duration ?? 0) == true}
     var body:some View {
@@ -33,12 +34,19 @@ struct MaskCorrectionSheet:View {
                     ScrollView {
                         VStack(alignment:.leading,spacing:14) {
                             Text("Fix a drifting mask").font(.headline)
-                            Text("Pause or scrub to the drift. Turn on Move mask and drag the blue handle, or use the sliders. Corrections gently move the saved path between points without running tracking again.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                            Text("Pause or scrub to the drift. Turn on Move mask and drag the blue handle, or use the sliders. Open Size & rotation to make the mask bigger, smaller or turn it. Corrections blend between saved points without running tracking again.").font(.caption).foregroundStyle(StudioStyle.secondary)
                             HStack {Text(String(format:"%.2f s",time-range.lowerBound)).monospacedDigit();Spacer();Button("Start"){position.seek(range.lowerBound)};Button("End"){position.seek(max(range.lowerBound,range.upperBound-step))}}.font(.caption).buttonStyle(.bordered)
                             Toggle("Show mask overlay",isOn:$showGuide)
                             Toggle("Move mask in preview",isOn:$moving).onChange(of:moving){_,value in if value {position.pause()}}
                             valueSlider("Horizontal correction",horizontal:true)
                             valueSlider("Vertical correction",horizontal:false)
+                            DisclosureGroup("Size & rotation") {
+                                VStack(spacing:14) {
+                                    poseSlider("Mask size",scale:true)
+                                    poseSlider("Mask rotation",scale:false)
+                                    Text("Size and rotation pivot around the tracked target centre. For older tracks, the mask centre is used; track again to choose a new target centre. These are manual corrections, not automatic pose tracking.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                                }.padding(.top,10)
+                            }.font(.subheadline)
                             HStack {
                                 Button(point == nil ? "Set correction":"Update correction",systemImage:"diamond.fill"){commit(x:correction.x,y:correction.y)}.buttonStyle(.borderedProminent).accessibilityIdentifier("setTrackingCorrection").disabled(position.playing || !canInsert)
                                 Spacer();Text("\(motion?.corrections?.count ?? 0)/32 points").font(.caption).foregroundStyle(StudioStyle.secondary)
@@ -50,7 +58,7 @@ struct MaskCorrectionSheet:View {
                                 }}}
                                 HStack {Button("Delete correction",role:.destructive){if let point {remove(at:point.time)}}.disabled(point==nil || position.playing);Spacer();Button("Clear corrections",role:.destructive){session.change {r in if let i=r.masks.firstIndex(where:{$0.id==maskID}) {r.masks[i].motion?.corrections=nil}}}}.font(.caption)
                             }
-                            Text("A first correction after the start adds a zero point at the original tracking start. Changes blend linearly; the last correction holds. Up to 32 points, including that anchor. Corrections follow source time through trims and stay in versions, backups and exports. Clearing them restores the measured path. Position only: no shape, size or rotation changes.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                            Text("A first correction after the start adds a zero point at the original tracking start. Changes blend linearly; the last correction holds. Up to 32 points, including that anchor. Corrections follow source time through trims and stay in versions, backups and exports. Clearing them restores the measured path. Position, size and rotation blend between the same points. Rotation follows the chosen numeric angles; add intermediate points to control the turn. The mask does not deform to follow a changing pose.").font(.caption).foregroundStyle(StudioStyle.secondary)
                             if !valid {Text("This track no longer matches the crop or kept clip. Close this screen and track again.").font(.caption).foregroundStyle(.orange)}
                         }.padding(18).disabled(!valid || pool?.historyBusy == true)
                     }.frame(maxHeight:wide ? .infinity:300).frame(width:wide ? min(340,geometry.size.width*0.42):nil).background(StudioStyle.panel)
@@ -82,7 +90,7 @@ struct MaskCorrectionSheet:View {
                             let offset=motion.offset(at:time)
                             Image(systemName:"arrow.up.and.down.and.arrow.left.and.right").font(.title3.bold()).foregroundStyle(.white)
                                 .frame(width:44,height:44).background(StudioStyle.blue,in:Circle()).overlay(Circle().stroke(.white.opacity(0.7),lineWidth:1))
-                                .position(x:(geometry.size.width-width)/2+width*min(1,max(0,layer.centerX+offset.x)),y:(geometry.size.height-height)/2+height*min(1,max(0,layer.centerY+offset.y)))
+                                .position(x:(geometry.size.width-width)/2+width*min(1,max(0,(motion.pivotX ?? layer.centerX)+offset.x)),y:(geometry.size.height-height)/2+height*min(1,max(0,(motion.pivotY ?? layer.centerY)+offset.y)))
                                 .gesture(DragGesture(minimumDistance:0).onChanged {v in
                                     guard canInsert else {return}
                                     if dragStart==nil {session.begin();dragStart=correction}
@@ -99,11 +107,20 @@ struct MaskCorrectionSheet:View {
             Slider(value:Binding(get:{horizontal ? correction.x:correction.y},set:{v in setLive(x:horizontal ? v:correction.x,y:horizontal ? correction.y:v)}),in:-1...1,onEditingChanged:{$0 ? session.begin():session.end()}).accessibilityLabel(title).disabled(position.playing || !canInsert).sliderReset {commit(x:horizontal ? 0:correction.x,y:horizontal ? correction.y:0)}
         }
     }
-    private func set(_ recipe:inout Recipe,x:Double,y:Double) {
+    private func poseSlider(_ name:String,scale:Bool)->some View {
+        VStack(spacing:5) {
+            HStack {Text(name);Spacer();Text(scale ? String(format:"%.0f%%",pose.scale*100):String(format:"%+.1f°",pose.rotation)).monospacedDigit()}.font(.caption)
+            Slider(value:Binding(get:{scale ? pose.scale:pose.rotation},set:{value in session.begin();var recipe=session.recipe;set(&recipe,x:correction.x,y:correction.y,scale:scale ? value:nil,rotation:scale ? nil:value);session.recipe=recipe}),in:scale ? 0.25...4:-180...180,onEditingChanged:{$0 ? session.begin():session.end()})
+                .accessibilityLabel(name).disabled(position.playing || !canInsert)
+                .sliderReset {var recipe=session.recipe;set(&recipe,x:correction.x,y:correction.y,scale:scale ? 1:nil,rotation:scale ? nil:0);session.change {$0=recipe}}
+        }
+    }
+    private func set(_ recipe:inout Recipe,x:Double,y:Double,scale:Double?=nil,rotation:Double?=nil) {
         guard let i=recipe.masks.firstIndex(where:{$0.id==maskID}),recipe.masks[i].motion?.matches(recipe,duration:session.project.video?.duration ?? 0)==true else {return}
         let bounds=recipe.video.range(duration:session.project.video?.duration ?? 1)
         let t=min(bounds.upperBound,max(bounds.lowerBound,(position.time/step).rounded()*step))
-        recipe.masks[i].motion?.setCorrection(time:t,x:x,y:y,tolerance:step*0.6)
+        if let video=session.project.video {recipe.masks[i].motion?.sourceWidth=Double(video.width);recipe.masks[i].motion?.sourceHeight=Double(video.height)}
+        recipe.masks[i].motion?.setCorrection(time:t,x:x,y:y,tolerance:step*0.6,scale:scale,rotation:rotation)
     }
     private func commit(x:Double,y:Double) {var recipe=session.recipe;set(&recipe,x:x,y:y);session.change {$0=recipe}}
     private func setLive(x:Double,y:Double) {session.begin();var recipe=session.recipe;set(&recipe,x:x,y:y);session.recipe=recipe}

@@ -111,6 +111,22 @@ final class GestureTests:XCTestCase {
         let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Intelligent subject selection methods";shot.lifetime = .keepAlways;add(shot)
         app.buttons["Done"].tap()
     }
+    func testMaskSizeRotationPointsUndoAndExport() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--video-demo","--correction-demo"];app.launch()
+        XCTAssertTrue(app.buttons["setTrackingCorrection"].waitForExistence(timeout:30))
+        app.buttons["End"].tap();app.buttons["Size & rotation"].tap()
+        let size=app.sliders["Mask size"],turn=app.sliders["Mask rotation"]
+        XCTAssertTrue(size.waitForExistence(timeout:10));size.adjust(toNormalizedSliderPosition:0.4)
+        turn.adjust(toNormalizedSliderPosition:0.6)
+        XCTAssertTrue(app.staticTexts["2/32 points"].waitForExistence(timeout:10))
+        let before=turn.value as? String
+        app.buttons["correctionUndo"].tap();XCTAssertNotEqual(turn.value as? String,before)
+        app.buttons["correctionRedo"].tap();XCTAssertEqual(turn.value as? String,before)
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Manual mask size and rotation";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["closeTrackingCorrection"].tap();app.buttons["Export video"].tap();app.buttons["Create export"].tap()
+        XCTAssertTrue(app.staticTexts["actualExportSize"].waitForExistence(timeout:40))
+    }
     func testTrackingCorrectionsUndoExport() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         XCUIDevice.shared.orientation = .portrait

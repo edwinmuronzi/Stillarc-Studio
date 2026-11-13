@@ -1,5 +1,9 @@
 # Stillarc Studio
 
+## Mask motion · 0.45
+
+Use **Masks → Correct tracking → Size & rotation** to manually resize or turn a tracked mask at chosen moments. Changes blend with the measured path, with Undo/Redo and matching playback/export. Cached original mattes keep compatible crop repairs from clipping moving selections. [How to use it](Docs/MASK-POSE-045.md).
+
 ## LUT workflow · 0.44
 
 Import standalone 1D `.cube` curves (up to 4096 points per channel) as well as 3D LUTs. Film identifies each type. Blend either type in the same stack, save it in presets and export from the same full-resolution grade. Cached channel tables keep strength adjustments lightweight. [Usage and a sample LUT](Docs/LUT-WORKFLOW-044.md).
@@ -21,7 +25,7 @@ Convert Canon Log 3 (Rec.2020), Nikon N-Log, Fujifilm F-Log2 and DJI X9 D-Log us
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.44 LUT workflow milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.45 mask motion milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -37,7 +41,7 @@ This is the **0.44 LUT workflow milestone**. Development is ongoing. The long-te
 
 - **Video mask tracking:** add a **Radial** mask, paint a **Brush** mask or create a **Subject** mask on the beginning of the kept clip, then choose **Track mask**. On the first kept frame, drag/size the blue target box over a textured region that stays visible. Choose **Analyze & save tracking**, then play/scrub the clip to review. The box chooses what to follow; the existing mask moves by that target’s displacement. For tracked brushes, clear tracking before painting more strokes. Brush tracking returns you to View mode so playback controls remain accessible.
 - Analysis runs on a background worker with a reduced 8-bit decode, at most 640 pixels on its long edge and up to 15 analysis frames per second. One frame is handled at a time. Saved normalized motion points are interpolated using the displayed/exported frame’s original timestamp; Vision analysis does not run during normal playback/export. Export resolution and source timing remain unchanged.
-- This version tracks **position only**, forward through the kept clip (up to **2 minutes**). It does not rotate, resize, deform or segment the mask, and has no manual motion-keyframe editor. Linear, Color, Luminance and Sky masks do not independently track a region; combine a range mask with a tracked Radial/Brush/Subject selection to restrict it to a moving area.
+- This version tracks **position only**, forward through the kept clip (up to **2 minutes**). Size and rotation can now be corrected manually with source-time points; automatic tracking does not measure pose or deform/segment a changing subject. Linear, Color, Luminance and Sky masks do not independently track a region; combine a range mask with a tracked Radial/Brush/Subject selection to restrict it to a moving area.
 - **Track again** replaces a track in one undoable step; **Clear tracking** is undoable. Tracks save with projects/complete versions and stay out of presets/copied grades. Crop/flip/perspective/rotation changes or extending the trim require reanalysis or clearing the track before exporting. Shortening the trim within the tracked interval is allowed. Moving/adjusting a radial base shape changes its starting position while retaining the saved displacement.
 - Cancel or leave Studio during analysis to keep the previous track unchanged. Analysis stops rather than saving an unreliable result when confidence is lost, the target leaves the frame/moves too far between samples, or iOS reports serious thermal pressure. Fast motion, occlusion, featureless subjects and changing light can defeat tracking; review before exporting. A track follows a region, not an AI-cut-out subject.
 
@@ -166,7 +170,7 @@ Debug verification instructions are in [Docs/VALIDATION.md](Docs/VALIDATION.md).
 
 ## Important boundaries
 
-Per-frame/deforming video segmentation, deformation/scale/rotation tracking, multi-clip video timelines and Camera/Studio preset exchange are **planned**, not available in this build. Studio presets are not yet compatible with Camera presets. A LUT can encode compatible color transformations, but cannot encode grain, bloom, sharpening, masks or geometry.
+Per-frame/deforming video segmentation, automatic deformation/pose tracking, multi-clip video timelines and Camera/Studio preset exchange are **planned**, not available in this build. Studio presets are not yet compatible with Camera presets. A LUT can encode compatible color transformations, but cannot encode grain, bloom, sharpening, masks or geometry.
 
 ### Direct crop handles (0.17)
 
@@ -384,7 +388,7 @@ After **Masks → Track mask**, choose **Correct tracking**. Pause or scrub to a
 
 Each change makes a source-time correction point. The first edit after the tracking start adds a zero anchor there, changes blend linearly between points, and the last correction holds. There are up to 32 points including the anchor. Tap a point to review it; delete it or **Clear corrections** to restore the original measured path. Undo/Redo work for sliders, whole drags and clearing, including editing pools. Double-tap either slider to zero that axis at the current time.
 
-Corrections survive saved projects/versions, backups and direct/queued video exports; cropping automatic Subject masks scales both paths together where compatible. Other crop changes or extending the trim still require new tracking. This is position correction, not shape/scale/rotation tracking or changing-pose video matting. Masks and their motion stay source-specific and out of reusable grades/LUTs. New backups require build 41 or later; earlier backups and queue records remain readable.
+Corrections survive saved projects/versions, backups and direct/queued video exports; cropping automatic Subject masks scales both paths together where compatible. Other crop changes or extending the trim still require new tracking. Corrections now include manual size/rotation; they do not provide automatic pose tracking or changing-pose video matting. Masks and their motion stay source-specific and out of reusable grades/LUTs. New backups require build 41 or later; earlier backups and queue records remain readable.
 
 
 ### Precise, easier masks (0.38)

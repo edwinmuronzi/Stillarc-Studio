@@ -1,0 +1,12 @@
+{
+  "cropPoseMaxError" : 0,
+  "invalidData" : true,
+  "passed" : true,
+  "version" : "0.45.0",
+  "interpolationPivotClockwise" : true,
+  "renderedRotation" : true,
+  "persistence" : true,
+  "cropNoInference" : true,
+  "bounded32" : true,
+  "legacyNeutral" : true
+}

@@ -1,0 +1,13 @@
+# Mask size and rotation — 0.45
+
+For a video, create a Radial, Brush or Subject mask and track it. Open **Masks → Correct tracking**, pause or scrub to a moment, then expand **Size & rotation**. Change **Mask size** (25–400%) or **Mask rotation** (−180° to +180°). That updates a correction at the current source time. Move to another moment to set a different value; playback blends between them. Position, size and rotation share the existing limit of 32 points.
+
+New tracks pivot around the measured target centre. Old tracks use the mask centre until you track again. The blue preview handle moves that pivot along the tracked path. Positive rotation is clockwise. Angles interpolate along their numeric path: add intermediate points to control a turn across ±180°. Size is uniform, preserving the mask's proportions. These are manual corrections; the app does not automatically measure changing scale/rotation or deform a changing person silhouette.
+
+Move mask in preview and the horizontal/vertical sliders keep existing size/rotation values. Double-tap a size/rotation slider to reset that component (100% / 0°). Delete correction removes the complete point; Clear corrections removes all manual position/size/rotation points and restores the measured position path. Undo/Redo restores complete gestures. The last correction holds after its time. Source-time points remain tied to the original clip through trims.
+
+Saved projects, complete versions, direct/HDR/queued exports and source backups retain poses and pivots. Masks stay out of reusable look presets and copied colour grades. Compatible crop repair for automatic masks uses the saved original selection, keeps off-crop pixels available until movement/rotation is applied, and maps the pivot and position offsets into the new frame. It does not rerun segmentation while moving sliders. Crop/clip-start changes outside existing repair support still require a new selection/track, as indicated in the editor.
+
+Performance: one GPU affine transform per moving matte, reusing the existing brush or automatic mask image. Source PNGs and crop projection geometry are cached; there is no per-frame PNG decode, repeated framing parse or additional Vision request. Neutral poses retain the existing translation path. Invalid/nonfinite transforms are rejected or neutralized before Core Image. New source backups require reader build 50 and new queues use schema 7; older supported projects/queues load with neutral size/rotation defaults. Saved-look library/preset formats are unchanged by this source-specific feature.
+
+Native validation and measured preview results: `Verification/0.45.0`.

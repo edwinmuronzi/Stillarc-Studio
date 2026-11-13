@@ -19,12 +19,17 @@ enum MaskEngine {
         let m = layer.validated(),angle = m.angle*Double.pi/180
         let center = CGPoint(x:extent.minX+extent.width*m.centerX,y:extent.minY+extent.height*(1-m.centerY))
         var mask:CIImage
+        var retainMotionSupport=false
+        var support=extent
         if m.kind.isAutomatic {
             if let framing,let stored = m.automatic,stored.framing != framing { return CIImage(color:.black).cropped(to:extent) }
             guard let stored = m.automatic,stored.bounded,let decoded = AutomaticMaskBitmap.image(stored,extent:extent,preview:preview) else { return CIImage(color:.black).cropped(to:extent) };mask = decoded
+            if let motion=m.motion,let frame=MaskMotion.frame,motion.framing==frame.framing,let anchored=AutomaticMaskBitmap.motionImage(stored,motion:motion,extent:extent,preview:preview) {
+                mask=anchored;support=anchored.extent;retainMotionSupport=true
+            }
             let r = (m.refinement ?? AutomaticRefinement()).validated(),short = min(extent.width,extent.height)
             if r.expand != 0 { mask = mask.applyingFilter(r.expand>0 ? "CIMorphologyMaximum" : "CIMorphologyMinimum",parameters:[kCIInputRadiusKey:abs(r.expand)*short]) }
-            if r.softness>0 { mask = mask.clampedToExtent().applyingFilter("CIGaussianBlur",parameters:[kCIInputRadiusKey:r.softness*short]).cropped(to:extent) }
+            if r.softness>0 { mask = mask.clampedToExtent().applyingFilter("CIGaussianBlur",parameters:[kCIInputRadiusKey:r.softness*short]).cropped(to:support) }
             if r.threshold != 0.5 || r.transition != 1 {
                 let gain = 1/r.transition,bias = 0.5-r.threshold*gain
                 mask = mask.applyingFilter("CIColorMatrix",parameters:["inputRVector":CIVector(x:gain,y:0,z:0,w:0),"inputGVector":CIVector(x:0,y:gain,z:0,w:0),"inputBVector":CIVector(x:0,y:0,z:gain,w:0),"inputBiasVector":CIVector(x:bias,y:bias,z:bias,w:0)]).applyingFilter("CIColorClamp")
@@ -43,8 +48,8 @@ enum MaskEngine {
                 .transformed(by:.init(translationX:center.x,y:center.y))
         }
         if !m.isRange,let motion = m.motion,let frame = MaskMotion.frame,motion.framing == frame.framing {
-            let offset = motion.offset(at:frame.time)
-            mask = mask.cropped(to:extent).transformed(by:.init(translationX:offset.x*extent.width,y:-offset.y*extent.height))
+            let base=retainMotionSupport || m.kind == .radial || m.kind == .linear ? mask:mask.cropped(to:extent)
+            mask = base.transformed(by:motion.affine(at:frame.time,extent:extent,center:CGPoint(x:m.centerX,y:m.centerY)))
                 .composited(over:CIImage(color:.black).cropped(to:extent))
         }
         mask = mask.cropped(to:extent)
