@@ -38,7 +38,7 @@ struct VideoPreviewVerification:View {
                 for _ in 0..<100 { if player.ready { break };try await Task.sleep(for:.milliseconds(100)) }
                 guard player.ready else { throw StudioError.unreadable }
                 recipe.video.hdr = true;recipe.video.start = 0.2;recipe.video.end = 9.8;player.setEdit(recipe.video)
-                recipe.input.profile = .appleLog2;recipe.lut = try await Task.detached { try LUTVerification.example(dimension:65) }.value
+                recipe.input.profile = .appleLog2;recipe.lut = try await Task.detached { try CombinedLUTVerification.example(one:4096,three:65) }.value
                 recipe.lutLayers=[LUTLayer(asset:try await Task.detached {try OneDLUTVerification.example(dimension:4096)}.value,amount:0.2),LUTLayer(asset:recipe.lut!,amount:0.15)]
                 for channel in CurveChannel.allCases {recipe.rgbCurves[keyPath:channel.key].nodes=[CurveNode(x:0,y:0.01),CurveNode(x:0.12,y:0.08),CurveNode(x:0.55,y:0.6),CurveNode(x:1,y:0.99)]}
                 var local = LocalMask(kind:.brush);local.exposure = 0.3

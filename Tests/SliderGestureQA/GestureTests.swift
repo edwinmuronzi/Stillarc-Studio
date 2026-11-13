@@ -569,6 +569,30 @@ final class GestureTests:XCTestCase {
         app.scrollViews.firstMatch.swipeUp();app.buttons["Open Studio sample"].tap()
         XCTAssertTrue(app.buttons["Film"].waitForExistence(timeout:15));XCTAssertEqual(app.buttons["Film"].value as? String,"Adjustments applied")
     }
+    func testCombinedLUTDetailsStrengthUndoAndExport() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--demo-editor","--combined-lut-demo","--tool","Film"];app.launch()
+        XCTAssertTrue(app.scrollViews["editorAdjustments"].waitForExistence(timeout:30))
+        XCTAssertTrue(app.staticTexts["1D + 3D · 1024 → 33³"].firstMatch.waitForExistence(timeout:10))
+        let strength=app.sliders["LUT strength"]
+        let panel=app.scrollViews["editorAdjustments"]
+        for _ in 0..<8 {
+            let y=strength.frame.midY,bounds=panel.frame
+            if y>bounds.minY+24 && y<bounds.maxY-24 {break}
+            let upward=y>=bounds.maxY-24
+            panel.coordinate(withNormalizedOffset:CGVector(dx:0.98,dy:upward ? 0.8:0.3)).press(forDuration:0.05,thenDragTo:panel.coordinate(withNormalizedOffset:CGVector(dx:0.98,dy:upward ? 0.5:0.6)))
+        }
+        XCTAssertTrue(strength.isHittable)
+        let initial=strength.value as? String
+        strength.adjust(toNormalizedSliderPosition:0.3)
+        let value=strength.value as? String
+        XCTAssertNotEqual(initial,value)
+        app.buttons["Undo"].tap();XCTAssertNotEqual(strength.value as? String,value)
+        app.buttons["Redo"].tap();XCTAssertEqual(strength.value as? String,value)
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Combined shaper and cube LUT";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Export photo"].tap();app.buttons["Create export"].tap()
+        XCTAssertTrue(app.staticTexts["actualExportSize"].waitForExistence(timeout:30))
+    }
     func testOneDLUTDetailsStrengthUndoAndExport() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments=["--demo-editor","--one-d-lut-demo","--tool","Film"];app.launch()

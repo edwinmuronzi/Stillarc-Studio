@@ -1,4 +1,9 @@
-# Stillarc Studio · 0.45
+# Stillarc Studio · 0.47
+
+## Combined LUTs · 0.47
+
+Import one `.cube` containing a 1D tone stage and a 3D colour look. Both stay together under one strength/bypass control, with their original samples preserved for photo/video grading, presets and export. [How to use it and a sample file](LUT-WORKFLOW-047.md).
+
 
 ## Mask motion · 0.45
 

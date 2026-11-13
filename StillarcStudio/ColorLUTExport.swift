@@ -51,14 +51,21 @@ enum ColorLUTExport {
         let cleaned = String(asset.name.unicodeScalars.filter { CharacterSet.alphanumerics.union(.whitespaces).union(CharacterSet(charactersIn:"-_")).contains($0) }.prefix(60))
         let file = folder.appendingPathComponent(cleaned.isEmpty ? "Stillarc Color" : cleaned).appendingPathExtension("cube")
         let title = asset.name.replacingOccurrences(of:"\"",with:"'").replacingOccurrences(of:"\n",with:" ").replacingOccurrences(of:"\r",with:" ")
-        var text = "# Stillarc Studio color-only LUT. Display sRGB input/output; input domain is listed below.\n# Apply after input conversion. Spatial effects, masks, HDR and framing excluded.\nTITLE \"\(title)\"\n\(asset.kind == .curve1D ? "LUT_1D_SIZE":"LUT_3D_SIZE") \(asset.dimension)\nDOMAIN_MIN \(asset.domainMin.map {String($0)}.joined(separator:" "))\nDOMAIN_MAX \(asset.domainMax.map {String($0)}.joined(separator:" "))\n"
+        var text = "# Stillarc Studio color-only LUT. Display sRGB input/output.\n# Apply after input conversion. Spatial effects, masks, HDR and framing excluded.\nTITLE \"\(title)\"\n"
+        if let shaper=asset.shaper {
+            text+="LUT_1D_SIZE \(shaper.dimension)\nLUT_1D_INPUT_RANGE \(shaper.domainMin[0]) \(shaper.domainMax[0])\nLUT_3D_SIZE \(asset.dimension)\nLUT_3D_INPUT_RANGE \(asset.domainMin[0]) \(asset.domainMax[0])\n"
+        } else {
+            text+="\(asset.kind == .curve1D ? "LUT_1D_SIZE":"LUT_3D_SIZE") \(asset.dimension)\nDOMAIN_MIN \(asset.domainMin.map {String($0)}.joined(separator:" "))\nDOMAIN_MAX \(asset.domainMax.map {String($0)}.joined(separator:" "))\n"
+        }
         text.reserveCapacity(asset.cube.count*2+256)
         let locale = Locale(identifier:"en_US_POSIX")
-        try asset.cube.withUnsafeBytes { values in
-            for i in stride(from:0,to:asset.cube.count,by:16) {
-                if i % 65536 == 0 { try Task.checkCancellation() }
-                let r = values.loadUnaligned(fromByteOffset:i,as:Float.self),g = values.loadUnaligned(fromByteOffset:i+4,as:Float.self),b = values.loadUnaligned(fromByteOffset:i+8,as:Float.self)
-                text += String(format:"%.7f %.7f %.7f\n",locale:locale,r,g,b)
+        for table in [asset.shaper?.cube,asset.cube].compactMap({$0}) {
+            try table.withUnsafeBytes { values in
+                for i in stride(from:0,to:table.count,by:16) {
+                    if i % 65536 == 0 { try Task.checkCancellation() }
+                    let r = values.loadUnaligned(fromByteOffset:i,as:Float.self),g = values.loadUnaligned(fromByteOffset:i+4,as:Float.self),b = values.loadUnaligned(fromByteOffset:i+8,as:Float.self)
+                    text += String(format:"%.9g %.9g %.9g\n",locale:locale,r,g,b)
+                }
             }
         }
         try Task.checkCancellation();try text.write(to:file,atomically:true,encoding:.utf8);try Task.checkCancellation();success = true

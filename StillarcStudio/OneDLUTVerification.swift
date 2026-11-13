@@ -61,7 +61,8 @@ enum OneDLUTVerification {
         let transfer=Recipe().pasting(recipe,sections:[.lut]);try check(transfer.lut==lut && transfer.lutLayers==recipe.lutLayers,"Copy/paste 1D stack")
         let baked=try ColorLUTExport.make(recipe:recipe,dimension:65,name:"Mixed baked")
         try check(zip(pixel(baked.apply(source,amount:1)),pixel(direct)).allSatisfy {abs($0-$1)<0.015},"Mixed colour LUT export")
-        return ["passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","vectors":vectors,"maxInterpolationError":maxError,"domainsAndClamping":true,"rangeHeadersAndQuotedTitles":true,"alphaStrength":true,"max4096":true,"legacy3DPreserved":true,"mixedStackAndColorExport":true,"presetLibraryTransfer":true,"malformedRejected":true]
+        let combined=try CombinedLUTVerification.run()
+        return ["combined":combined,"passed":true,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","vectors":vectors,"maxInterpolationError":maxError,"domainsAndClamping":true,"rangeHeadersAndQuotedTitles":true,"alphaStrength":true,"max4096":true,"legacy3DPreserved":true,"mixedStackAndColorExport":true,"presetLibraryTransfer":true,"malformedRejected":true]
     }
     @MainActor static func writeReport() async {
         let url=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("one-d-lut-verification.json")

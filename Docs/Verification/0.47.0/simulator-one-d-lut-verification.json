@@ -1,0 +1,25 @@
+{
+  "maxInterpolationError" : 0.00039062500000008882,
+  "domainsAndClamping" : true,
+  "presetLibraryTransfer" : true,
+  "vectors" : 33,
+  "malformedRejected" : true,
+  "max4096" : true,
+  "legacy3DPreserved" : true,
+  "alphaStrength" : true,
+  "rangeHeadersAndQuotedTitles" : true,
+  "passed" : true,
+  "combined" : {
+    "malformedRejected" : true,
+    "identityPersistence" : true,
+    "vectors" : 33,
+    "textRoundtripAndBake" : true,
+    "separateDomains" : true,
+    "presetLibraryTransfer" : true,
+    "passed" : true,
+    "maxError" : 0.0019608139991760254,
+    "alphaStrengthBypass" : true
+  },
+  "mixedStackAndColorExport" : true,
+  "version" : "0.47.0"
+}

@@ -173,3 +173,7 @@ Tracking correction points now optionally carry uniform size and clockwise rotat
 
 ### 0.46 checkpoint
 Manual mask corrections gain a per-mask Linear/Smooth/Hold transition across position, size and rotation. Measured tracking remains linear and separate. Exact nominal-frame stepping and previous/next correction navigation pause playback, retain coalesced seek requests and leave ordinary scrubbing unchanged. Source-time interpolation remains shared by preview, HDR/direct/queued export, versions and reader-build-51 backups; queue schema 8 protects the new transition while reading older records. Automatic silhouette deformation, temporal matting and shared Camera/Studio look interchange remain separate candidate work.
+
+
+### 0.47 checkpoint
+Combined Resolve-style creative .cube files retain original 1D shaper and red-fastest 3D samples as one Film asset. Separate stage ranges, one strength/bypass blend and display-sRGB transfer around the complete pair are shared by photo/video/queued exports, versions, presets and colour-LUT baking. Standalone identities remain compatible. Schema-8 presets, reader-build-52 packages and queue schema 9 protect older readers. Arbitrary technical working/output spaces, Camera/Studio shared presets and temporal matting remain separate candidates. No timeline/beta/store work.
