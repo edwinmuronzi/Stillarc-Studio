@@ -1,0 +1,22 @@
+{
+  "version" : "0.52.0",
+  "native" : {
+    "persistence" : true,
+    "savedBytes" : 202465,
+    "cropAndTrimReuse" : true,
+    "cancellation" : true,
+    "frames" : 24,
+    "passed" : true,
+    "scope" : "Animated Smithsonian Hasselblad camera photograph, not real moving or deforming-object footage",
+    "encodedBackgroundReplacement" : true,
+    "freshSilhouettes" : true,
+    "thermal" : 0
+  },
+  "math" : {
+    "tapAndVisionCoordinates" : true,
+    "passed" : true,
+    "renumberedInstances" : true,
+    "ambiguousAndMissingRejected" : true
+  },
+  "passed" : true
+}

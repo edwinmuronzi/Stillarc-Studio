@@ -1,5 +1,7 @@
 # Studio 0.52.0 (57) verification
 
+**Final-source native checks and sustained preview have now passed after reconnection.** The resumed results below supersede the earlier disconnected-device gates for this tested workload. Real difficult footage and older-device coverage remain open.
+
 ## Final-source offline checks
 
 Core, video/HDR/Log/audio/trim, queue retry/cancellation/restart, source backup/restore/interruption and current batch regression passed. New batch checks cover: numeric timed Add/Subtract, Smooth fade and empty end point; full-source crop projection; invalid repair decoding; interval replacement preserving outside frame IDs and refreshing review hints; encoded video pixels matching the repair; repair backup roundtrip; protected per-shot settings and prior effective match balance; Before pool match version; whole-pool Undo/Redo; cancelled matching; and atomic preflight rejection of a stale second destination before the first changes.
@@ -29,3 +31,15 @@ Existing saved mattes need an explicit rebuild with Stabilize moving edges enabl
 The simulator workload passed: 68.80 seconds, 1,800 requested updates, 300 changing saved matte frames, three LUT layers, four curve channels, four masks, HDR and animated brush repair fields. It recorded zero GPU failures, idle renders, hidden scope jobs or additional automatic-selection analysis calls. Four brush raster jobs were needed and the queue ended empty. Render p95 was 32.53 ms on the host simulator. This is **not** a 17 Pro or older-phone frame-rate, energy or thermal result. The final physical repaired-mask workload remains pending reconnection.
 
 The final UI rerun includes visible paused-preview pixel change, opposing-repair clearing and stroke Undo/Redo. Full Release archive/signature/version validation passed. The signed artifact is locally ready; phone installation has not been verified while the 17 Pro is unavailable.
+
+## Resumed final-source native checks
+
+After reconnection, final-source 0.52.0 (57) passed the complete native batch: numeric contour suppression with changing image-detail preservation; encoded timed repair output and backup; protected pool settings including prior effective match balance; whole-pool Undo/Redo and version checkpoints; cancelled matching and atomic stale-target rejection. Native Object matting/export processed 24/24 frames with 202,465 saved bytes. The stabilized People run completed **450/450 frames over 15 seconds**, saving **20,737,007 bytes**. Face/skin, measured/manual tracking and loss recovery passed too. These functional reports recorded nominal thermal status at completion. The earlier incomplete attempts above are retained as session history, superseded for these checks.
+
+The supplied 3024 × 4032 DNG passed source preservation and JPEG/PNG exports on the physical 17 Pro. Open: 0.331 s; JPEG/PNG mean preview/export errors: 0.00870/0.00794; 120 small-sample renders p95: 4.90 ms. This is sampled rendering, not touch-to-display latency. RAW check thermal start/peak were nominal.
+
+## Completed final-source native repaired-mask workload
+
+The final physical 17 Pro run passed **198.56 seconds** with **5,400 requested updates**, **5,681 rendered / decoded frames**, 300 changing saved matte frames, HDR, three LUT layers including 4,096-point shapers, four flexible curve channels, four masks and animated repair fields. Render p95: **28.67 ms**. GPU failures, extra automatic-selection analysis, idle renders and hidden scope jobs were zero. Four brush raster jobs were needed, ending with an empty queue; raster p95 was 2.48 ms. iOS thermal start/peak/end were **0/0/0 (nominal)**. Process footprint start/sampled peak/end: **135.2/227.1/125.4 MB**. Scopes and live brush painting were off in this particular workload. These bounded measurements are not guarantees of zero warmth, battery use or frame rate for every device/edit.
+
+The signed 0.52.0 (57) Release application was restored after diagnostics. No production code changed during the resumed checks.

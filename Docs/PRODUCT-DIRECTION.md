@@ -1,4 +1,4 @@
-> Current checkpoint: **0.52** adds contour stabilization, source-time video-mask repairs, short-section reanalysis and protected per-shot pool matching. [Workflows and limits](MATTE-REPAIR-052.md). Final physical playback/installation is pending reconnection; historical notes below are not current validation claims.
+> Current checkpoint: **0.52** adds contour stabilization, source-time video-mask repairs, short-section reanalysis and protected per-shot pool matching. [Workflows and limits](MATTE-REPAIR-052.md). Final-source native correctness and sustained repaired-mask playback passed after reconnection; historical notes below are not current validation claims.
 
 > Current checkpoint: **0.51** adds fifteen-second People mattes and tap-selected Object video mattes. [Workflow and limits](VIDEO-MATTES-051.md). Historical scope below is not a claim of universal object segmentation or competitor parity.
 

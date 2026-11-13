@@ -1,0 +1,27 @@
+{
+  "version" : "0.52.0",
+  "passed" : true,
+  "thermal" : 0,
+  "math" : {
+    "repairAddSubtractFade" : true,
+    "reviewHints" : true,
+    "invalidRepairRejected" : true,
+    "sectionIsolation" : true,
+    "passed" : true,
+    "contourFlashBefore" : 1,
+    "changingDetailPreserved" : true,
+    "cropAndPersistence" : true,
+    "contourFlashAfter" : 0.14999997615814209,
+    "priorMatchBalancePreserved" : true
+  },
+  "integration" : {
+    "protectedPoolMatch" : true,
+    "backupRepairs" : true,
+    "passed" : true,
+    "encodedTimedRepairs" : true,
+    "poolUndoRedo" : true,
+    "poolVersion" : true,
+    "staleTargetAtomicPreflight" : true,
+    "cancellation" : true
+  }
+}

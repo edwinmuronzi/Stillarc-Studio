@@ -1,0 +1,36 @@
+{
+  "version" : "0.52.0",
+  "thermal" : 0,
+  "math" : {
+    "outputProfile" : "Display P3",
+    "inputSRGBP3Linear" : true,
+    "passed" : true,
+    "studioShareCreated" : true,
+    "lowStoragePreflight" : true,
+    "legacyDelivery" : true,
+    "measuredManualPose" : true,
+    "cameraImportVerified" : true,
+    "chromaBrightnessPreserved" : true
+  },
+  "passed" : true,
+  "models" : {
+    "faceAndFacialSkin" : true,
+    "objectScale" : 1.2044054522819634,
+    "lostTargetRecovery" : true,
+    "matteBytes" : 20737007,
+    "passed" : true,
+    "rectangleScale" : 1.2200719539121339,
+    "scope" : "Public NASA portrait animated as a test clip, plus a synthetic rotating rectangle; not real moving-hair or occlusion coverage",
+    "cancellation" : true,
+    "rectangleRotation" : -8.1642547007198267,
+    "peopleFrames" : 450
+  },
+  "temporal" : {
+    "passed" : true,
+    "encodedVideoReplacement" : true,
+    "persistenceBackup" : true,
+    "noPlaybackInference" : true,
+    "extended900FrameRoundtrip" : true,
+    "sourceTimeAndCrop" : true
+  }
+}
