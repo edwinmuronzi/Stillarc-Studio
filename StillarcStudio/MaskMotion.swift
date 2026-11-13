@@ -108,7 +108,7 @@ struct MaskMotion:Codable,Equatable,Sendable {
     static func validateExport(_ recipe:Recipe,duration:Double) throws {
         for index in MaskEngine.requiredIndices(recipe.masks) {
             if let matte=recipe.masks[index].automatic?.temporal {
-                guard matte.matches(recipe),abs(matte.sourceDuration-duration)<0.003,recipe.masks[index].motion==nil else {throw PeopleVideoMatteError.invalid}
+                guard recipe.masks[index].videoRepairs?.isValid != false,matte.matches(recipe),abs(matte.sourceDuration-duration)<0.003,recipe.masks[index].motion==nil else {throw PeopleVideoMatteError.invalid}
             }
             guard let track = recipe.masks[index].motion else { continue }
             guard track.matches(recipe,duration:duration) else {

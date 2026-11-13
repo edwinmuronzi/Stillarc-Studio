@@ -11,6 +11,7 @@ import UniformTypeIdentifiers
     @Bindable var library: StudioLibrary
     var pool:EditingPool? = nil
     @State private var poolChanging=false
+    @State private var poolLookMatch=false
     @State private var poolSync=false
     @State private var poolClipboard:AdjustmentClipboard?
     @State private var scopesVisible = false
@@ -19,6 +20,7 @@ import UniformTypeIdentifiers
     @State private var automaticTarget:AutomaticSelectionTarget?
     @State private var correctionMask:LocalMask?
     @State private var trackingMask:LocalMask?
+    @State private var matteReview:LocalMask?
     @State private var peopleMatte:PeopleMatteTarget?
     @State private var selectedMaskID:UUID?
     @State private var showMask = true
@@ -101,6 +103,10 @@ import UniformTypeIdentifiers
             if let pool {let id=session.project.id;session.historyRecorder={before,after in pool.recordEdit(id:id,before:before,after:after)}}
             #if DEBUG
             let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("--matte-repair-demo"),let video=session.project.video {
+                var r=Recipe();r.masks=[Batch052Verification.layer(duration:video.duration)];r.background=PhotoBackground(mode:.solid,red:0,green:0,blue:1);session.change {$0=r};selectedMaskID=r.masks[0].id;tool = .masks
+                try? await Task.sleep(for:.milliseconds(500));matteReview=r.masks[0]
+            }
             if arguments.contains("--correction-demo") {
                 let end=session.project.video?.duration ?? 2
                 var layer=LocalMask(kind:.radial);layer.centerX=0.35;layer.width=0.2;layer.height=0.3;layer.exposure=0.7
@@ -213,12 +219,14 @@ import UniformTypeIdentifiers
         .onChange(of: session.recipe) { _, _ in if !diagnosticsRunning && pool?.historyBusy != true { session.scheduleSave(library) } }
         .onChange(of: phase) { _, phase in if phase != .active { curveEditing = false;session.end();if pool?.historyBusy != true {Task { await session.persist(library) }} } }
         .onDisappear {saveOnExit()}
+        .sheet(isPresented:$poolLookMatch) {if let pool {PoolLookMatchSheet(library:library,pool:pool,reference:session.project)}}
         .sheet(isPresented:$poolSync) {if let pool,let clipboard=poolClipboard {BatchPasteSheet(library:library,projects:pool.projects(library),clipboard:clipboard,pool:pool)}}
         .sheet(isPresented: $export) { ExportSheet(session: session,library:library,pool:pool) }
         .sheet(item:$transferSheet) { mode in AdjustmentTransferSheet(mode:mode,session:session,library:library) }
         .sheet(isPresented:$versionsSheet) { VersionsSheet(session:session,library:library) }
         .sheet(item:$automaticTarget) { target in AutomaticSelectionSheet(session:session,target:target) { id in selectedMaskID = id;showMask = !target.removeBackground } }
         .sheet(item:$correctionMask) { mask in MaskCorrectionSheet(session:session,maskID:mask.id,pool:pool,undoAction:{undoEdit()},redoAction:{undoEdit(redo:true)},initialTime:videoPosition.time,onFinish:{videoPosition.seek($0)}) }
+        .sheet(item:$matteReview) {layer in VideoMatteReviewSheet(session:session,maskID:layer.id,initialTime:videoPosition.time,onFinish:{videoPosition.seek($0)},undoAction:{undoEdit()},redoAction:{undoEdit(redo:true)})}
         .sheet(item:$peopleMatte) {target in PeopleVideoMatteSheet(session:session,target:target) {id in selectedMaskID=id;showMask = !target.cutout}}
         .sheet(item:$trackingMask) { mask in MaskTrackingSheet(session:session,maskID:mask.id) }
         .sheet(isPresented: $presets) { PresetsSheet(session: session,library: library) }
@@ -402,6 +410,10 @@ import UniformTypeIdentifiers
             else {session.error=library.error ?? "Could not save this item. Try again.";poolChanging=false}
         }
     }
+    private func startPoolMatch() {
+        guard pool != nil,!poolChanging,!session.busy else {return}
+        Task { @MainActor in session.end();if await session.persist(library) {poolLookMatch=true} }
+    }
     private func syncPool() {
         guard pool != nil,!poolChanging,!session.busy else {return}
         poolChanging=true
@@ -424,7 +436,7 @@ import UniformTypeIdentifiers
                     Button("Select all pool items") {pool.state.selected=Set(pool.state.ids);pool.save()}
                     Button("Clear pool selection") {pool.state.selected=[];pool.save()}
                 }
-                Button("Sync edits",action:syncPool).disabled(session.busy).accessibilityIdentifier("syncPoolEdits")
+                Button("Sync edits",action:syncPool).disabled(session.busy).accessibilityIdentifier("syncPoolEdits").contextMenu {Button("Match pool to this edit"){startPoolMatch()}}
                 Button {pool.collapsed.toggle()} label:{Image(systemName:pool.collapsed ? "chevron.down":"chevron.up").frame(width:24,height:30)}.accessibilityLabel(pool.collapsed ? "Show filmstrip":"Hide filmstrip")
             }.font(.caption).contentShape(Rectangle()).simultaneousGesture(DragGesture(minimumDistance:40).onEnded {v in if abs(v.translation.width)>abs(v.translation.height)*2 {browsePool(v.translation.width<0 ? 1:-1)}})
             if !pool.collapsed {
@@ -472,9 +484,9 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !backgroundSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil && peopleMatte == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,viewport:tool == .masks ? maskViewport:MaskViewport(),position:videoPosition)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !poolLookMatch && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !backgroundSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil && peopleMatte == nil && matteReview == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,viewport:tool == .masks ? maskViewport:MaskViewport(),position:videoPosition)
                         } else {
-                            LivePreview(source:PhotoRendering.rawPreview(source,recipe:session.recipe),recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !export && !presets && !versionsSheet && !retouchSheet && !detailSheet && !backgroundSheet && !photoDevelopment && transferSheet == nil && trackingMask == nil && correctionMask == nil && automaticTarget == nil && peopleMatte == nil,hdr:session.recipe.photoHDR == true && !sdrProof,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview).modifier(MaskViewportModifier(viewport:tool == .masks ? maskViewport:MaskViewport()))
+                            LivePreview(source:PhotoRendering.rawPreview(source,recipe:session.recipe),recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !poolLookMatch && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !export && !presets && !versionsSheet && !retouchSheet && !detailSheet && !backgroundSheet && !photoDevelopment && transferSheet == nil && trackingMask == nil && correctionMask == nil && automaticTarget == nil && peopleMatte == nil && matteReview == nil,hdr:session.recipe.photoHDR == true && !sdrProof,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview).modifier(MaskViewportModifier(viewport:tool == .masks ? maskViewport:MaskViewport()))
                         }
                     }
                         .padding(tool == .crop ? (cropDisplayFinal ? 8 : 22) : 0)
@@ -548,7 +560,7 @@ import UniformTypeIdentifiers
             }.coordinateSpace(name:"comparisonPreview").frame(width: geometry.size.width,height: geometry.size.height).clipped().contentShape(Rectangle())
         }
     }
-    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil && peopleMatte == nil && !inputSheet }
+    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !poolLookMatch && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil && peopleMatte == nil && matteReview == nil && !inputSheet }
     @ViewBuilder private var scopePanel:some View {
         if scopesVisible && tool != .crop { ScopePanel(sampler:scopeSampler,mode:$scopeMode) }
     }
@@ -732,6 +744,7 @@ import UniformTypeIdentifiers
             if session.recipe.masks.count>2 {Text("Subject & Background needs two free mask slots. Remove a mask to create both regions.").font(.caption).foregroundStyle(StudioStyle.secondary)}
             if let layer = selectedMask {
                 if layer.automatic?.temporal != nil {
+                    Button("Review & repair matte",systemImage:"paintbrush.pointed"){videoPosition.pause();matteReview=layer}.font(.caption).accessibilityIdentifier("reviewVideoMatte")
                     let object=layer.automatic?.selectionMode == .picked
                     Button(object ? "Rebuild Object video matte":"Rebuild People video matte"){peopleMatte=PeopleMatteTarget(maskID:layer.id,cutout:layer.cutout == true,object:object)}.font(.caption)
                     Toggle("Remove background outside mask",isOn:Binding(get:{layer.cutout == true},set:{value in session.change {r in r.setCutout(layer.id,enabled:value);if value && (r.background == nil || r.background?.mode == .transparent) {r.background=PhotoBackground(mode:.solid)}};if value {showMask=false}})).font(.caption).accessibilityIdentifier("videoMatteCutout")

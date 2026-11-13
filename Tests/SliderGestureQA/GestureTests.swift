@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 final class GestureTests:XCTestCase {
     func testOriginalVerificationAndMissingSourceRepair() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
@@ -598,6 +599,44 @@ final class GestureTests:XCTestCase {
         XCTAssertTrue(toggle.waitForExistence(timeout:10));XCTAssertTrue(toggle.isHittable)
         toggle.tap();toggle.tap()
         app.buttons["Done"].tap();XCTAssertTrue(app.buttons["Add mask"].waitForExistence(timeout:10))
+    }
+    func testVideoMatteRepairBrushUndoAndSection() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--video-demo","--matte-repair-demo"];app.launch()
+        let tool=app.segmentedControls["videoRepairTool"];XCTAssertTrue(tool.waitForExistence(timeout:30))
+        tool.buttons["Subtract"].tap()
+        let canvas=app.descendants(matching:.any).matching(identifier:"videoRepairCanvas").firstMatch
+        XCTAssertTrue(canvas.waitForExistence(timeout:10));let before=canvas.value as? String
+        canvas.coordinate(withNormalizedOffset:CGVector(dx:0.48,dy:0.5)).press(forDuration:0.05,thenDragTo:canvas.coordinate(withNormalizedOffset:CGVector(dx:0.55,dy:0.5)))
+        XCTAssertNotEqual(canvas.value as? String,before)
+        let preview=app.descendants(matching:.any).matching(identifier:"videoRepairPreview").firstMatch
+        let visible=expectation(for:NSPredicate {_,_ in
+            let shot=app.screenshot(),cg=shot.image.cgImage!,sx=Double(cg.width)/app.frame.width,sy=Double(cg.height)/app.frame.height
+            let point=preview.frame;guard let pixel=cg.cropping(to:CGRect(x:point.midX*sx,y:point.midY*sy,width:1,height:1)) else {return false}
+            var values=[UInt8](repeating:0,count:4)
+            guard let context=CGContext(data:&values,width:1,height:1,bitsPerComponent:8,bytesPerRow:4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue) else {return false}
+            context.draw(pixel,in:CGRect(x:0,y:0,width:1,height:1));return values[2]>220 && values[0]<50
+        },evaluatedWith:nil);wait(for:[visible],timeout:10)
+        app.buttons["matteRepairUndo"].tap();XCTAssertEqual(canvas.value as? String,before)
+        app.buttons["matteRepairRedo"].tap();XCTAssertNotEqual(canvas.value as? String,before)
+        tool.buttons["View"].tap();XCTAssertTrue(app.sliders["Matte review position"].exists)
+        app.buttons["Mark for review"].tap()
+        let rebuild=app.buttons["Reanalyse one-second section here"]
+        let panel=app.scrollViews["videoRepairControls"]
+        for _ in 0..<8 where !rebuild.isHittable {panel.coordinate(withNormalizedOffset:CGVector(dx:0.98,dy:0.85)).press(forDuration:0.05,thenDragTo:panel.coordinate(withNormalizedOffset:CGVector(dx:0.98,dy:0.25)))}
+        rebuild.tap();XCTAssertTrue(app.buttons["preparePeopleVideoMatte"].waitForExistence(timeout:10))
+        app.buttons["closeVideoMattePreparation"].tap();XCTAssertTrue(tool.waitForExistence(timeout:10))
+        app.buttons["closeMatteReview"].tap()
+    }
+    func testProtectedPoolMatchControls() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--pool-demo"];app.launch()
+        let sync=app.buttons["syncPoolEdits"];XCTAssertTrue(sync.waitForExistence(timeout:30));sync.press(forDuration:1)
+        app.buttons["Match pool to this edit"].tap()
+        XCTAssertTrue(app.switches["poolMatchProtectLight"].waitForExistence(timeout:10))
+        XCTAssertEqual(app.switches["poolMatchProtectLight"].value as? String,"1")
+        XCTAssertEqual(app.switches["poolMatchProtectWB"].value as? String,"1")
+        app.buttons["Done"].tap()
     }
     func testObjectVideoMatteSelection() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")

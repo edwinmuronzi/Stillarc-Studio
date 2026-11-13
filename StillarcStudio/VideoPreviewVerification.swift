@@ -80,6 +80,11 @@ struct VideoPreviewVerification:View {
                     let temporal=try TemporalMatte(start:0,end:10,sourceDuration:10,sourceWidth:1920,sourceHeight:1080,input:recipe.input,frames:frames)
                     let first=frames[0]
                     recipe.masks[3].automatic=AutomaticMask(id:first.id,png:first.png,width:first.width,height:first.height,framing:MaskMotion.signature(recipe),videoStart:0,temporal:temporal);recipe.masks[3].motion=nil
+                    var repairs=Batch052Verification.layer(duration:10).videoRepairs!
+                    var middle=VideoMaskRepairPoint(time:5)
+                    _ = middle.add.begin(point:.init(x:0.6,y:0.5),radius:0.12,feather:0.5,erase:false)
+                    _ = middle.subtract.begin(point:.init(x:0.3,y:0.5),radius:0.06,feather:0.4,erase:false)
+                    repairs.points=[repairs.points[0],middle,VideoMaskRepairPoint(time:9.8)];recipe.masks[3].videoRepairs=repairs
                     recipe.video.end=9.8;player.setEdit(recipe.video)
                 }
                 player.toggle();try await Task.sleep(for:.seconds(1))

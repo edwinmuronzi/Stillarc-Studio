@@ -56,7 +56,7 @@ struct LivePreview: UIViewRepresentable {
             brushObserver = NotificationCenter.default.addObserver(forName:.studioBrushReady,object:nil,queue:.main) { [weak self,weak view] note in
                 guard let id = note.object as? UUID else { return }
                 Task { @MainActor [weak self,weak view] in
-                    guard let self,let view,self.active,(self.recipe.background?.asset?.id == id || self.recipe.masks.contains(where:{ $0.brush?.id == id || $0.automatic?.id == id })) else { return };self.dirty = true;if !self.drawing { view.setNeedsDisplay() }
+                    guard let self,let view,self.active,(self.recipe.background?.asset?.id == id || self.recipe.masks.contains(where:{ $0.usesRaster(id) })) else { return };self.dirty = true;if !self.drawing { view.setNeedsDisplay() }
                 }
             }
         }

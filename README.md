@@ -1,5 +1,9 @@
 # Stillarc Studio
 
+## Stable edges. Precise repairs. Consistent shots. · 0.52
+
+Rebuild video mattes with image-guided contour stabilization, brush Add/Subtract repairs at chosen moments, jump to review hints and reanalyse a short section. Match a pool’s creative look while protecting each shot’s exposure and white balance, with whole-pool Undo/Redo. [Workflows, limits and what to test](Docs/MATTE-REPAIR-052.md).
+
 ## Tap an object. Follow its outline. · 0.51
 
 Object video matte saves a changing selection for each frame, with tap selection and optional background replacement. People and Object mattes now allow up to 15 seconds / 900 frames, within a 48 MiB saved-mask budget. Playback/export reuse the prepared masks. [How to use it and accuracy limits](Docs/VIDEO-MATTES-051.md).
@@ -48,7 +52,7 @@ Convert Canon Log 3 (Rec.2020), Nikon N-Log, Fujifilm F-Log2 and DJI X9 D-Log us
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.51 object video matte milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.52 matte repair and pool matching milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 

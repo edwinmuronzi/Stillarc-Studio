@@ -190,6 +190,7 @@ private struct VideoPreviewContent:View {
         .onChange(of:playback.frameTime){_,value in if !playback.playing {position?.time=value}}
         .onChange(of:playback.playing){_,value in position?.playing=value;if !value {position?.time=playback.frameTime}}
         .onChange(of:position?.seekToken){_,_ in if let position {playback.beginScrub();playback.seek(position.time,exact:position.exactSeek);playback.endScrub()}}
+        .onChange(of:position?.playToken){_,_ in playback.toggle()}
         .onChange(of:position?.pauseToken){_,_ in playback.pause()}
         .onChange(of:automaticReferenceIDs) { old,new in
             if new.contains(where:{ !old.contains($0) }) { playback.showAutomaticReferenceFrame() }
@@ -242,7 +243,7 @@ struct VideoMetalView:UIViewRepresentable {
             brushObserver = NotificationCenter.default.addObserver(forName:.studioBrushReady,object:nil,queue:.main) { [weak self,weak view] note in
                 guard let id = note.object as? UUID else { return }
                 Task { @MainActor [weak self,weak view] in
-                    guard let self,let view,self.active,self.recipe.masks.contains(where:{ $0.brush?.id == id || $0.automatic?.id == id }) else { return };self.dirty = true;if !self.drawing { view.setNeedsDisplay() }
+                    guard let self,let view,self.active,self.recipe.masks.contains(where:{ $0.usesRaster(id) }) else { return };self.dirty = true;if !self.drawing { view.setNeedsDisplay() }
                 }
             }
         }

@@ -12,6 +12,7 @@ struct LocalMask:Identifiable,Codable,Equatable,Sendable {
     var label:String? = nil
     var cutout:Bool? = nil
     var title:String {label.map {String($0.prefix(80))} ?? region?.rawValue ?? kind.rawValue}
+    var videoRepairs:VideoMaskRepairs? = nil
     var brush:BrushDrawing? = nil
     var selection:MaskSelection? = nil
     var combination:MaskCombination? = nil
@@ -43,6 +44,7 @@ struct LocalMask:Identifiable,Codable,Equatable,Sendable {
     var clarity:Double {get {localClarity ?? 0} set {localClarity=newValue}}
     var blur:Double {get {localBlur ?? 0} set {localBlur=newValue}}
     init(kind:LocalMaskKind) { self.kind = kind;angle = kind == .linear ? 90 : 0;if kind == .brush { width = 0.06;brush = BrushDrawing() };if isRange { selection = MaskSelection() } }
+    func usesRaster(_ id:UUID)->Bool {brush?.id==id || automatic?.id==id || videoRepairs?.points.contains(where:{$0.add.id==id || $0.subtract.id==id}) == true}
     var hasEffect:Bool {enabled && amount>0 && (cutout == true || hasColorEffect)}
     var hasColorEffect:Bool { enabled && amount>0 && (abs(exposure)>0.000001 || abs(warmth)>0.000001 || abs(saturation)>0.000001 || abs(contrast)>0.000001 || abs(tint)>0.000001 || abs(highlights)>0.000001 || abs(shadows)>0.000001 || abs(clarity)>0.000001 || blur>0.000001) }
     func validated() -> Self {

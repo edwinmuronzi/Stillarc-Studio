@@ -195,3 +195,7 @@ Longer bounded People mattes, reversible edge shortcuts, reviewed partial tracki
 ## 0.51 checkpoint
 
 Fifteen-second People mattes and tap-selected per-frame Object mattes with identity continuity checks, editable local adjustments and composited video background replacement. See [current workflows and bounds](VIDEO-MATTES-051.md). Arbitrary object identity through occlusion and difficult real-footage/older-device validation remain open.
+
+## 0.52 checkpoint
+
+Image-guided contour stabilization, source-time Add/Subtract repairs, Object review hints/manual markers, selective interval reanalysis and protected per-shot pool matching with version/history recovery. See [workflows and limits](MATTE-REPAIR-052.md). Real difficult-contour footage and physical older-device validation remain open.

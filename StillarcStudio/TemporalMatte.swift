@@ -10,11 +10,14 @@ final class TemporalMatte:Codable,Equatable,@unchecked Sendable {
     let sourceWidth:Int,sourceHeight:Int
     let input:InputConversion
     let frames:[Frame]
+    let reviewTimes:[Double]
     let fingerprint:String
-    private enum CodingKeys:String,CodingKey {case start,end,sourceDuration,sourceWidth,sourceHeight,input,frames}
+    private enum CodingKeys:String,CodingKey {case start,end,sourceDuration,sourceWidth,sourceHeight,input,frames,reviewTimes}
     static func ==(a:TemporalMatte,b:TemporalMatte)->Bool {a === b || a.fingerprint==b.fingerprint}
-    init(start:Double,end:Double,sourceDuration:Double,sourceWidth:Int,sourceHeight:Int,input:InputConversion,frames:[Frame]) throws {
+    init(start:Double,end:Double,sourceDuration:Double,sourceWidth:Int,sourceHeight:Int,input:InputConversion,frames:[Frame],reviewTimes:[Double]=[]) throws {
         guard (2...4096).contains(sourceWidth),(2...4096).contains(sourceHeight),start.isFinite,end.isFinite,sourceDuration.isFinite,start>=0,end>start,end<=sourceDuration+0.001,sourceDuration<=604800,!frames.isEmpty,frames.count<=900,Set(frames.map(\.id)).count==frames.count else {throw AutomaticSelectionEngine.error("This saved video matte is invalid or too large.")}
+        guard reviewTimes.count<=128,reviewTimes.allSatisfy({$0.isFinite && $0>=start && $0<end}) else {throw AutomaticSelectionEngine.error("Invalid matte review times.")}
+        self.reviewTimes=reviewTimes.sorted()
         var bytes=0,hash=SHA256()
         for f in frames {
             guard f.time.isFinite,f.time>=start-0.002,f.time<end+0.002,f.width>0,f.height>0,f.width<=1536,f.height<=1536,!f.png.isEmpty,f.png.count<=4_194_304 else {throw AutomaticSelectionEngine.error("A saved matte frame has invalid dimensions, timing or image data. Rebuild the video matte.")}
@@ -22,13 +25,23 @@ final class TemporalMatte:Codable,Equatable,@unchecked Sendable {
             hash.update(data:f.png);hash.update(data:Data("\(f.time):\(f.width):\(f.height)".utf8))
         }
         guard zip(frames,frames.dropFirst()).allSatisfy({$0.time<$1.time}) else {throw AutomaticSelectionEngine.error("Saved video matte frames are not in source-time order. Rebuild the video matte.")}
+        hash.update(data:Data(reviewTimes.sorted().map {String($0)}.joined(separator:",").utf8))
         let encoder=JSONEncoder();encoder.outputFormatting = .sortedKeys;hash.update(data:try encoder.encode(input));hash.update(data:Data("\(start):\(end):\(sourceDuration):\(sourceWidth):\(sourceHeight)".utf8))
         self.sourceWidth=sourceWidth;self.sourceHeight=sourceHeight;self.start=start;self.end=end;self.sourceDuration=sourceDuration;self.input=input;self.frames=frames
         fingerprint=hash.finalize().map {String(format:"%02x",$0)}.joined()
     }
     convenience init(from decoder:Decoder) throws {
         let c=try decoder.container(keyedBy:CodingKeys.self)
-        try self.init(start:c.decode(Double.self,forKey:.start),end:c.decode(Double.self,forKey:.end),sourceDuration:c.decode(Double.self,forKey:.sourceDuration),sourceWidth:c.decode(Int.self,forKey:.sourceWidth),sourceHeight:c.decode(Int.self,forKey:.sourceHeight),input:c.decode(InputConversion.self,forKey:.input),frames:c.decode([Frame].self,forKey:.frames))
+        try self.init(start:c.decode(Double.self,forKey:.start),end:c.decode(Double.self,forKey:.end),sourceDuration:c.decode(Double.self,forKey:.sourceDuration),sourceWidth:c.decode(Int.self,forKey:.sourceWidth),sourceHeight:c.decode(Int.self,forKey:.sourceHeight),input:c.decode(InputConversion.self,forKey:.input),frames:c.decode([Frame].self,forKey:.frames),reviewTimes:c.decodeIfPresent([Double].self,forKey:.reviewTimes) ?? [])
+    }
+    func replacing(_ analysed:TemporalMatte,interval:ClosedRange<Double>)->TemporalMatte? {
+        guard let patch=try? TemporalMatte(start:interval.lowerBound,end:interval.upperBound,sourceDuration:analysed.sourceDuration,sourceWidth:analysed.sourceWidth,sourceHeight:analysed.sourceHeight,input:analysed.input,frames:analysed.frames.filter {$0.time>=interval.lowerBound && $0.time<interval.upperBound},reviewTimes:analysed.reviewTimes.filter {$0>=interval.lowerBound && $0<interval.upperBound}) else {return nil}
+        return replacing(patch)
+    }
+    func replacing(_ patch:TemporalMatte)->TemporalMatte? {
+        guard input==patch.input,sourceWidth==patch.sourceWidth,sourceHeight==patch.sourceHeight,abs(sourceDuration-patch.sourceDuration)<0.002,patch.start>=start,patch.end<=end else {return nil}
+        let merged=frames.filter {$0.time<patch.start || $0.time>=patch.end}+patch.frames
+        return try? TemporalMatte(start:start,end:end,sourceDuration:sourceDuration,sourceWidth:sourceWidth,sourceHeight:sourceHeight,input:input,frames:merged.sorted {$0.time<$1.time},reviewTimes:reviewTimes.filter {$0<patch.start || $0>=patch.end}+patch.reviewTimes)
     }
     func matches(_ recipe:Recipe)->Bool {
         let range=recipe.video.range(duration:sourceDuration)
@@ -51,7 +64,7 @@ enum TemporalMatteProjection {
     }
 }
 enum PeopleVideoMatte {
-    static func analyze(url:URL,descriptor:VideoDescriptor,recipe:Recipe,objectPoint:CGPoint? = nil,progress:@escaping @Sendable(Double) async->Void) async throws ->AutomaticMask {
+    static func analyze(url:URL,descriptor:VideoDescriptor,recipe:Recipe,objectPoint:CGPoint? = nil,stabilizeEdges:Bool=true,progress:@escaping @Sendable(Double) async->Void) async throws ->AutomaticMask {
         try Task.checkCancellation()
         let range=recipe.video.range(duration:descriptor.duration)
         guard range.upperBound-range.lowerBound<=15.001,(range.upperBound-range.lowerBound)*descriptor.frameRate<=900.1 else {throw AutomaticSelectionEngine.error("Trim the kept clip to at most 15 seconds and 900 frames before making a People video matte.")}
@@ -72,14 +85,22 @@ enum PeopleVideoMatte {
         let handler=VNSequenceRequestHandler(),context=ImageEngine.context(),gray=CGColorSpace(name:CGColorSpace.linearGray)!
         var full=recipe;full.reset(.crop)
         let objectTracker=objectPoint.map {ObjectVideoMatteTracker(point:$0)}
-        var frames=[TemporalMatte.Frame](),bytes=0,personFound=false
+        var frames=[TemporalMatte.Frame](),bytes=0,personFound=false,reviewTimes=[Double]()
+        var previous:MatteEdgeStabilizer.Frame?,pending:MatteEdgeStabilizer.Frame?
+        func append(_ current:MatteEdgeStabilizer.Frame,next:MatteEdgeStabilizer.Frame?) throws {
+            try Task.checkCancellation()
+            let image=stabilizeEdges ? MatteEdgeStabilizer.image(previous:previous,current:current,next:next):CIImage(cgImage:current.mask,options:[.colorSpace:NSNull()])
+            guard let png=context.pngRepresentation(of:image,format:.L8,colorSpace:gray,options:[:]) else {throw StudioError.render}
+            bytes+=png.count;guard bytes<=50_331_648 else {throw AutomaticSelectionEngine.error("This matte exceeds the 48 MB budget. Shorten the kept clip; your previous selection is unchanged.")}
+            frames.append(.init(id:UUID(),time:current.time,png:png,width:current.mask.width,height:current.mask.height))
+        }
         while let sample=output.copyNextSampleBuffer() {
             try Task.checkCancellation()
             guard ProcessInfo.processInfo.thermalState.rawValue<ProcessInfo.ThermalState.serious.rawValue else {throw AutomaticSelectionEngine.error("Processing paused for cooling. The previous mask is unchanged; try again after the phone cools.")}
             let time=CMSampleBufferGetPresentationTimeStamp(sample).seconds
             if time<range.lowerBound || time>=range.upperBound {continue}
-            guard frames.count<900 else {throw AutomaticSelectionEngine.error("This clip has more than 900 source frames. Shorten the kept clip.")}
-            let frame=try autoreleasepool {() throws ->TemporalMatte.Frame in
+            guard frames.count+(pending == nil ? 0:1)<900 else {throw AutomaticSelectionEngine.error("This clip has more than 900 source frames. Shorten the kept clip.")}
+            let frame=try autoreleasepool {() throws ->MatteEdgeStabilizer.Frame in
                 guard let buffer=CMSampleBufferGetImageBuffer(sample) else {throw AutomaticSelectionEngine.error("Video matte frame did not contain image data.")}
                 #if DEBUG
                 if frames.isEmpty {VerificationProgress.record("People matte first frame")}
@@ -97,22 +118,25 @@ enum PeopleVideoMatte {
                 var image=raw.transformed(by:.init(scaleX:scale,y:scale))
                 image=image.transformed(by:.init(translationX:-image.extent.minX,y:-image.extent.minY)).cropped(to:CGRect(x:0,y:0,width:max(1,floor(image.extent.width)),height:max(1,floor(image.extent.height))))
                 if !personFound {personFound=AutomaticSelectionEngine.hasCoverage(image)}
-                guard let png=context.pngRepresentation(of:image,format:.L8,colorSpace:gray,options:[:]) else {throw StudioError.render}
-                return .init(id:UUID(),time:time,png:png,width:Int(image.extent.width),height:Int(image.extent.height))
+                return try MatteEdgeStabilizer.frame(time:time,mask:image,source:cg,context:context)
             }
-            bytes+=frame.png.count;guard bytes<=50_331_648 else {throw AutomaticSelectionEngine.error("This matte exceeds the 48 MB budget. Shorten the kept clip; your previous selection is unchanged.")}
-            frames.append(frame);await progress((time-range.lowerBound)/(range.upperBound-range.lowerBound))
+
+            if objectTracker?.reviewSuggested == true,reviewTimes.count<128,time-(reviewTimes.last ?? -10)>0.25 {reviewTimes.append(time)}
+            if let current=pending {try append(current,next:frame);previous=current}
+            pending=frame
+            await progress((time-range.lowerBound)/(range.upperBound-range.lowerBound))
             #if DEBUG
             if frames.count%30==0 {VerificationProgress.record("People matte processed \(frames.count) frames, \(bytes) bytes")}
             #endif
             try await Task.sleep(for:.milliseconds(ProcessInfo.processInfo.thermalState == .fair ? 50:10))
         }
+        if let current=pending {try append(current,next:nil)}
         guard reader.status == .completed,personFound,let first=frames.first else {throw AutomaticSelectionEngine.error("No usable subject was found, or reading was interrupted. Existing edits are unchanged.")}
         #if DEBUG
         VerificationProgress.record("People matte complete: count=\(frames.count), first=\(frames.first!.time), last=\(frames.last!.time), dims=\(frames.first!.width)x\(frames.first!.height), bytes=\(bytes), ordered=\(zip(frames,frames.dropFirst()).allSatisfy {$0.time<$1.time})")
         #endif
         try Task.checkCancellation()
-        let temporal=try TemporalMatte(start:range.lowerBound,end:range.upperBound,sourceDuration:descriptor.duration,sourceWidth:descriptor.width,sourceHeight:descriptor.height,input:recipe.input,frames:frames)
+        let temporal=try TemporalMatte(start:range.lowerBound,end:range.upperBound,sourceDuration:descriptor.duration,sourceWidth:descriptor.width,sourceHeight:descriptor.height,input:recipe.input,frames:frames,reviewTimes:reviewTimes)
         return AutomaticMask(id:first.id,png:first.png,width:first.width,height:first.height,framing:MaskMotion.signature(recipe),videoStart:range.lowerBound,temporal:temporal,selectionMode:objectPoint == nil ? .people:.picked)
     }
 }

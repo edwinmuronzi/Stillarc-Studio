@@ -53,6 +53,9 @@ enum MaskEngine {
                 .composited(over:CIImage(color:.black).cropped(to:extent))
         }
         mask = mask.cropped(to:extent)
+        if let matte=m.automatic?.temporal,let signature=framing ?? MaskMotion.frame?.framing {
+            mask=VideoMaskRepairRendering.apply(mask,repairs:m.videoRepairs,matte:matte,framing:signature,time:MaskMotion.frame?.time ?? matte.start,preview:preview)
+        }
         if m.inverted { mask = mask.applyingFilter("CIColorInvert") }
         if m.amount<1 { mask = mask.applyingFilter("CIColorMatrix",parameters:["inputRVector":CIVector(x:m.amount,y:0,z:0,w:0),"inputGVector":CIVector(x:0,y:m.amount,z:0,w:0),"inputBVector":CIVector(x:0,y:0,z:m.amount,w:0)]) }
         return mask

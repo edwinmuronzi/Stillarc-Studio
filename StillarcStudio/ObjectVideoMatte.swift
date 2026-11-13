@@ -43,6 +43,7 @@ final class ObjectVideoMatteTracker {
     private var tracking:VNTrackObjectRequest?
     private var previous:LabelMap?
     private var previousID:Int?
+    private(set) var reviewSuggested=false
     private let point:CGPoint
     init(point:CGPoint) {self.point=point;segment.preferBackgroundProcessing=true}
     static func visionRect(_ topLeft:CGRect)->CGRect {CGRect(x:topLeft.minX,y:1-topLeft.maxY,width:topLeft.width,height:topLeft.height)}
@@ -79,7 +80,7 @@ final class ObjectVideoMatteTracker {
     }
     static func lost()->NSError {AutomaticSelectionEngine.error("The selected object was lost or became ambiguous. No new matte was saved. Shorten the kept clip before the obstruction, choose a clearer object, or start a new selection after it returns.")}
     func mask(_ image:CGImage) throws ->CIImage {
-        try Task.checkCancellation()
+        try Task.checkCancellation();reviewSuggested=false
         var predicted:CGRect?,trackingReliable=false
         if let previous,let previousID {predicted=previous.rect(previousID)}
         if let tracking {
@@ -109,6 +110,7 @@ final class ObjectVideoMatteTracker {
         }
         else {guard let first=map.instance(at:point) else {throw AutomaticSelectionEngine.error("Tap inside a distinct foreground object, away from its edge, and try again. Nothing was saved.")};selected=first}
         guard observation.allInstances.contains(selected),let box=map.rect(selected) else {throw Self.lost()}
+        if previous != nil {reviewSuggested = !trackingReliable || predicted.map {Self.overlap($0,box)<0.6} == true}
         let buffer=try observation.generateScaledMaskForImage(forInstances:IndexSet(integer:selected),from:handler)
         let next=VNDetectedObjectObservation(boundingBox:Self.visionRect(box))
         if let tracking {tracking.inputObservation=next}

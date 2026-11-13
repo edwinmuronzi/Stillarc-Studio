@@ -1,4 +1,8 @@
-# Stillarc Studio · 0.51
+# Stillarc Studio · 0.52
+
+## Stable edges. Precise repairs. Consistent shots. · 0.52
+
+Rebuild video mattes with image-guided contour stabilization, brush Add/Subtract repairs at chosen moments, jump to review hints and reanalyse a short section. Match a pool’s creative look while protecting each shot’s exposure and white balance, with whole-pool Undo/Redo. [Workflows, limits and what to test](MATTE-REPAIR-052.md).
 
 ## Tap an object. Follow its outline. · 0.51
 
