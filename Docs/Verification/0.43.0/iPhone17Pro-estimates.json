@@ -1,0 +1,14 @@
+{
+  "exactBytes" : true,
+  "transparentPNG" : true,
+  "estimateChecksum" : 247154499981.20038,
+  "encoderBudgetUnchanged" : true,
+  "estimateSeconds" : 0.00062096118927001953,
+  "arithmeticEstimates" : 5000,
+  "thermal" : 0,
+  "passed" : true,
+  "version" : "0.43.0",
+  "formatsCropQualityTrimAudio" : true,
+  "legacyAudioFallback" : true,
+  "poolQueueTotals" : true
+}
