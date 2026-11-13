@@ -1,4 +1,8 @@
-# Stillarc Studio · 0.43
+# Stillarc Studio · 0.44
+
+## LUT workflow · 0.44
+
+Import standalone 1D `.cube` curves (up to 4096 points per channel) as well as 3D LUTs. Film identifies each type. Blend either type in the same stack, save it in presets and export from the same full-resolution grade. Cached channel tables keep strength adjustments lightweight. [Usage and a sample LUT](LUT-WORKFLOW-044.md).
 
 ## Export planning · 0.43
 

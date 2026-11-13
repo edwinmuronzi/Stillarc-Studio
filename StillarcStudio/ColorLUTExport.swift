@@ -51,8 +51,8 @@ enum ColorLUTExport {
         let cleaned = String(asset.name.unicodeScalars.filter { CharacterSet.alphanumerics.union(.whitespaces).union(CharacterSet(charactersIn:"-_")).contains($0) }.prefix(60))
         let file = folder.appendingPathComponent(cleaned.isEmpty ? "Stillarc Color" : cleaned).appendingPathExtension("cube")
         let title = asset.name.replacingOccurrences(of:"\"",with:"'").replacingOccurrences(of:"\n",with:" ").replacingOccurrences(of:"\r",with:" ")
-        var text = "# Stillarc Studio color-only LUT. Display sRGB input/output, SDR 0...1.\n# Apply after input conversion. Spatial effects, masks, HDR and framing excluded.\nTITLE \"\(title)\"\nLUT_3D_SIZE \(asset.dimension)\nDOMAIN_MIN 0 0 0\nDOMAIN_MAX 1 1 1\n"
-        text.reserveCapacity(asset.dimension*asset.dimension*asset.dimension*32+256)
+        var text = "# Stillarc Studio color-only LUT. Display sRGB input/output; input domain is listed below.\n# Apply after input conversion. Spatial effects, masks, HDR and framing excluded.\nTITLE \"\(title)\"\n\(asset.kind == .curve1D ? "LUT_1D_SIZE":"LUT_3D_SIZE") \(asset.dimension)\nDOMAIN_MIN \(asset.domainMin.map {String($0)}.joined(separator:" "))\nDOMAIN_MAX \(asset.domainMax.map {String($0)}.joined(separator:" "))\n"
+        text.reserveCapacity(asset.cube.count*2+256)
         let locale = Locale(identifier:"en_US_POSIX")
         try asset.cube.withUnsafeBytes { values in
             for i in stride(from:0,to:asset.cube.count,by:16) {

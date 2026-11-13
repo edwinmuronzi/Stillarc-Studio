@@ -1,5 +1,9 @@
 # Stillarc Studio
 
+## LUT workflow · 0.44
+
+Import standalone 1D `.cube` curves (up to 4096 points per channel) as well as 3D LUTs. Film identifies each type. Blend either type in the same stack, save it in presets and export from the same full-resolution grade. Cached channel tables keep strength adjustments lightweight. [Usage and a sample LUT](Docs/LUT-WORKFLOW-044.md).
+
 ## Export planning · 0.43
 
 Export shows one rounded approximate file size that follows format, resolution, quality, crop, clip length and sound. Pool delivery and the queue show totals; completed exports show the measured size. No sample render or encode is needed to update the estimate. [How estimates work](Docs/EXPORT-SIZES-043.md).
@@ -17,7 +21,7 @@ Convert Canon Log 3 (Rec.2020), Nikon N-Log, Fujifilm F-Log2 and DJI X9 D-Log us
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.43 export planning milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.44 LUT workflow milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 
@@ -136,7 +140,7 @@ RGB curves use bounded cached 1024-sample float tables. Selective color, wheels 
 
 The preview is decoded once, capped at 1600 pixels on its long edge and rendered directly with Core Image/Metal. The view draws on changes, with one GPU submission in flight and newest-state coalescing; it has no perpetual display loop. Import and full-resolution export run away from the main actor. The preview pauses behind export/preset sheets and when the scene is inactive. Photo export reopens the original; export dimensions follow your delivery size choice, independently of preview sizing.
 
-LUT files are parsed and validated away from the UI actor. Immutable float tables are shared by undo states, not rebuilt or hashed during slider moves. LUTs run after built-in looks and before texture/detail; zero strength skips the LUT stage. Input/output numbers are interpreted as display sRGB, with explicit transfer curves around the cube in the linear working pipeline. Non-default input domains are normalized, and inputs outside the domain clamp to its edges. Up to three LUTs can run in order, with independent strength and bypass. Camera input conversion is separate and happens before creative grading. Creative LUTs still need to target display sRGB; a camera conversion LUT would double-convert an input already set to Apple Log/Log 2. 1D shapers and combined shaper/3D files remain planned. Color-only LUT-file export is available separately.
+LUT files are parsed and validated away from the UI actor. Immutable float tables are shared by undo states, not rebuilt or hashed during slider moves. LUTs run after built-in looks and before texture/detail; zero strength skips the LUT stage. Input/output numbers are interpreted as display sRGB, with explicit transfer curves around the cube in the linear working pipeline. Non-default input domains are normalized, and inputs outside the domain clamp to its edges. Up to three LUTs can run in order, with independent strength and bypass. Camera input conversion is separate and happens before creative grading. Creative LUTs still need to target display sRGB; a camera conversion LUT would double-convert an input already set to Apple Log/Log 2. Standalone 1D creative tables are supported; combined shaper/3D files and arbitrary technical Log/HDR shapers remain separate scope. Color-only LUT-file export is available separately.
 
 Video playback runs up to 30 preview frames per second and grades a bounded 1280-pixel preview with at most one GPU submission in flight. Playback pauses when covered/inactive; paused settled frames stop rendering. Export processes the full source, uses progress/cancellation, yields more at fair thermal state and pauses at serious/critical state without reducing output resolution or skipping frames. Backgrounding cancels an active export safely.
 

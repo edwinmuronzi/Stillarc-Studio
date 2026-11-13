@@ -10,11 +10,13 @@ struct LUTStackControls:View {
     var body:some View {
         DisclosureGroup("LUT stack · \((session.recipe.lut == nil ? 0:1)+layers.count)/3") {
             VStack(alignment:.leading,spacing:14) {
-                Text("LUTs run from top to bottom after your look. Use creative LUTs made for normal display color; choose Log conversion separately in Input. Each layer blends independently.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                Text("LUTs run from top to bottom after your look. Use creative LUTs made for normal display color; choose Log conversion separately in Input. Each layer blends independently. A 1D LUT shapes each color channel separately; a 3D LUT can mix colors.").font(.caption).foregroundStyle(StudioStyle.secondary)
                 if let primary=session.recipe.lut {Toggle("1 · \(primary.name)",isOn:Binding(get:{session.recipe.lutEnabled != false},set:{v in session.change {$0.lutEnabled=v ? nil:false}})).font(.caption)}
+                if let asset=session.recipe.lut {Text(asset.detail).font(.caption2).foregroundStyle(StudioStyle.secondary)}
                 ForEach(layers) {layer in
                     VStack(alignment:.leading,spacing:8) {
                         Toggle(layer.asset.name,isOn:Binding(get:{session.recipe.lutLayers?.first {$0.id==layer.id}?.enabled ?? false},set:{v in session.change {r in if let i=r.lutLayers?.firstIndex(where:{$0.id==layer.id}) {r.lutLayers?[i].enabled=v}}})).font(.caption)
+                        Text(layer.asset.detail).font(.caption2).foregroundStyle(StudioStyle.secondary)
                         HStack {
                             Text("Strength \(Int(layer.amount*100))%").font(.caption).monospacedDigit()
                             Spacer()

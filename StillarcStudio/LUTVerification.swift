@@ -35,7 +35,7 @@ enum LUTVerification {
         try require(near(pixel(domain.apply(image([0.3,0.5,0.7]),amount:1)),[0.25,0.5,0.75,1]),"LUT domain normalization failed")
         let clamp = pixel(identity.apply(image([0,0.5,1]),amount:1))
         try require(near(clamp,[0,0.5,1,1]),"LUT endpoints changed")
-        let fixtures = ["LUT_1D_SIZE 2\n0 0 0\n1 1 1", "LUT_3D_SIZE 66\n",header+rows+"0 0 0",header+"NaN 0 0\n"+rows,header+rows+"DOMAIN_MIN 0 0 0",header+"DOMAIN_MIN 1 0 0\nDOMAIN_MAX 0 1 1\n"+rows,header+"DOMAIN_MIN 0 0 0\nDOMAIN_MAX 0 1 1\n"+rows,header+"LUT_1D_SIZE 2\n"+rows,header+String(rows.dropLast(6)),header+"BOGUS 1\n"+rows,"LUT_3D_SIZE 1\n0 0 0"]
+        let fixtures = ["LUT_1D_SIZE 4097\n0 0 0\n1 1 1", "LUT_3D_SIZE 66\n",header+rows+"0 0 0",header+"NaN 0 0\n"+rows,header+rows+"DOMAIN_MIN 0 0 0",header+"DOMAIN_MIN 1 0 0\nDOMAIN_MAX 0 1 1\n"+rows,header+"DOMAIN_MIN 0 0 0\nDOMAIN_MAX 0 1 1\n"+rows,header+"LUT_1D_SIZE 2\n"+rows,header+String(rows.dropLast(6)),header+"BOGUS 1\n"+rows,"LUT_3D_SIZE 1\n0 0 0"]
         for text in fixtures {
             do { _ = try LUTAsset.parse(text,name:"bad"); throw NSError(domain:"LUTVerification",code:2,userInfo:[NSLocalizedDescriptionKey:"Malformed LUT accepted"]) }
             catch is LUTError {} // Other failures must propagate.

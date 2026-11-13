@@ -155,7 +155,7 @@ private struct ColorLUTRequest:Identifiable { let id = UUID();let recipe:Recipe 
                     if loadingLUT { ProgressView("Preparing LUT…") }
                     Button { colorLUTRequest = ColorLUTRequest(recipe:session.recipe) } label: { Label("Export current color as LUT",systemImage:"square.and.arrow.up") }
                     Button { importing = true } label: { Label("Import Studio preset",systemImage: "square.and.arrow.down") }
-                } footer: { Text("Presets save light, color, film and the LUT itself. Input conversion, crop and rotation stay with the source. Import a display-sRGB LUT, then adjust its strength under Film.") }
+                } footer: { Text("Presets save light, color, film and all imported 1D/3D LUT layers. Input conversion, crop and rotation stay with the source. Import a display-sRGB LUT, then adjust its strength under Film.") }
                 Section("Your presets") {
                     HStack {Menu {Button("All collections"){collectionFilter=nil};ForEach(LookQuery.collections(library.looks),id:\.self){name in Button(name){collectionFilter=name}}} label:{Label(collectionFilter ?? "All collections",systemImage:"folder")};Spacer();Button {favoritesOnly.toggle()} label:{Image(systemName:favoritesOnly ? "star.fill":"star")}.accessibilityLabel("Show favourite presets").accessibilityValue(favoritesOnly ? "On":"Off")}
 
@@ -243,7 +243,7 @@ private struct ColorLUTRequest:Identifiable { let id = UUID();let recipe:Recipe 
                 defer { if secured { url.stopAccessingSecurityScopedResource() } }
                 let values = try url.resourceValues(forKeys: [.fileSizeKey]); guard (values.fileSize ?? 0) <= 8_000_000 else { throw StudioError.unsupportedPreset }
                 let preset = try JSONDecoder().decode(PresetDocument.self,from: Data(contentsOf: url))
-                guard (1...6).contains(preset.schema) else { throw StudioError.unsupportedPreset }
+                guard (1...7).contains(preset.schema) else { throw StudioError.unsupportedPreset }
                 return preset
             }.value
             if !(await library.saveLook(name:preset.name,recipe:preset.recipe.validated())) { error = library.error }

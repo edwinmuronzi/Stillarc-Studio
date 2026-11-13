@@ -115,6 +115,7 @@ import UniformTypeIdentifiers
                 if let ref=try? await library.vault.importReference(url,project:session.project) {session.change {$0=Recipe();$0.reference=ref;$0.exposure = -0.6}}
             }
             if arguments.contains("--neutral-demo") { session.change { $0 = Recipe() } }
+            if arguments.contains("--one-d-lut-demo"),let asset=try? OneDLUTVerification.example() {session.change {$0=Recipe();$0.lut=asset;$0.lutAmount=0.6;$0.lutLayers=[LUTLayer(asset:asset,amount:0.2)]}}
             if arguments.contains("--colour-stack-demo") {let a=try? LUTVerification.example();session.change {$0=Recipe();$0.lut=a;if let a {$0.lutLayers=[LUTLayer(asset:a,amount:0.5),LUTLayer(asset:a,amount:0.2)]}}}
             if arguments.contains("--brush-demo") {maskNavigating=false; var layer = LocalMask(kind:.brush);var drawing = BrushDrawing();let id = drawing.begin(point:BrushPoint(x:0.3,y:0.3),radius:0.08,feather:0.6,erase:false)!;drawing.append(BrushPoint(x:0.7,y:0.6),stroke:id);layer.brush = drawing;layer.exposure = 0.5;session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks }
             if arguments.contains("--mask-demo") { var layer = LocalMask(kind:.radial);layer.exposure = 0.5;session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks }
@@ -607,6 +608,7 @@ import UniformTypeIdentifiers
                             Spacer()
                             Button("Remove") { session.change { $0.lut = nil; $0.lutEnabled=nil; $0.lutAmount = 1 } }.font(.caption).padding(.vertical,8)
                         }
+                        Text(lut.detail).font(.caption2).foregroundStyle(StudioStyle.secondary)
                         adjustment("LUT strength",key: \.lutAmount,range:0...1,defaultValue:1)
                         Text("A LUT remaps colors for a consistent finish. Strength blends it with your edit; zero turns it off.").font(.caption).foregroundStyle(StudioStyle.secondary)
                     }

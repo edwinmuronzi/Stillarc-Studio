@@ -22,15 +22,15 @@ struct LookLibraryEntry:Codable,Sendable {
 struct LookLibraryPackage:Codable,Sendable {
     var format="StillarcLooks"
     var schema=1
-    var minimumReader=45
+    var minimumReader=49
     var part=1
     var totalParts=1
     var entries:[LookLibraryEntry]
     func validated() throws ->[SavedLook] {
-        guard format=="StillarcLooks",schema==1,minimumReader<=45,minimumReader>=43,part>=1,totalParts>=part,totalParts<=2048,!entries.isEmpty,entries.count<=64,Set(entries.map(\.id)).count==entries.count else {throw LookLibraryArchive.fail("This look library version is unsupported or damaged.")}
+        guard format=="StillarcLooks",schema==1,minimumReader<=49,minimumReader>=43,part>=1,totalParts>=part,totalParts<=2048,!entries.isEmpty,entries.count<=64,Set(entries.map(\.id)).count==entries.count else {throw LookLibraryArchive.fail("This look library version is unsupported or damaged.")}
         return try entries.map {entry in
             let p=entry.preset,name=p.name.trimmingCharacters(in:.whitespacesAndNewlines)
-            guard (1...6).contains(p.schema),!name.isEmpty,name.utf8.count<=400,p.recipe==p.recipe.colorPreset else {throw LookLibraryArchive.fail("A preset contains unsupported or source-specific edits.")}
+            guard (1...7).contains(p.schema),!name.isEmpty,name.utf8.count<=400,p.recipe==p.recipe.colorPreset else {throw LookLibraryArchive.fail("A preset contains unsupported or source-specific edits.")}
             var org=entry.organization
             if let collection=org?.collection {guard collection==LookOrganization.clean(collection),!collection.isEmpty else {throw LookLibraryArchive.fail("A collection name is invalid.")}}
             if org?.favorite != true && org?.collection == nil {org=nil}

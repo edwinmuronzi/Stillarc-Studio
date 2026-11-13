@@ -189,7 +189,7 @@ struct PresetDocument: Codable, Sendable {
     var schema = 1
     var name: String
     var recipe: Recipe
-    init(name: String, recipe: Recipe) { self.name = name; self.recipe = recipe; schema = (recipe.lutEnabled == false || !(recipe.lutLayers ?? []).isEmpty || CurveChannel.allCases.contains { recipe.rgbCurves[keyPath:$0.key].nodes != nil }) ? 6 : recipe.colorWarp?.isNeutral == false ? 5 : recipe.matchGrade != nil ? 4 : (recipe.halation>0 || (recipe.grain>0 && recipe.grainModel == 2) ? 3 : (recipe.lut == nil ? 1 : 2)) }
+    init(name: String, recipe: Recipe) { self.name = name; self.recipe = recipe; schema = (recipe.lut?.kind == .curve1D || (recipe.lutLayers ?? []).contains {$0.asset.kind == .curve1D}) ? 7 : (recipe.lutEnabled == false || !(recipe.lutLayers ?? []).isEmpty || CurveChannel.allCases.contains { recipe.rgbCurves[keyPath:$0.key].nodes != nil }) ? 6 : recipe.colorWarp?.isNeutral == false ? 5 : recipe.matchGrade != nil ? 4 : (recipe.halation>0 || (recipe.grain>0 && recipe.grainModel == 2) ? 3 : (recipe.lut == nil ? 1 : 2)) }
 }
 
 extension Recipe {

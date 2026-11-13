@@ -161,3 +161,7 @@ Remaining candidate work: Camera/Studio shared-look interchange, supported 1D sh
 
 ### 0.43 checkpoint
 Delivery planning now shows approximate photo/video sizes, shared encoder bitrate budgets, crop/quality/trim/audio-aware estimates, pool totals and per-job/pending queue totals. Finished delivery measures exact file lengths asynchronously. Audio metadata is captured once during new imports, with safe legacy fallbacks. No preview rendering or trial encoding is added. Shared Camera/Studio look interchange, supported 1D shapers and richer mask motion remain later candidates.
+
+
+### 0.44 checkpoint
+Standalone 1D creative .cube imports (2–4096 points/channel) now join existing 3D LUTs, with visible type/size details and matching scalar or per-channel domain headers. Small cached GPU tables retain original samples without 3D expansion. Mixed stacks participate in presets, colour transfer, colour-LUT baking and photo/video/direct/queued export. Schema-7 presets and reader-build-49 packages protect the new data while retaining old 3D fingerprints. Combined technical shaper+cube files, arbitrary working/output spaces and shared Camera/Studio presets remain later candidates.

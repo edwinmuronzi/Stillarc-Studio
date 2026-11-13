@@ -1,0 +1,14 @@
+{
+  "maxInterpolationError" : 0.00039062500000008882,
+  "passed" : true,
+  "alphaStrength" : true,
+  "presetLibraryTransfer" : true,
+  "malformedRejected" : true,
+  "mixedStackAndColorExport" : true,
+  "domainsAndClamping" : true,
+  "version" : "0.44.0",
+  "vectors" : 33,
+  "max4096" : true,
+  "rangeHeadersAndQuotedTitles" : true,
+  "legacy3DPreserved" : true
+}

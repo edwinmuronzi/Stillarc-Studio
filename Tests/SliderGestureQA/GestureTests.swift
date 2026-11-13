@@ -532,6 +532,21 @@ final class GestureTests:XCTestCase {
         app.scrollViews.firstMatch.swipeUp();app.buttons["Open Studio sample"].tap()
         XCTAssertTrue(app.buttons["Film"].waitForExistence(timeout:15));XCTAssertEqual(app.buttons["Film"].value as? String,"Adjustments applied")
     }
+    func testOneDLUTDetailsStrengthUndoAndExport() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--demo-editor","--one-d-lut-demo","--tool","Film"];app.launch()
+        let panel=app.scrollViews["editorAdjustments"]
+        XCTAssertTrue(panel.waitForExistence(timeout:30))
+        let detail=app.staticTexts["1D · 1024 points per channel"].firstMatch
+        XCTAssertTrue(detail.waitForExistence(timeout:10))
+        let strength=app.sliders["LUT strength"]
+        strength.adjust(toNormalizedSliderPosition:0.3)
+        app.buttons["Undo"].tap();app.buttons["Redo"].tap()
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Standalone 1D LUT strength and details";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Export photo"].tap();app.buttons["Create export"].tap()
+        XCTAssertTrue(app.staticTexts["actualExportSize"].waitForExistence(timeout:30))
+        app.buttons["Done"].tap()
+    }
     func testLivePhotoExportEstimates() throws {
         let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
         app.launchArguments=["--demo-editor","--neutral-demo"];app.launch()
