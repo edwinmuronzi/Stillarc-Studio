@@ -43,7 +43,7 @@ struct VideoAnimation:Codable,Equatable,Sendable {
             switch track.target {
             case .exposure:r.exposure=min(6,max(-6,r.exposure+value))
             case .look:r.lookAmount*=value
-            case .lut:r.lutAmount*=value
+            case .lut:r.lutAmount*=value; if r.lutLayers != nil {for i in r.lutLayers!.indices {r.lutLayers![i].amount*=value}}
             case .mask(let id):if let i=r.masks.firstIndex(where:{$0.id==id}) {r.masks[i].amount*=value}
             }
         }

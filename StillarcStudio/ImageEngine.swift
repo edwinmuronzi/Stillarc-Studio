@@ -135,7 +135,8 @@ enum ImageEngine {
             }
             image = image.applyingFilter("CIDissolveTransition", parameters: [kCIInputTargetImageKey: base, kCIInputTimeKey: 1 - r.lookAmount])
         }
-        if let lut = r.lut, r.lutAmount > 0 { image = lut.apply(image,amount:r.lutAmount) }
+        if let lut = r.lut, r.lutEnabled != false, r.lutAmount > 0 { image = lut.apply(image,amount:r.lutAmount) }
+        for layer in (r.lutLayers ?? []).prefix(2) where layer.enabled && layer.amount > 0 { image = layer.asset.apply(image,amount:layer.amount) }
         image=ShotMatching.apply(image,r.matchGrade)
         if r.noise > 0 { filter("CINoiseReduction", ["inputNoiseLevel": r.noise * 0.05, "inputSharpness": 0.2]) }
         image = DetailRendering.apply(image,texture:r.texture,clarity:r.clarity)

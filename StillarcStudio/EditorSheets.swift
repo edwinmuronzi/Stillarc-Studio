@@ -215,7 +215,7 @@ private struct ColorLUTRequest:Identifiable { let id = UUID();let recipe:Recipe 
             let asset = try await Task.detached(priority:.userInitiated) { try LUTAsset.read(url) }.value
             var preset = Recipe(); preset.lut = asset
             guard await library.saveLook(name:asset.name.isEmpty ? "Imported LUT" : asset.name,recipe:preset) else { error = library.error; return }
-            session.change { $0.lut = asset; $0.lutAmount = 1 }
+            session.change { $0.lut = asset; $0.lutEnabled=nil; $0.lutAmount = 1 }
             dismiss()
         } catch { self.error = error.localizedDescription }
     }
@@ -238,7 +238,7 @@ private struct ColorLUTRequest:Identifiable { let id = UUID();let recipe:Recipe 
                 defer { if secured { url.stopAccessingSecurityScopedResource() } }
                 let values = try url.resourceValues(forKeys: [.fileSizeKey]); guard (values.fileSize ?? 0) <= 8_000_000 else { throw StudioError.unsupportedPreset }
                 let preset = try JSONDecoder().decode(PresetDocument.self,from: Data(contentsOf: url))
-                guard (1...5).contains(preset.schema) else { throw StudioError.unsupportedPreset }
+                guard (1...6).contains(preset.schema) else { throw StudioError.unsupportedPreset }
                 return preset
             }.value
             if !(await library.saveLook(name:preset.name,recipe:preset.recipe.validated())) { error = library.error }

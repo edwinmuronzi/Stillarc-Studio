@@ -671,29 +671,46 @@ final class GestureTests:XCTestCase {
         app.coordinate(withNormalizedOffset:CGVector(dx:0.9,dy:0.15)).tap()
         XCTAssertTrue(app.buttons["Recently Deleted"].exists)
     }
+    private func reveal(_ element:XCUIElement,in panel:XCUIElement) {
+        for _ in 0..<18 {
+            if element.exists && element.frame.midY>panel.frame.minY+18 && element.frame.midY<panel.frame.maxY-18 {return}
+            let upward = !element.exists || element.frame.midY>=panel.frame.maxY-18
+            let start=panel.coordinate(withNormalizedOffset:CGVector(dx:0.98,dy:upward ? 0.8:0.2))
+            start.press(forDuration:0.05,thenDragTo:start.withOffset(CGVector(dx:0,dy:upward ? -85:85)))
+        }
+    }
+    func testColourBatchLayersAndFlexiblePoints() throws {
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--demo-editor","--colour-stack-demo","--tool","Film"];app.launch()
+        let panel=app.scrollViews["editorAdjustments"]
+        let stack=app.buttons.matching(NSPredicate(format:"label BEGINSWITH %@","LUT stack")).firstMatch
+        XCTAssertTrue(panel.waitForExistence(timeout:30));reveal(stack,in:panel);stack.tap()
+        let clear=app.buttons["Turn off all LUTs"];reveal(clear,in:panel);clear.tap();app.buttons["Undo"].tap()
+        XCTAssertTrue(app.buttons["Turn off all LUTs"].waitForExistence(timeout:5))
+        app.buttons["Curves"].tap()
+        let addPoint=app.buttons["addCurvePoint"];reveal(addPoint,in:panel);addPoint.tap()
+        let output=app.sliders["Curve output"];reveal(output,in:panel);output.adjust(toNormalizedSliderPosition:0.7)
+        XCTAssertEqual(app.buttons["Curves"].value as? String,"Adjustments applied")
+        app.buttons["Undo"].tap();XCTAssertEqual(app.buttons["Curves"].value as? String,"No adjustments")
+        app.buttons["Redo"].tap();XCTAssertEqual(app.buttons["Curves"].value as? String,"Adjustments applied")
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Flexible RGB curves";shot.lifetime = .keepAlways;add(shot)
+    }
     func testCurvesScrollWithoutEditingAndExplicitEdit() throws {
-        let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
-        app.launchArguments = ["--demo-editor","--neutral-demo","--tool","Curves"];app.launch()
-        let graph = app.otherElements["rgbCurveGraph"].firstMatch,panel = app.scrollViews["editorAdjustments"]
-        XCTAssertTrue(graph.waitForExistence(timeout:30))
-        panel.swipeUp()
-        XCTAssertEqual(app.buttons["Curves"].value as? String,"No adjustments")
-        let before = graph.frame.minY
-        let begin = graph.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.75))
-        begin.press(forDuration:0.05,thenDragTo:begin.withOffset(CGVector(dx:0,dy:70)))
+        let app=XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")
+        app.launchArguments=["--demo-editor","--neutral-demo","--tool","Curves"];app.launch()
+        let graph=app.otherElements["flexibleCurveGraph"].firstMatch,panel=app.scrollViews["editorAdjustments"]
+        XCTAssertTrue(panel.waitForExistence(timeout:30));reveal(graph,in:panel)
+        let before=graph.frame.minY
+        let start=graph.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5))
+        start.press(forDuration:0.05,thenDragTo:start.withOffset(CGVector(dx:0,dy:-45)))
         XCTAssertEqual(app.buttons["Curves"].value as? String,"No adjustments")
         XCTAssertNotEqual(graph.frame.minY,before)
-        let edit = app.buttons["Edit curve points"]
-        if !edit.isHittable { panel.swipeDown() };edit.tap()
-        if graph.frame.midY > panel.frame.maxY-40 {
-            let gutter = panel.coordinate(withNormalizedOffset:CGVector(dx:0.97,dy:0.85))
-            gutter.press(forDuration:0.05,thenDragTo:gutter.withOffset(CGVector(dx:0,dy:-160)))
-        }
-        let middle = graph.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5))
+        let edit=app.buttons["editFlexibleCurve"];reveal(edit,in:panel);edit.tap();reveal(graph,in:panel)
+        let middle=graph.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5))
         middle.press(forDuration:0.05,thenDragTo:middle.withOffset(CGVector(dx:0,dy:-20)))
         XCTAssertEqual(app.buttons["Curves"].value as? String,"Adjustments applied")
         app.buttons["Undo"].tap();XCTAssertEqual(app.buttons["Curves"].value as? String,"No adjustments")
-        let shot = XCTAttachment(screenshot:app.screenshot());shot.name = "Scroll-safe curves and edit mode";shot.lifetime = .keepAlways;add(shot)
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="Scroll-safe flexible curves";shot.lifetime = .keepAlways;add(shot)
     }
     func testHomeKeyboardDismissAndFloatingPanel() throws {
         let app = XCUIApplication(bundleIdentifier:"com.edwinmuronzipersonalteam.StillarcStudio")

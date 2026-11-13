@@ -29,7 +29,7 @@ extension Recipe {
             case .wheels: result.colorWheels = source.colorWheels
             case .mixer: result.channelMixer = source.channelMixer
             case .look: result.look = source.look;result.lookAmount = source.lookAmount
-            case .lut: result.lut = source.lut;result.lutAmount = source.lutAmount
+            case .lut: result.lut = source.lut;result.lutAmount = source.lutAmount;result.lutLayers = source.lutLayers;result.lutEnabled = source.lutEnabled
             case .texture: result.grainModel = source.grainModel;for key in Tool.film.valueKeys { result[keyPath:key] = source[keyPath:key] }
             case .detail: for key in Tool.detail.valueKeys { result[keyPath:key] = source[keyPath:key] }
             }

@@ -104,3 +104,12 @@ enum LUTError: LocalizedError {
         }
     }
 }
+
+/// At most two extra layers after the original LUT; immutable cubes are shared by history.
+struct LUTLayer:Codable,Equatable,Identifiable,Sendable {
+    var id=UUID()
+    var asset:LUTAsset
+    var amount=1.0
+    var enabled=true
+    func validated()->Self {var r=self;r.amount=amount.isFinite ? min(1,max(0,amount)):1;return r}
+}

@@ -14,8 +14,12 @@ enum LogVerification {
         try require(abs(LogConversion.decode(420.0/1023,profile:.sonySLog3Cine)-0.18)<0.000001,"Sony middle-gray reference")
         try require(abs(LogConversion.encode(0,profile:.sonySLog3Cine)-95.0/1023)<0.000001,"Sony black reference")
         try require(abs(LogConversion.decode(0.125,profile:.panasonicVLog))<0.000001 && abs(LogConversion.encode(0.18,profile:.panasonicVLog)-0.4233114488)<0.000001,"Panasonic published reference")
+        for (profile,black,gray,white) in [(CameraLogProfile.fujiFLog2,95.0,400.0,570.0),(.djiDLog,95.0,408.0,586.0),(.canonLog3,128.0,351.0,577.0)] {
+            for (linear,code) in [(0.0,black),(0.18,gray),(0.9,white)] {try require(abs(LogConversion.encode(linear,profile:profile)*1023-code)<1.1,"Published 10-bit reference \(profile) \(linear)")}
+        }
+        try require(abs(LogConversion.decode(452.0/1023,profile:.nikonNLog)-exp((452.0-619)/150))<0.000001,"Nikon branch reference")
         var vectors = 0
-        for profile in [CameraLogProfile.appleLog,.appleLog2,.sonySLog3Cine,.panasonicVLog] {
+        for profile in CameraLogProfile.allCases where profile != .standard {
             for linear in [-0.04,0,0.001,0.01,0.18,1,4,12] {
                 let code = LogConversion.encode(linear,profile:profile)
                 try require(abs(LogConversion.decode(code,profile:profile)-linear)<0.000001,"Inverse transfer roundtrip failed")

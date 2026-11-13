@@ -34,7 +34,7 @@ enum VideoAnimationVerification {
         defer {try? FileManager.default.removeItem(at:movie.deletingLastPathComponent())}
         let descriptor=try await VideoEngine.describe(movie)
         var video=Recipe();video.video.start=0.2;video.video.end=1.4;video.rotation=1;video.look = .daylight;video.lookAmount=0.8
-        video.lut=try LUTVerification.example(dimension:33);video.lutAmount=0.25
+        video.lut=try LUTVerification.example(dimension:33);video.lutAmount=0.25;video.lutLayers=[LUTLayer(asset:try LUTVerification.example(),amount:0.2)];video.rgbCurves.red.nodes=[CurveNode(x:0,y:0),CurveNode(x:0.2,y:0.25),CurveNode(x:1,y:1)]
         var mask=LocalMask(kind:.radial);mask.exposure=0.4
         mask.motion=MaskMotion(framing:MaskMotion.signature(video),start:0,end:2,points:[.init(time:0,x:0,y:0),.init(time:2,x:0.1,y:0)])
         mask.motion?.setCorrection(time:0,x:0,y:0,tolerance:0.001);mask.motion?.setCorrection(time:1.3,x:0.1,y:-0.1,tolerance:0.001)
@@ -69,7 +69,7 @@ enum VideoAnimationVerification {
         let blob=try JSONEncoder().encode(loaded);let same=try JSONDecoder().decode(Project.self,from:blob);try check(same.recipe.videoAnimation==video.videoAnimation,"Queue snapshot serialization")
         VerificationProgress.record("Animation backup start")
         let package=try await vault.writeArchive([project.id]);defer {try? FileManager.default.removeItem(at:package.deletingLastPathComponent())}
-        let manifest=try ProjectArchive.inspect(package);try check(manifest.minimumReader==41,"Backup reader version")
+        let manifest=try ProjectArchive.inspect(package);try check(manifest.minimumReader==45,"Backup reader version")
         let restored=try await vault.restoreArchive(package);try check(restored[0].recipe.masks==video.masks && restored[0].recipe.videoAnimation==video.videoAnimation,"Animated backup")
         VerificationProgress.record("Animated queue start")
         let queue=await MainActor.run {StudioExportQueue(vault:vault,root:folder.appendingPathComponent("delivery-queue"))}

@@ -36,7 +36,7 @@ struct VideoAnimationSheet:View {
                         Menu {ForEach(targets) {item in Button(title(item)){target=item;selectedPoint=nil;draft=item.neutral}}} label:{Label(title(target),systemImage:"diamond")}.accessibilityIdentifier("animationTarget")
                         Text("Pause or scrub to a moment. Drag the value to add or update a point live, or tap Set point to capture the shown value. Two or more points blend the change over time. Exposure shifts add to your main exposure; fades multiply the existing effect strength.").font(.caption).foregroundStyle(StudioStyle.secondary)
                         if target == .look && session.recipe.look == .original {Text("Choose a look in Film first to see a look fade.").font(.caption).foregroundStyle(StudioStyle.secondary)}
-                        if target == .lut && session.recipe.lut == nil {Text("Import a LUT first to see a LUT fade.").font(.caption).foregroundStyle(StudioStyle.secondary)}
+                        if target == .lut && session.recipe.lut == nil && (session.recipe.lutLayers ?? []).isEmpty {Text("Import a LUT first to see a LUT fade.").font(.caption).foregroundStyle(StudioStyle.secondary)}
                         HStack {
                             Text(String(format:"%.2f s",time-range.lowerBound)).monospacedDigit()
                             Spacer()

@@ -1,0 +1,31 @@
+{
+  "passed" : true,
+  "version" : "0.41.0",
+  "color" : {
+    "excludedEffects" : true,
+    "activeLUTBaked" : true,
+    "cubeRedFastestAndGamma" : true,
+    "roundTrip" : true,
+    "logReferences" : {
+      "passed" : true,
+      "persistence" : true,
+      "curveVectors" : 64,
+      "presetInputIsolation" : true,
+      "bothGamuts" : true,
+      "standardBypass" : true,
+      "highlightShoulder" : true,
+      "exposureAlpha" : true
+    },
+    "immutableRecipe" : true,
+    "renameDuplicatePersistence" : true,
+    "identity33And65" : true,
+    "passed" : true,
+    "colorMatchMaxError" : 0.0014548003673553467
+  },
+  "video" : {
+    "passed" : true,
+    "profiles" : 6,
+    "previewExportMatch" : true,
+    "audioTimingSize" : true
+  }
+}

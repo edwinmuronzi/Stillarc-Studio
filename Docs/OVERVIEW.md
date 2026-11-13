@@ -1,5 +1,10 @@
 # Stillarc Studio · 0.40
 
+## Colour batch · 0.41
+
+Convert Canon Log 3 (Rec.2020), Nikon N-Log, Fujifilm F-Log2 and DJI X9 D-Log using explicit gamma/gamut choices. Combine up to three creative LUTs with individual strengths, bypass and ordering. Shape Master/RGB curves with up to twelve movable points per channel; scroll safely with editing locked. These edits save, sync, undo and export together. [Usage, exact profile pairings and technical sources](COLOUR-041.md).
+
+
 A local, reversible photo and single-clip video editor for iPhone and iPad. Black-and-blue controls keep the image central.
 
 Develop light and color with Levels, RGB curves, selective color, wheels and channel mixing. Convert supported Log sources before grading; import creative LUTs or save reusable Studio presets. Make targeted changes with gradients, brushes, color/brightness ranges and on-demand subject/sky selections. Position tracking follows a region through a short clip.

@@ -115,6 +115,7 @@ import UniformTypeIdentifiers
                 if let ref=try? await library.vault.importReference(url,project:session.project) {session.change {$0=Recipe();$0.reference=ref;$0.exposure = -0.6}}
             }
             if arguments.contains("--neutral-demo") { session.change { $0 = Recipe() } }
+            if arguments.contains("--colour-stack-demo") {let a=try? LUTVerification.example();session.change {$0=Recipe();$0.lut=a;if let a {$0.lutLayers=[LUTLayer(asset:a,amount:0.5),LUTLayer(asset:a,amount:0.2)]}}}
             if arguments.contains("--brush-demo") {maskNavigating=false; var layer = LocalMask(kind:.brush);var drawing = BrushDrawing();let id = drawing.begin(point:BrushPoint(x:0.3,y:0.3),radius:0.08,feather:0.6,erase:false)!;drawing.append(BrushPoint(x:0.7,y:0.6),stroke:id);layer.brush = drawing;layer.exposure = 0.5;session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks }
             if arguments.contains("--mask-demo") { var layer = LocalMask(kind:.radial);layer.exposure = 0.5;session.change { $0.masks = [layer] };selectedMaskID = layer.id;tool = .masks }
             if arguments.contains("--crop-mask-demo"),let prepared = session.source {
@@ -604,11 +605,12 @@ import UniformTypeIdentifiers
                         HStack {
                             Label(lut.name.isEmpty ? "Imported LUT" : lut.name,systemImage:"cube.transparent").font(.caption.weight(.medium)).lineLimit(2)
                             Spacer()
-                            Button("Remove") { session.change { $0.lut = nil; $0.lutAmount = 1 } }.font(.caption).padding(.vertical,8)
+                            Button("Remove") { session.change { $0.lut = nil; $0.lutEnabled=nil; $0.lutAmount = 1 } }.font(.caption).padding(.vertical,8)
                         }
                         adjustment("LUT strength",key: \.lutAmount,range:0...1,defaultValue:1)
                         Text("A LUT remaps colors for a consistent finish. Strength blends it with your edit; zero turns it off.").font(.caption).foregroundStyle(StudioStyle.secondary)
                     }
+                    LUTStackControls(session:session)
                     Button { presets = true } label: { Label("Import LUT or save a look",systemImage:"cube.transparent").font(.caption).padding(.vertical,8) }
                     adjustment("Grain",key: \.grain,range: 0...1)
                     if session.recipe.grain>0 {
@@ -956,29 +958,7 @@ import UniformTypeIdentifiers
             Picker("Curve channel",selection:$curveChannel) {
                 ForEach(CurveChannel.allCases) { channel in Text(channel.rawValue + (session.recipe.rgbCurves[keyPath:channel.key].isNeutral ? "" : " •")).tag(channel) }
             }.pickerStyle(.segmented)
-            HStack {
-                Menu {
-                    ForEach(CurvePoint.allCases) { point in Button(point.title) { curvePoint = point } }
-                    Divider()
-                    Button("Reset point") { session.change { $0[keyPath:curveChannel.recipeKey(curvePoint)] = curvePoint.input } }
-                    Button("Reset \(curveChannel.rawValue.lowercased()) curve") { session.change { $0.rgbCurves[keyPath:curveChannel.key] = ToneCurve() } }
-                } label: { HStack(spacing:5) { Text(curvePoint.title); Image(systemName:"chevron.down").font(.system(size:9)) }.font(.caption) }
-                Spacer()
-                Button {
-                    let key = curveChannel.recipeKey(curvePoint)
-                    numericEdit = NumericEdit(name:curvePoint.title,key:key,range:0...1,unit:"")
-                    numericText = String(format:"%.2f",session.recipe[keyPath:key]*100)
-                } label: { Text(String(format:"%.1f%%",session.recipe[keyPath:curveChannel.recipeKey(curvePoint)]*100)).font(.caption.monospacedDigit()).foregroundStyle(curveChannel.color).padding(.vertical,5) }.accessibilityLabel("Set exact curve output")
-            }
-            HStack {
-                Button { curveEditing.toggle() } label: { Label(curveEditing ? "Done editing points" : "Edit curve points",systemImage:curveEditing ? "checkmark" : "lock.open").font(.caption) }.buttonStyle(.bordered)
-                Spacer()
-                Text(curveEditing ? "Swipe the right edge to scroll" : "Swipe the graph to scroll").font(.caption2).foregroundStyle(StudioStyle.secondary)
-            }
-            HStack(spacing:8) {
-                RGBCurveGraph(session:session,channel:curveChannel,editable:curveEditing,selected:$curvePoint).frame(height:140)
-                Image(systemName:"arrow.up.arrow.down").font(.caption).foregroundStyle(StudioStyle.secondary).frame(width:24,height:140).contentShape(Rectangle()).accessibilityLabel("Scroll adjustments")
-            }
+            FlexibleCurveControls(session:session,channel:curveChannel)
             Text(curveChannel.help).font(.caption).foregroundStyle(StudioStyle.secondary).lineSpacing(2)
             DisclosureGroup("Additional tone shaping") {
                 VStack(spacing:18) {

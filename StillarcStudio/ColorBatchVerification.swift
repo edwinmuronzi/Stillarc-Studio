@@ -24,6 +24,22 @@ enum ColorBatchVerification {
             }
         }
         var recipe = Recipe();recipe.exposure = 0.25;recipe.contrast = 0.1;recipe.saturation = -0.1;recipe.look = .bluehour;recipe.levelGamma = 1.08;recipe.rgbCurves.red.middle = 0.53;recipe.lut = try LUTVerification.example();recipe.lutAmount = 0.65
+        recipe.lutLayers=[LUTLayer(asset:try LUTVerification.example(),amount:0.2),LUTLayer(asset:try LUTVerification.example(),amount:0.3,enabled:false)]
+        recipe.rgbCurves.master.nodes=[CurveNode(x:0,y:0.02),CurveNode(x:0.12,y:0.08),CurveNode(x:0.6,y:0.66),CurveNode(x:1,y:0.98)]
+        let persisted=try JSONDecoder().decode(Recipe.self,from:JSONEncoder().encode(recipe))
+        try check(persisted==recipe && PresetDocument(name:"Stack",recipe:recipe.colorPreset).schema==6,"Stack/flexible curve persistence and schema")
+        let pasted=Recipe().pasting(recipe,sections:[.lut,.curves])
+        try check(pasted.lutLayers==recipe.lutLayers && pasted.rgbCurves==recipe.rgbCurves,"Clipboard lost colour batch")
+        var reset=recipe;reset.reset(.film);try check(reset.lutLayers==nil && reset.lut==nil,"Reset left stacked LUTs")
+        for c in [recipe.rgbCurves.master,ToneCurve()] {let spline=CurveSpline(c);for point in c.points {try check(abs(spline.value(at:point.x)-point.y)<1e-10,"Spline missed point")};for n in 0...1000 {let v=spline.value(at:Double(n)/1000);try check(v.isFinite && v>=0 && v<=1,"Curve overshoot")}}
+        var linear=ToneCurve();linear.nodes=[CurveNode(x:0,y:0.1),CurveNode(x:1,y:0.9)];try check(abs(CurveSpline(linear).value(at:0.25)-0.3)<1e-10,"Two-point curve")
+        let source=CIImage(color:CIColor(red:0.3,green:0.45,blue:0.6,alpha:1,colorSpace:ImageEngine.output)!).cropped(to:CGRect(x:0,y:0,width:4,height:4))
+        var stack=Recipe();stack.lut=try LUTVerification.example();stack.lutAmount=0.6;stack.lutLayers=recipe.lutLayers
+        var expected=stack.lut!.apply(source,amount:0.6)
+        for layer in stack.lutLayers! where layer.enabled {expected=layer.asset.apply(expected,amount:layer.amount)}
+        try check(zip(pixel(expected),pixel(ImageEngine.apply(source,recipe:stack))).allSatisfy {abs($0-$1)<0.001},"Stack order/bypass")
+        stack.lutLayers?[0].enabled=false;stack.lutAmount=1;stack.lutEnabled=false
+        try check(zip(pixel(source),pixel(ImageEngine.apply(source,recipe:stack))).allSatisfy {abs($0-$1)<0.001},"Disabled stack was not identity")
         let asset = try ColorLUTExport.make(recipe:recipe,dimension:33,name:"QA color")
         var maxError:Float = 0
         for rgb in [[0.3,0.5,0.6],[0.12,0.18,0.24],[0.7,0.6,0.5]] {
@@ -53,7 +69,7 @@ enum ColorBatchVerification {
     }
     static func video() async throws -> [String:Any] {
         var count = 0
-        for profile in [CameraLogProfile.sonySLog3Cine,.panasonicVLog] {
+        for profile in [CameraLogProfile.sonySLog3Cine,.panasonicVLog,.canonLog3,.nikonNLog,.fujiFLog2,.djiDLog] {
             let source = try await VideoFixtures.make(profile:profile,frames:6,audioTracks:1,width:128,height:72)
             defer { try? FileManager.default.removeItem(at:source.deletingLastPathComponent()) }
             let descriptor = try await VideoEngine.describe(source)
@@ -80,14 +96,14 @@ enum ColorBatchVerification {
         let url = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("color-batch-verification.json")
         do {
             let report = try await Task.detached(priority:.utility) { () -> [String:Any] in
-                var result:[String:Any] = ["version":"0.27.0","passed":true,"color":try await run()]
+                var result:[String:Any] = ["version":"0.41.0","passed":true,"color":try await run()]
                 #if !targetEnvironment(simulator)
                 result["video"] = try await video()
                 #endif
                 return result
             }.value
             try JSONSerialization.data(withJSONObject:report,options:.prettyPrinted).write(to:url,options:.atomic)
-        } catch { try? JSONSerialization.data(withJSONObject:["version":"0.27.0","passed":false,"error":error.localizedDescription],options:.prettyPrinted).write(to:url,options:.atomic) }
+        } catch { try? JSONSerialization.data(withJSONObject:["version":"0.41.0","passed":false,"error":error.localizedDescription],options:.prettyPrinted).write(to:url,options:.atomic) }
     }
 }
 #endif

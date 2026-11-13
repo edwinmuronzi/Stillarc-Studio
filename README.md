@@ -1,5 +1,10 @@
 # Stillarc Studio
 
+## Colour batch · 0.41
+
+Convert Canon Log 3 (Rec.2020), Nikon N-Log, Fujifilm F-Log2 and DJI X9 D-Log using explicit gamma/gamut choices. Combine up to three creative LUTs with individual strengths, bypass and ordering. Shape Master/RGB curves with up to twelve movable points per channel; scroll safely with editing locked. These edits save, sync, undo and export together. [Usage, exact profile pairings and technical sources](Docs/COLOUR-041.md).
+
+
 <img src="StillarcStudio/Assets.xcassets/AppIcon.appiconset/AppIcon.png" width="90" alt="Stillarc Studio light app icon"> <img src="StillarcStudio/Assets.xcassets/AppIcon.appiconset/AppIcon-Dark.png" width="90" alt="Stillarc Studio dark app icon">
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.

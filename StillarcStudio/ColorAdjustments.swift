@@ -1,17 +1,23 @@
 import Foundation
 
-// Five evenly spaced control points, with shape-preserving interpolation.
+struct CurveNode:Codable,Equatable,Hashable,Sendable {
+    var x:Double
+    var y:Double
+}
+// Legacy five-point curves preserve their existing shape; flexible curves use nonuniform PCHIP.
 struct ToneCurve: Codable, Equatable, Hashable, Sendable {
+    var nodes:[CurveNode]?
     var black = 0.0
     var shadows = 0.25
     var middle = 0.5
     var highlights = 0.75
     var white = 1.0
     init() {}
-    private enum CodingKeys: String, CodingKey { case black, shadows, middle, highlights, white }
+    private enum CodingKeys: String, CodingKey { case nodes, black, shadows, middle, highlights, white }
     init(from decoder: Decoder) throws {
         self.init()
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        nodes = try c.decodeIfPresent([CurveNode].self,forKey:.nodes)
         black = try c.decodeIfPresent(Double.self,forKey:.black) ?? black
         shadows = try c.decodeIfPresent(Double.self,forKey:.shadows) ?? shadows
         middle = try c.decodeIfPresent(Double.self,forKey:.middle) ?? middle
@@ -20,12 +26,23 @@ struct ToneCurve: Codable, Equatable, Hashable, Sendable {
         self = validated()
     }
     var values: [Double] { [black,shadows,middle,highlights,white] }
-    var isNeutral: Bool { zip(values,ToneCurve().values).allSatisfy { abs($0.0-$0.1) < 0.000001 } }
+    var points:[CurveNode] { nodes ?? values.enumerated().map {CurveNode(x:Double($0.offset)/4,y:$0.element)} }
+    var isNeutral: Bool { points.allSatisfy {abs($0.x-$0.y)<0.000001} }
     func validated() -> ToneCurve {
         var result = self
         for point in CurvePoint.allCases {
             let value = result[keyPath:point.key]
             result[keyPath:point.key] = value.isFinite ? min(1,max(0,value)) : ToneCurve()[keyPath:point.key]
+        }
+        if let nodes {
+            let sorted=nodes.filter {$0.x.isFinite && $0.y.isFinite}.sorted {$0.x<$1.x}
+            var safe=[CurveNode]()
+            for point in sorted.prefix(12) {
+                let p=CurveNode(x:min(1,max(0,point.x)),y:min(1,max(0,point.y)))
+                if let last=safe.last, p.x-last.x < 0.005 {continue}
+                safe.append(p)
+            }
+            if safe.count>=2 {safe[0].x=0;safe[safe.count-1].x=1;result.nodes=safe} else {result.nodes=nil}
         }
         return result
     }
@@ -138,24 +155,33 @@ enum ColorRange: Int, CaseIterable, Identifiable {
     func recipeKey(_ component: WritableKeyPath<ColorRangeAdjustment,Double>) -> WritableKeyPath<Recipe,Double> { (\Recipe.selectiveColors).appending(path:key).appending(path:component) }
 }
 
-// Uniform-grid PCHIP: local extrema stay bounded instead of ringing past control points.
+// Shape-preserving interpolation on an arbitrary, strictly increasing input grid.
 struct CurveSpline {
-    let values: [Double]
-    let slopes: [Double]
-    init(_ curve: ToneCurve) {
-        let points = curve.values
-        values = points
-        let d = (0..<4).map { (points[$0+1]-points[$0])*4 }
-        func end(_ first: Double,_ second: Double) -> Double {
-            let slope = (3*first-second)/2
-            if slope*first <= 0 { return 0 }
-            return first*second < 0 && abs(slope) > abs(3*first) ? 3*first : slope
+    let values:[Double]
+    let inputs:[Double]
+    let slopes:[Double]
+    init(_ curve:ToneCurve) {
+        let p=curve.validated().points
+        inputs=p.map(\.x);values=p.map(\.y)
+        let h=(0..<p.count-1).map {p[$0+1].x-p[$0].x}
+        let d=(0..<p.count-1).map {(p[$0+1].y-p[$0].y)/h[$0]}
+        if p.count==2 {slopes=[d[0],d[0]];return}
+        func end(_ a:Double,_ b:Double,_ ha:Double,_ hb:Double)->Double {
+            let slope=((2*ha+hb)*a-ha*b)/(ha+hb)
+            if slope*a<=0 {return 0}
+            return a*b<0 && abs(slope)>abs(3*a) ? 3*a:slope
         }
-        slopes = [end(d[0],d[1])] + (1...3).map { i in d[i-1]*d[i] <= 0 ? 0 : 2*d[i-1]*d[i]/(d[i-1]+d[i]) } + [end(d[3],d[2])]
+        var m=[end(d[0],d[1],h[0],h[1])]
+        for i in 1..<p.count-1 {
+            let w1=2*h[i]+h[i-1],w2=h[i]+2*h[i-1]
+            m.append(d[i-1]*d[i]<=0 ? 0:(w1+w2)/(w1/d[i-1]+w2/d[i]))
+        }
+        m.append(end(d[d.count-1],d[d.count-2],h[h.count-1],h[h.count-2]));slopes=m
     }
-    func value(at input: Double) -> Double {
-        let x = min(1,max(0,input))*4, index = min(3,Int(x)), t = x-Double(index)
-        let t2 = t*t, t3 = t2*t
-        return (2*t3-3*t2+1)*values[index] + (t3-2*t2+t)*slopes[index]/4 + (-2*t3+3*t2)*values[index+1] + (t3-t2)*slopes[index+1]/4
+    func value(at input:Double)->Double {
+        let x=min(1,max(0,input.isFinite ? input:0))
+        let i=min(inputs.count-2,max(0,(inputs.firstIndex(where:{$0>x}) ?? inputs.count)-1))
+        let h=inputs[i+1]-inputs[i],t=(x-inputs[i])/h,t2=t*t,t3=t2*t
+        return (2*t3-3*t2+1)*values[i]+(t3-2*t2+t)*slopes[i]*h+(-2*t3+3*t2)*values[i+1]+(t3-t2)*slopes[i+1]*h
     }
 }

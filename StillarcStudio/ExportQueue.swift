@@ -19,13 +19,13 @@ struct QueueJob:Identifiable,Codable,Sendable {
 actor ExportQueueStore {
     let root:URL
     init(root:URL){self.root=root}
-    private struct Record:Codable {var schema=3;var jobs:[QueueJob]}
+    private struct Record:Codable {var schema=4;var jobs:[QueueJob]}
     func load() throws ->[QueueJob] {
         let index=root.appendingPathComponent("queue.json")
         guard FileManager.default.fileExists(atPath:index.path) else{return []}
         guard (try index.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0)<=67_108_864 else {throw ProjectArchive.fail("The saved queue is too large to open.")}
         let record=try JSONDecoder().decode(Record.self,from:Data(contentsOf:index))
-        guard (1...3).contains(record.schema),record.jobs.count<=10,Set(record.jobs.map(\.id)).count==record.jobs.count,record.jobs.allSatisfy({!$0.projects.isEmpty && $0.projects.count<=20 && $0.files.allSatisfy(ProjectArchive.flat)}) else {throw ProjectArchive.fail("The saved queue format is unsupported. Its files have been kept.")}
+        guard (1...4).contains(record.schema),record.jobs.count<=10,Set(record.jobs.map(\.id)).count==record.jobs.count,record.jobs.allSatisfy({!$0.projects.isEmpty && $0.projects.count<=20 && $0.files.allSatisfy(ProjectArchive.flat)}) else {throw ProjectArchive.fail("The saved queue format is unsupported. Its files have been kept.")}
         return record.jobs.map {job in var j=job;if j.state == .running {j.state = .waiting};if j.state == .completed && !j.files.allSatisfy({FileManager.default.fileExists(atPath:output(j.id,$0).path)}) {j.state = .failed;j.files=[];j.failures=["An export file is missing. Retry from the saved source edits."]};return j}
     }
     func save(_ jobs:[QueueJob]) throws {

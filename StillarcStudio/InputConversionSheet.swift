@@ -11,7 +11,7 @@ struct InputConversionSheet:View {
                         ForEach(CameraLogProfile.allCases) { Text($0.title).tag($0) }
                     }.disabled(session.project.isRAW).accessibilityIdentifier("inputProfilePicker")
                     if let detected = session.project.video?.detectedLog { Text("File metadata identifies \(detected.shortTitle). You can override it if the clip was already converted.").font(.caption).foregroundStyle(.secondary) }
-                } footer: { Text(session.project.isRAW ? "RAW photos are already developed to linear color. No Log conversion is needed." : "Choose the profile used to record this file. Log conversion restores normal contrast and color before your edits and creative LUT. Sony and Panasonic profiles are manual choices: match the exact recorded gamut. Leave already-converted media on Standard.") }
+                } footer: { Text(session.project.isRAW ? "RAW photos are already developed to linear color. No Log conversion is needed." : "Choose the profile used to record this file. Log conversion restores normal contrast and color before your edits and creative LUT. Match the exact recorded gamma and gamut. Canon here requires Rec.2020; DJI here is X9 D-Log at native EI, not D-Log M or D-Log 2. Fujifilm is F-Log2, not F-Log2 C. These profiles are manual choices. Leave already-converted media on Standard.") }
                 if session.project.isVideo {
                     Section {
                         Toggle("HDR preview & export",isOn:Binding(get:{ session.recipe.video.hdr },set:{ value in session.change { $0.video.hdr = value } }))
