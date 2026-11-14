@@ -1,0 +1,28 @@
+{
+  "richerLocalControls" : true,
+  "hdrProofAndBackground" : true,
+  "presetIsolation" : true,
+  "missingAssetGuard" : true,
+  "healClone" : true,
+  "imageReplacementPersistenceAndExport" : true,
+  "poolAllAndSelected" : true,
+  "raw" : {
+    "previewExportMeanError" : 0.0017940137573854524,
+    "passed" : true,
+    "highlightRecoverySupported" : true,
+    "lensSupported" : false,
+    "width" : 3024,
+    "height" : 4032
+  },
+  "thermal" : 0,
+  "passed" : true,
+  "version" : "0.53.0",
+  "heif" : {
+    "width" : 64,
+    "passed" : true,
+    "headroom" : 3.0244159698486328,
+    "properties" : "[\"ColorModel\": RGB, \"PixelWidth\": 64, \"PrimaryImage\": 1, \"PixelHeight\": 48, \"{TIFF}\": {\n    Orientation = 1;\n    TileLength = 48;\n    TileWidth = 64;\n}, \"ProfileName\": Rec. ITU-R BT.2100 HLG, \"Headroom\": 4.926108, \"Orientation\": 1, \"{Exif}\": {\n    PixelXDimension = 64;\n    PixelYDimension = 48;\n}, \"Depth\": 10]",
+    "height" : 48
+  },
+  "solidReplacement" : true
+}

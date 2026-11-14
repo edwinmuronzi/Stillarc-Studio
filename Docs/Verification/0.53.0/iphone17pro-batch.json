@@ -1,0 +1,28 @@
+{
+  "thermal" : 0,
+  "version" : "0.53.0",
+  "subjects" : {
+    "passed" : true,
+    "singleExcludesOther" : true,
+    "twoObjectsSelected" : true,
+    "scope" : "Two instances of a public Smithsonian camera photograph, not a general detection accuracy benchmark"
+  },
+  "passed" : true,
+  "integration" : {
+    "invalidWorkflowRejected" : true,
+    "workflowPersistence" : true,
+    "sourcePreserved" : true,
+    "sourceSuggestion" : true,
+    "comparisonCache" : true,
+    "backup" : true,
+    "passed" : true,
+    "healedCenter" : [
+      0.40004301071166992,
+      0.40004301071166992,
+      0.40004301071166992,
+      1
+    ],
+    "cleanupPNG" : true,
+    "transparencyPreserved" : true
+  }
+}
