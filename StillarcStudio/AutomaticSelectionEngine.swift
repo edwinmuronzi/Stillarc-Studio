@@ -5,14 +5,15 @@ import Vision
 
 /// Request-only inference: models and working images live on the background worker, not in playback.
 enum SubjectSelectionMode:String,Codable,CaseIterable,Identifiable,Sendable {
-    case foreground="All subjects",picked="Tap a subject",people="People · fine edges",faces="Faces",skin="Facial skin"
+    case foreground="All subjects",picked="Tap a subject",multiple="Tap multiple subjects",people="People · fine edges",faces="Faces",skin="Facial skin"
     var id:String {rawValue}
     var help:String {switch self {
     case .foreground:"Selects foreground objects and people. Choose Tap a subject to isolate one."
     case .picked:"Tap inside the one object or person you want, then create the mask. Refine its guide afterward."
+    case .multiple:"Tap up to eight foreground subjects, then create one combined selection. Tap a marker again to remove it."
     case .people:"Uses refined person matting for hair and clothing edges. Selects all visible people. Check low-contrast and transparent details."
-    case .faces:"Creates soft selections around detected face shapes. This is a face-guided starting point; review and refine the guide."
-    case .skin:"Starts from detected face ovals and excludes eyes, eyebrows and lips where landmarks are found. It is not pixel-perfect skin recognition; refine the guide before strong retouching."
+    case .faces:"Uses detected face contours where available, with a soft edge. Review the forehead and jawline; this is a face-guided starting point."
+    case .skin:"Refines each face contour using sampled cheek/forehead colours and excludes detected eyes, brows and lips. This is an adaptive guide, not perfect skin recognition; review facial hair, makeup and unusual lighting."
     }}
 }
 enum AutomaticSelectionEngine {
@@ -70,7 +71,7 @@ enum AutomaticSelectionEngine {
         let value=Int(base.assumingMemoryBound(to:UInt8.self)[y*CVPixelBufferGetBytesPerRow(buffer)+x])
         return value==0 ? nil:value
     }
-    static func analyze(_ image:CGImage,kind:LocalMaskKind,recipe:Recipe,videoStart:Double?,subjectMode:SubjectSelectionMode = .foreground,point:CGPoint? = nil) async throws -> AutomaticMask {
+    static func analyze(_ image:CGImage,kind:LocalMaskKind,recipe:Recipe,videoStart:Double?,subjectMode:SubjectSelectionMode = .foreground,point:CGPoint? = nil,points:[CGPoint]=[]) async throws -> AutomaticMask {
         try Task.checkCancellation()
         guard ProcessInfo.processInfo.thermalState.rawValue<ProcessInfo.ThermalState.serious.rawValue else { throw error("Let the phone cool before analyzing. Your existing masks are unchanged.") }
         #if DEBUG
@@ -96,6 +97,11 @@ enum AutomaticSelectionEngine {
             if subjectMode == .picked {
                 guard let point,let index=try instance(at:point,buffer:observation.instanceMask),observation.allInstances.contains(index) else {throw error("Tap inside the subject, away from its edge, then create the mask again. The previous selection is unchanged.")}
                 instances=IndexSet(integer:index)
+            } else if subjectMode == .multiple {
+                guard !points.isEmpty,points.count<=8 else {throw error("Tap one to eight subjects before creating the selection.")}
+                var selected=IndexSet()
+                for point in points {guard let id=try instance(at:point,buffer:observation.instanceMask),observation.allInstances.contains(id) else {throw error("One of the taps is outside a detected foreground subject. Move that marker inside the object and try again.")};selected.insert(id)}
+                instances=selected
             } else {instances=observation.allInstances}
             let buffer = try observation.generateScaledMaskForImage(forInstances:instances,from:handler)
             mask = CIImage(cvPixelBuffer:buffer,options:[.colorSpace:NSNull()])

@@ -1,5 +1,13 @@
 # Stillarc Studio
 
+## Photo cleanup. Better selections. Faster batches. · 0.53
+
+Brush Heal to blend distractions with nearby texture, or Clone to copy a chosen patch. Zoom in, move the view and undo a whole stroke. Suggested sources are chosen once when you start a stroke; this is patch repair, not generative object removal. Up to 32 dabs are supported per photo.
+
+Tap multiple distinct subjects to keep them in one mask. Face selections follow detected contours; facial-skin selections adapt to sampled cheeks and forehead instead of one fixed skin colour. Review fine hair, overlapping subjects and unusual lighting.
+
+Save reusable **section workflows** when syncing edits: these remember which adjustment sections to copy, while the current edit supplies the values. Compare pool shots side by side with a shared zoom, or quickly select items with the same media type or input profile. Video comparisons show the first kept frame; HDR comparisons are SDR proofs. [How to use the new tools](Docs/CLEANUP-BATCH-053.md).
+
 ## Stable edges. Precise repairs. Consistent shots. · 0.52
 
 Rebuild video mattes with image-guided contour stabilization, brush Add/Subtract repairs at chosen moments, jump to review hints and reanalyse a short section. Match a pool’s creative look while protecting each shot’s exposure and white balance, with whole-pool Undo/Redo. [Workflows, limits and what to test](Docs/MATTE-REPAIR-052.md).
@@ -52,7 +60,7 @@ Convert Canon Log 3 (Rec.2020), Nikon N-Log, Fujifilm F-Log2 and DJI X9 D-Log us
 
 **Your light. Your color.** A native photo and single-clip video editor for iPhone and iPad, with a black-and-blue interface and reversible, local edits.
 
-This is the **0.52 matte repair and pool matching milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
+This is the **0.53 photo cleanup, selections and batch workflow milestone**. Development is ongoing. The long-term scope is in [the roadmap](Docs/ROADMAP.md), with [research and source links](Docs/RESEARCH.md). The separate camera companion is [Stillarc Camera](https://github.com/edwinmuronzi/Stillarc-Camera).
 
 <p><img src="Docs/Screenshots/Workspace.png" alt="Stillarc Studio workspace" width="280"> <img src="Docs/Screenshots/ColorWheels.png" alt="Stillarc Studio color wheels" width="280"> <img src="Docs/Screenshots/SkyMask.png" alt="Sky selection guide and edge refinement on the illustrative sample" width="280"></p>
 

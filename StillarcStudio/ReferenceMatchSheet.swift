@@ -8,6 +8,7 @@ import CoreImage
     var pool:EditingPool? = nil
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
+    @State private var poolComparison=false
     @State private var poolMatch=false
     @State private var picker:PhotosPickerItem?
     @State private var files=false
@@ -37,6 +38,7 @@ import CoreImage
                     Button("Files",systemImage:"folder"){files=true}
                     Menu("From projects",systemImage:"rectangle.stack") {ForEach(candidates) {p in Button(p.name){Task {await fromProject(p)}}}}.disabled(candidates.isEmpty)
                 }.buttonStyle(.bordered).font(.caption).disabled(busy)
+                if pool != nil {Button("Compare pool shots"){Task {session.end();if await session.persist(library) {poolComparison=true}}}.buttonStyle(.bordered).disabled(busy)}
                 if pool != nil {Button("Match pool to this edit",systemImage:"rectangle.stack"){Task {session.end();if await session.persist(library) {poolMatch=true}}}.buttonStyle(.bordered).disabled(busy)}
                 if session.recipe.reference != nil {
                     HStack {Toggle("Light",isOn:$light);Toggle("Color balance",isOn:$color);Toggle("Richness",isOn:$richness)}.font(.caption).toggleStyle(.button).buttonStyle(.bordered).disabled(busy)
@@ -56,6 +58,7 @@ import CoreImage
                 Text(session.project.isVideo ? "Video comparison uses the first kept frame. Play the clip in the editor to review the complete result. HDR is shown here as an SDR proof.":"HDR originals are compared as an SDR proof. Your export keeps its chosen HDR/SDR setting.").font(.caption2).foregroundStyle(StudioStyle.secondary)
             }.padding(16)}.frame(maxHeight:280).background(StudioStyle.panel)
         }.navigationTitle("Reference & Match").navigationBarTitleDisplayMode(.inline).toolbar {Button("Done"){dismiss()}.disabled(busy)}.interactiveDismissDisabled(busy)}.tint(StudioStyle.blue)
+        .sheet(isPresented:$poolComparison){if let pool {PoolCompareSheet(projects:pool.projects(library),reference:session.project,vault:library.vault)}}
         .sheet(isPresented:$poolMatch){if let pool {PoolLookMatchSheet(library:library,pool:pool,reference:session.project)}}
         .task {await loadCurrent()}
         .task(id:session.recipe.reference?.id) {await loadReference()}

@@ -11,6 +11,7 @@ import UniformTypeIdentifiers
     @Bindable var library: StudioLibrary
     var pool:EditingPool? = nil
     @State private var poolChanging=false
+    @State private var poolComparison=false
     @State private var poolLookMatch=false
     @State private var poolSync=false
     @State private var poolClipboard:AdjustmentClipboard?
@@ -207,7 +208,7 @@ import UniformTypeIdentifiers
         .sheet(isPresented:$referenceSheet) {ReferenceMatchSheet(session:session,library:library,pool:pool)}
         .sheet(isPresented:$photoDevelopment) {PhotoDevelopmentSheet(session:session,sdrProof:$sdrProof)}
         .sheet(isPresented:$backgroundSheet) {BackgroundSheet(session:session,library:library)}
-        .sheet(isPresented:$retouchSheet) {RetouchSheet(session:session)}
+        .sheet(isPresented:$retouchSheet) {RetouchSheet(session:session,undoAction:{undoEdit()},redoAction:{undoEdit(redo:true)})}
         .sheet(isPresented:$detailSheet) {DetailInspectionSheet(session:session)}
         .task(id:cropSettleKey) { await settleCropAndMasks() }
         .onChange(of:MaskMotion.signature(session.recipe)) { _,_ in cropAwaitingAdjustment = false;cropDisplayFinal = false;cropFocused = false }
@@ -219,6 +220,7 @@ import UniformTypeIdentifiers
         .onChange(of: session.recipe) { _, _ in if !diagnosticsRunning && pool?.historyBusy != true { session.scheduleSave(library) } }
         .onChange(of: phase) { _, phase in if phase != .active { curveEditing = false;session.end();if pool?.historyBusy != true {Task { await session.persist(library) }} } }
         .onDisappear {saveOnExit()}
+        .sheet(isPresented:$poolComparison) {if let pool {PoolCompareSheet(projects:pool.projects(library),reference:session.project,vault:library.vault)}}
         .sheet(isPresented:$poolLookMatch) {if let pool {PoolLookMatchSheet(library:library,pool:pool,reference:session.project)}}
         .sheet(isPresented:$poolSync) {if let pool,let clipboard=poolClipboard {BatchPasteSheet(library:library,projects:pool.projects(library),clipboard:clipboard,pool:pool)}}
         .sheet(isPresented: $export) { ExportSheet(session: session,library:library,pool:pool) }
@@ -436,7 +438,10 @@ import UniformTypeIdentifiers
                     Button("Select all pool items") {pool.state.selected=Set(pool.state.ids);pool.save()}
                     Button("Clear pool selection") {pool.state.selected=[];pool.save()}
                 }
-                Button("Sync edits",action:syncPool).disabled(session.busy).accessibilityIdentifier("syncPoolEdits").contextMenu {Button("Match pool to this edit"){startPoolMatch()}}
+                Button("Sync edits",action:syncPool).disabled(session.busy).accessibilityIdentifier("syncPoolEdits").contextMenu {Button("Match pool to this edit"){startPoolMatch()}
+                    Button("Compare pool shots"){Task {session.end();if await session.persist(library) {poolComparison=true}}}
+                    Button("Select same media type"){pool.state.selected=Set(pool.projects(library).filter {$0.isVideo==session.project.isVideo}.map(\.id));pool.selecting=true;pool.save()}
+                    Button("Select same input profile"){pool.state.selected=Set(pool.projects(library).filter {$0.recipe.input.profile==session.recipe.input.profile}.map(\.id));pool.selecting=true;pool.save()}}
                 Button {pool.collapsed.toggle()} label:{Image(systemName:pool.collapsed ? "chevron.down":"chevron.up").frame(width:24,height:30)}.accessibilityLabel(pool.collapsed ? "Show filmstrip":"Hide filmstrip")
             }.font(.caption).contentShape(Rectangle()).simultaneousGesture(DragGesture(minimumDistance:40).onEnded {v in if abs(v.translation.width)>abs(v.translation.height)*2 {browsePool(v.translation.width<0 ? 1:-1)}})
             if !pool.collapsed {
@@ -484,9 +489,9 @@ import UniformTypeIdentifiers
                 if let source = session.source {
                     Group {
                         if let video = session.project.video,let url = session.sourceURL {
-                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !poolLookMatch && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !backgroundSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil && peopleMatte == nil && matteReview == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,viewport:tool == .masks ? maskViewport:MaskViewport(),position:videoPosition)
+                            VideoPreview(url:url,descriptor:video,poster:source,recipe:previewRecipe,original:comparing,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !poolLookMatch && !poolComparison && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !backgroundSheet && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil && peopleMatte == nil && matteReview == nil,onTrim:{ trimSheet = true },scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview,hideTransport:isPaintingBrush || tool == .crop,automaticReferenceIDs:session.recipe.masks.compactMap { $0.automatic.map { $0.anchor?.id ?? $0.id } },rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,viewport:tool == .masks ? maskViewport:MaskViewport(),position:videoPosition)
                         } else {
-                            LivePreview(source:PhotoRendering.rawPreview(source,recipe:session.recipe),recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !poolLookMatch && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !export && !presets && !versionsSheet && !retouchSheet && !detailSheet && !backgroundSheet && !photoDevelopment && transferSheet == nil && trackingMask == nil && correctionMask == nil && automaticTarget == nil && peopleMatte == nil && matteReview == nil,hdr:session.recipe.photoHDR == true && !sdrProof,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview).modifier(MaskViewportModifier(viewport:tool == .masks ? maskViewport:MaskViewport()))
+                            LivePreview(source:PhotoRendering.rawPreview(source,recipe:session.recipe),recipe:previewRecipe,signalSource:source.signalImage,original:comparing,rangePreview:tool == .color && colorPanel == .selective && showRange ? selectedRange : nil,active:phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !poolLookMatch && !poolComparison && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !export && !presets && !versionsSheet && !retouchSheet && !detailSheet && !backgroundSheet && !photoDevelopment && transferSheet == nil && trackingMask == nil && correctionMask == nil && automaticTarget == nil && peopleMatte == nil && matteReview == nil,hdr:session.recipe.photoHDR == true && !sdrProof,scopes:scopesActive ? scopeSampler : nil,split:splitComparison ? splitPosition : nil,maskPreview:maskPreview).modifier(MaskViewportModifier(viewport:tool == .masks ? maskViewport:MaskViewport()))
                         }
                     }
                         .padding(tool == .crop ? (cropDisplayFinal ? 8 : 22) : 0)
@@ -560,7 +565,7 @@ import UniformTypeIdentifiers
             }.coordinateSpace(name:"comparisonPreview").frame(width: geometry.size.width,height: geometry.size.height).clipped().contentShape(Rectangle())
         }
     }
-    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !poolLookMatch && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil && peopleMatte == nil && matteReview == nil && !inputSheet }
+    private var scopesActive:Bool { scopesVisible && tool != .crop && phase == .active && !poolChanging && pool?.historyBusy != true && !poolSync && !poolLookMatch && !poolComparison && !animationSheet && !warpSheet && !referenceSheet && sampleTool == nil && !export && !presets && !versionsSheet && transferSheet == nil && !trimSheet && trackingMask == nil && correctionMask == nil && automaticTarget == nil && peopleMatte == nil && matteReview == nil && !inputSheet }
     @ViewBuilder private var scopePanel:some View {
         if scopesVisible && tool != .crop { ScopePanel(sampler:scopeSampler,mode:$scopeMode) }
     }
@@ -1050,6 +1055,7 @@ import UniformTypeIdentifiers
         let start = ProcessInfo.processInfo.thermalState.rawValue
         var peakThermal = start
         var thermalSamples:[[String:Any]] = []
+        let cleanupCheck=ProcessInfo.processInfo.arguments.contains("--cleanup-performance-check")
         let releaseCheck = ProcessInfo.processInfo.arguments.contains("--release-performance-check")
         let began = CACurrentMediaTime()
         session.recipe.lut = try? await Task.detached(priority:.userInitiated) { try LUTVerification.example(dimension:65) }.value
@@ -1077,7 +1083,17 @@ import UniformTypeIdentifiers
                 try? await Task.sleep(for:.milliseconds(300));PreviewMetrics.shared.times=[];PreviewMetrics.shared.failures=0
             } catch {writeProgress(["stage":"cutout setup failed","error":error.localizedDescription]);return}
         }
-        let steps = (cutoutCheck || matchCheck) ? 1800 : (releaseCheck ? 2700 : (ProcessInfo.processInfo.arguments.contains("--sustained-preview") ? 7200 : 180))
+        if cleanupCheck {
+            var dabs: [RetouchSpot] = []
+            for i in 0..<32 {
+                let column = Double(i % 8) * 0.1
+                let row = Double(i / 8) * 0.18
+                dabs.append(RetouchSpot(x: 0.15 + column, y: 0.2 + row,
+                    sourceX: 0.1 + column, sourceY: 0.15 + row, radius: 0.025, kind: .heal))
+            }
+            session.recipe.retouch = dabs
+        }
+        let steps = (cutoutCheck || matchCheck || cleanupCheck) ? 1800 : (releaseCheck ? 2700 : (ProcessInfo.processInfo.arguments.contains("--sustained-preview") ? 7200 : 180))
         var interrupted = false
         for index in 0..<steps {
             if Task.isCancelled || UIApplication.shared.applicationState != .active { interrupted = true; break }
@@ -1114,7 +1130,7 @@ import UniformTypeIdentifiers
             try? await Task.sleep(for:.seconds(1))
         }
         let times = PreviewMetrics.shared.times.sorted()
-        let report: [String: Any] = ["warpCheck":warpCheck,"matchCheck":matchCheck,"backgroundCheck":backgroundCheck,"cutoutCheck":cutoutCheck,"inferenceCalls":AutomaticSelectionEngine.analysisCount-inferenceStart,"cutoutActive":session.recipe.hasCutout,"releaseCheck":releaseCheck,"thermalPeak":peakThermal,"thermalSamples":thermalSamples,"idleCheckSeconds":(cutoutCheck || matchCheck) ? 15:(releaseCheck ? 30 : 3),"interrupted":interrupted,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","elapsedSeconds":CACurrentMediaTime()-began,"cancelled":Task.isCancelled,"requestedUpdates": steps,"rendered": count,"kernelBackend":ColorPipeline.backend,"p95Milliseconds": times.isEmpty ? 0 : times[Int(Double(times.count-1)*0.95)],"extraIdleFrames": times.count-count,"gpuFailures": PreviewMetrics.shared.failures,"thermalStart": start,"thermalEnd": ProcessInfo.processInfo.thermalState.rawValue]
+        let report: [String: Any] = ["cleanupDabs":cleanupCheck ? 32:0,"warpCheck":warpCheck,"matchCheck":matchCheck,"backgroundCheck":backgroundCheck,"cutoutCheck":cutoutCheck,"inferenceCalls":AutomaticSelectionEngine.analysisCount-inferenceStart,"cutoutActive":session.recipe.hasCutout,"releaseCheck":releaseCheck,"thermalPeak":peakThermal,"thermalSamples":thermalSamples,"idleCheckSeconds":(cutoutCheck || matchCheck) ? 15:(releaseCheck ? 30 : 3),"interrupted":interrupted,"version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown","elapsedSeconds":CACurrentMediaTime()-began,"cancelled":Task.isCancelled,"requestedUpdates": steps,"rendered": count,"kernelBackend":ColorPipeline.backend,"p95Milliseconds": times.isEmpty ? 0 : times[Int(Double(times.count-1)*0.95)],"extraIdleFrames": times.count-count,"gpuFailures": PreviewMetrics.shared.failures,"thermalStart": start,"thermalEnd": ProcessInfo.processInfo.thermalState.rawValue]
         if let data = try? JSONSerialization.data(withJSONObject: report,options: .prettyPrinted) {
             try? data.write(to: documents.appendingPathComponent("preview-verification.json"),options: .atomic)
             writeProgress(["stage":"finished","rendered":count])

@@ -1,0 +1,62 @@
+{
+  "maskTracking" : {
+    "encodedTracking" : true,
+    "portraitLandscape" : true,
+    "encodedCorrections" : true,
+    "movingTargetErrors" : [
+      0.0052354549845284037,
+      0.0034108799841893467
+    ],
+    "pointCounts" : [
+      30,
+      30
+    ],
+    "cancellation" : true,
+    "exportFramesPerClip" : 60,
+    "passed" : true
+  },
+  "dehazeVideoExport" : true,
+  "trimHDR" : {
+    "presetIsolation" : true,
+    "trimFrames" : 33,
+    "trimSeconds" : 1.1000000000000001,
+    "passed" : true,
+    "HDRToSDRPreviewClamp" : true,
+    "audioTracks" : 2,
+    "headroomVectors" : 5,
+    "zeroBasedTiming" : true,
+    "persistence" : true
+  },
+  "encodedAutomaticCropRepair" : true,
+  "encodedColorLuminanceMasks" : true,
+  "clips" : [
+    {
+      "originalPreserved" : true,
+      "cancellation" : true,
+      "frames" : 18,
+      "width" : 640,
+      "projectRoundTrip" : true,
+      "color" : true,
+      "profile" : "standard",
+      "height" : 360,
+      "metadata" : true,
+      "audioTracks" : 2
+    }
+  ],
+  "levelsVideoExport" : true,
+  "encodedAutomaticMask" : true,
+  "version" : "0.53.0",
+  "passed" : true,
+  "photoInput" : {
+    "standardBypass" : true,
+    "highlightShoulder" : true,
+    "presetInputIsolation" : true,
+    "persistence" : true,
+    "curveVectors" : 64,
+    "bothGamuts" : true,
+    "exposureAlpha" : true,
+    "passed" : true
+  },
+  "encodedCombinedBrushRangeMask" : true,
+  "boundedTrackingDecode" : true
+}

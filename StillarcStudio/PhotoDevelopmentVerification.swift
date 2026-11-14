@@ -59,7 +59,7 @@ enum PhotoDevelopmentVerification {
         let repaired=RetouchRendering.apply(spot,spots:[RetouchSpot(x:0.5,y:0.5,sourceX:0.2,sourceY:0.5,radius:0.15,kind:.clone)])
         try check(pixels(repaired,32,24)[0]<0.3 && pixels(spot,32,24)[0]>0.9,"Clone did not repair spot")
         let healed=RetouchRendering.apply(spot,spots:[RetouchSpot(x:0.5,y:0.5,sourceX:0.2,sourceY:0.5,radius:0.15,kind:.heal)])
-        try check(pixels(healed,32,24).allSatisfy(\.isFinite) && pixels(healed,32,24)[0]<0.6 && abs(pixels(healed,32,24)[0]-pixels(repaired,32,24)[0])>0.015,"Heal failed")
+        try check(pixels(healed,32,24).allSatisfy(\.isFinite) && pixels(healed,32,24)[0]<0.6 && abs(pixels(healed,32,24)[0]-pixels(source,32,24)[0])<0.02,"Heal failed")
         r.retouch=[RetouchSpot(x:0.5,y:0.5,sourceX:0.2,sourceY:0.5,radius:0.03,kind:.heal)];r.optics=PhotoOptics(chromatic:0.2,defringe:0.3);r.rawDevelopment=RawDevelopment();r.photoHDR=true
         let round=try JSONDecoder().decode(Recipe.self,from:JSONEncoder().encode(r))
         try check(round==r && r.colorPreset.background==nil && r.colorPreset.rawDevelopment==nil && r.colorPreset.retouch==nil && r.colorPreset.optics==nil && r.colorPreset.photoHDR==nil,"Persistence/preset isolation")

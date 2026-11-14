@@ -82,7 +82,7 @@ enum MaskFramingRepair {
                 if input == nil { input = try await AutomaticSelectionEngine.input(url:url,video:video,recipe:recipe,prepared:prepared) }
                 let kind = result.masks[i].kind
                 let mode=old.selectionMode ?? .foreground,key=kind.rawValue+":"+mode.rawValue
-                if mode == .picked {throw AutomaticSelectionEngine.error("Recreate this tapped-subject selection after changing its rotation or perspective. It will not be replaced with a selection of every subject.")}
+                if mode == .picked || mode == .multiple {throw AutomaticSelectionEngine.error("Recreate this tapped-subject selection after changing its rotation or perspective. It will not be replaced with a selection of every subject.")}
                 if created[key] == nil {created[key]=try await AutomaticSelectionEngine.analyze(input!,kind:kind,recipe:recipe,videoStart:video == nil ? nil:recipe.video.start,subjectMode:mode)}
                 result.masks[i].automatic = created[key];result.masks[i].motion = nil
             }

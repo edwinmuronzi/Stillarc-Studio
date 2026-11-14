@@ -21,6 +21,12 @@ struct BatchPasteSheet:View {
     let projects:[Project]
     let clipboard:AdjustmentClipboard
     var pool:EditingPool? = nil
+    @State private var workflows=SyncWorkflows.load()
+    @State private var workflowName=""
+    @FocusState private var workflowNameFocused:Bool
+    @State private var removedWorkflow:SyncWorkflow?
+    @State private var choosingWorkflow=false
+    @State private var deletingWorkflow=false
     @State private var entirePool=false
     private var targets:[Project] {if let pool {return pool.projects(library,selected: !entirePool)};return projects}
     @Environment(\.dismiss) private var dismiss
@@ -42,12 +48,30 @@ struct BatchPasteSheet:View {
                 Section {
                     Text("Apply copied adjustments from \(clipboard.sourceName) to \(targets.count) selected projects. Each keeps its crop, input conversion, masks, trim and audio. A ‘Before batch paste’ version preserves each changed project's previous edit under Looks → Versions.").font(.subheadline)
                 }
+                Section("Reusable sync workflow") {
+                    DisclosureGroup("Saved section workflows") {
+                    Button("Choose workflow") {choosingWorkflow=true}.disabled(workflows.isEmpty)
+                        .confirmationDialog("Choose workflow",isPresented:$choosingWorkflow,titleVisibility:.visible){ForEach(workflows){w in Button(w.name){sections=Set(w.sections).intersection(clipboard.sections)}}}
+                    TextField("Workflow name",text:$workflowName).focused($workflowNameFocused).submitLabel(.done).onSubmit {workflowNameFocused=false}.accessibilityIdentifier("syncWorkflowName")
+                    Button("Save section choices") {
+                        workflowNameFocused=false
+                        let name=String(workflowName.trimmingCharacters(in:.whitespacesAndNewlines).prefix(80))
+                        var next=workflows;let chosen=AdjustmentSection.allCases.filter {sections.contains($0)}
+                        if let i=next.firstIndex(where:{$0.name.caseInsensitiveCompare(name) == .orderedSame}) {next[i].sections=chosen} else {next.append(SyncWorkflow(name:name,sections:chosen))}
+                        do {try SyncWorkflows.save(next);workflows=next;workflowName="";status="Workflow saved. It will use the current copied grade each time."} catch {status=error.localizedDescription}
+                    }.disabled(sections.isEmpty || workflowName.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty)
+                    Button("Delete workflow") {deletingWorkflow=true}.disabled(workflows.isEmpty)
+                        .confirmationDialog("Delete workflow",isPresented:$deletingWorkflow,titleVisibility:.visible){ForEach(workflows){w in Button(w.name,role:.destructive){var next=workflows;next.removeAll {$0.id==w.id};if (try? SyncWorkflows.save(next)) != nil {workflows=next;removedWorkflow=w}}}}
+                    if let removedWorkflow {Button("Restore last deleted workflow"){var next=workflows;next.append(removedWorkflow);if (try? SyncWorkflows.save(next)) != nil {workflows=next;self.removedWorkflow=nil}}}
+                    Text("Stores section choices only, not photos or a frozen grade. The current copied edit supplies the values. Save a Look separately to reuse the grade itself.").font(.caption).foregroundStyle(StudioStyle.secondary)
+                    }
+                }.disabled(busy || finished)
                 Section("Adjustments to apply") {
                     ForEach(clipboard.sections) { section in
                         Toggle(isOn:Binding(get:{ sections.contains(section) },set:{ if $0 { sections.insert(section) } else { sections.remove(section) } })) { VStack(alignment:.leading) { Text(section.title);Text(section.help).font(.caption).foregroundStyle(StudioStyle.secondary) } }
                     }
                 }.disabled(busy || finished)
-            }.navigationTitle(pool == nil ? "Paste adjustments" : "Sync pool edits").navigationBarTitleDisplayMode(.inline)
+            }.scrollDismissesKeyboard(.interactively).navigationTitle(pool == nil ? "Paste adjustments" : "Sync pool edits").navigationBarTitleDisplayMode(.inline)
                 .toolbar { Button("Done") { dismiss() }.disabled(busy) }
                 .safeAreaInset(edge:.bottom) {
                     VStack(spacing:10) {

@@ -1,0 +1,22 @@
+{
+  "thermal" : 0,
+  "integration" : {
+    "sourceSuggestion" : true,
+    "backup" : true,
+    "passed" : true,
+    "comparisonCache" : true,
+    "sourcePreserved" : true,
+    "healedCenter" : [
+      0.40017211437225342,
+      0.40017211437225342,
+      0.40017211437225342,
+      1
+    ],
+    "workflowPersistence" : true,
+    "transparencyPreserved" : true,
+    "cleanupPNG" : true,
+    "invalidWorkflowRejected" : true
+  },
+  "passed" : true,
+  "version" : "0.53.0"
+}

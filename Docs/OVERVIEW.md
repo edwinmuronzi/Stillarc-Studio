@@ -1,4 +1,12 @@
-# Stillarc Studio · 0.52
+# Stillarc Studio · 0.53
+
+## Photo cleanup. Better selections. Faster batches. · 0.53
+
+Brush Heal to blend distractions with nearby texture, or Clone to copy a chosen patch. Zoom in, move the view and undo a whole stroke. Suggested sources are chosen once when you start a stroke; this is patch repair, not generative object removal. Up to 32 dabs are supported per photo.
+
+Tap multiple distinct subjects to keep them in one mask. Face selections follow detected contours; facial-skin selections adapt to sampled cheeks and forehead instead of one fixed skin colour. Review fine hair, overlapping subjects and unusual lighting.
+
+Save reusable **section workflows** when syncing edits: these remember which adjustment sections to copy, while the current edit supplies the values. Compare pool shots side by side with a shared zoom, or quickly select items with the same media type or input profile. Video comparisons show the first kept frame; HDR comparisons are SDR proofs. [How to use the new tools](CLEANUP-BATCH-053.md).
 
 ## Stable edges. Precise repairs. Consistent shots. · 0.52
 
